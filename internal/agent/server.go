@@ -58,7 +58,9 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/fs/file", s.handleFSReadFile)
 	mux.HandleFunc("POST /api/fs/file", s.handleFSWriteFile)
 	mux.HandleFunc("DELETE /api/fs/file", s.handleFSDelete)
+	mux.HandleFunc("DELETE /api/fs/delete", s.handleFSDelete)
 	mux.HandleFunc("POST /api/fs/create", s.handleFSCreate)
+	mux.HandleFunc("POST /api/fs/rename", s.handleFSRename)
 
 	// 4. Command Execution
 	mux.HandleFunc("POST /api/exec", s.handleExec)
@@ -184,11 +186,12 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 // ============================================================================
 
 type FSNode struct {
-	Name    string    `json:"name"`
-	Path    string    `json:"path"`
-	IsDir   bool      `json:"isDir"`
-	Size    int64     `json:"size"`
-	ModTime time.Time `json:"modTime"`
+	Name      string    `json:"name"`
+	Path      string    `json:"path"`
+	IsDir     bool      `json:"isDir"`
+	Size      int64     `json:"size"`
+	ModTime   time.Time `json:"modTime"`
+	Extension string    `json:"extension,omitempty"`
 }
 
 func (s *Server) handleFSTree(w http.ResponseWriter, r *http.Request) {
@@ -224,18 +227,24 @@ func (s *Server) handleFSTree(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		fullPath := filepath.Join(dirPath, entry.Name())
+		ext := ""
+		if !entry.IsDir() {
+			ext = filepath.Ext(entry.Name())
+		}
 		nodes = append(nodes, FSNode{
-			Name:    entry.Name(),
-			Path:    filepath.ToSlash(fullPath),
-			IsDir:   entry.IsDir(),
-			Size:    info.Size(),
-			ModTime: info.ModTime(),
+			Name:      entry.Name(),
+			Path:      filepath.ToSlash(fullPath),
+			IsDir:     entry.IsDir(),
+			Size:      info.Size(),
+			ModTime:   info.ModTime(),
+			Extension: ext,
 		})
 	}
 
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"path":  filepath.ToSlash(dirPath),
 		"nodes": nodes,
+		"items": nodes,
 	})
 }
 
@@ -263,6 +272,7 @@ func (s *Server) handleFSReadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, http.StatusOK, map[string]any{
+		"name":    filepath.Base(filePath),
 		"path":    filepath.ToSlash(filePath),
 		"content": string(data),
 		"size":    len(data),
@@ -332,7 +342,15 @@ func (s *Server) handleFSDelete(w http.ResponseWriter, r *http.Request) {
 
 	targetPath := r.URL.Query().Get("path")
 	if targetPath == "" {
-		jsonError(w, http.StatusBadRequest, "path query parameter is required")
+		var req struct {
+			Path string `json:"path"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		targetPath = req.Path
+	}
+
+	if targetPath == "" {
+		jsonError(w, http.StatusBadRequest, "path parameter is required")
 		return
 	}
 
@@ -347,8 +365,50 @@ func (s *Server) handleFSDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, http.StatusOK, map[string]any{
-		"status":  "deleted",
-		"path":    filepath.ToSlash(targetPath),
+		"status": "deleted",
+		"path":   filepath.ToSlash(targetPath),
+	})
+}
+
+func (s *Server) handleFSRename(w http.ResponseWriter, r *http.Request) {
+	ctx := s.authenticate(w, r)
+	if ctx == nil {
+		return
+	}
+
+	if ctx.Level < AccessReadWrite {
+		jsonError(w, http.StatusForbidden, "Rename requires Master RW elevation (TOTP)")
+		return
+	}
+
+	var req struct {
+		OldPath string `json:"oldPath"`
+		NewPath string `json:"newPath"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.OldPath == "" || req.NewPath == "" {
+		jsonError(w, http.StatusBadRequest, "oldPath and newPath are required")
+		return
+	}
+
+	if !s.auth.CanAccessPath(ctx, req.OldPath, true) || !s.auth.CanAccessPath(ctx, req.NewPath, true) {
+		jsonError(w, http.StatusForbidden, "Path rename denied by sandbox")
+		return
+	}
+
+	if err := os.Rename(req.OldPath, req.NewPath); err != nil {
+		jsonError(w, http.StatusInternalServerError, "Failed to rename: "+err.Error())
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, map[string]any{
+		"status":  "renamed",
+		"oldPath": filepath.ToSlash(req.OldPath),
+		"newPath": filepath.ToSlash(req.NewPath),
 	})
 }
 

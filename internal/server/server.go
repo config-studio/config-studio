@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
@@ -983,16 +984,66 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	targetBase = strings.TrimRight(targetBase, "/")
 	path := r.PathValue("path")
-	targetURL := fmt.Sprintf("%s/%s", targetBase, strings.TrimLeft(path, "/"))
-	if r.URL.RawQuery != "" {
-		q := r.URL.Query()
-		q.Del("target")
-		if len(q) > 0 {
-			targetURL += "?" + q.Encode()
+	cleanPath := strings.TrimLeft(path, "/")
+
+	// If this is an /api/fs/ request with a root parameter, resolve root path from workspaces.yaml
+	q := r.URL.Query()
+	q.Del("target")
+
+	if strings.HasPrefix(cleanPath, "api/fs/") && s.fs != nil && s.fs.Workspaces != nil {
+		rootID := q.Get("root")
+		if rootID != "" {
+			if ws, ok := s.fs.Workspaces.Get(rootID); ok && ws.Path != "" {
+				wsPath := filepath.ToSlash(ws.Path)
+				reqPath := q.Get("path")
+				if reqPath == "" || reqPath == "." {
+					q.Set("path", wsPath)
+				} else if !strings.HasPrefix(reqPath, "/") {
+					q.Set("path", strings.TrimRight(wsPath, "/")+"/"+strings.TrimLeft(reqPath, "/"))
+				}
+			}
 		}
 	}
 
-	proxyReq, err := http.NewRequestWithContext(r.Context(), r.Method, targetURL, r.Body)
+	targetURL := fmt.Sprintf("%s/%s", targetBase, cleanPath)
+	if len(q) > 0 {
+		targetURL += "?" + q.Encode()
+	}
+
+	var reqBody io.Reader = r.Body
+	if strings.HasPrefix(cleanPath, "api/fs/") && r.Body != nil && (r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete) {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err == nil && len(bodyBytes) > 0 && s.fs != nil && s.fs.Workspaces != nil {
+			var bodyMap map[string]any
+			if err := json.Unmarshal(bodyBytes, &bodyMap); err == nil {
+				rootID, _ := bodyMap["root"].(string)
+				if rootID != "" {
+					if ws, ok := s.fs.Workspaces.Get(rootID); ok && ws.Path != "" {
+						wsPath := filepath.ToSlash(ws.Path)
+						if p, ok := bodyMap["path"].(string); ok {
+							if p == "" || p == "." {
+								bodyMap["path"] = wsPath
+							} else if !strings.HasPrefix(p, "/") {
+								bodyMap["path"] = strings.TrimRight(wsPath, "/") + "/" + strings.TrimLeft(p, "/")
+							}
+						}
+						if op, ok := bodyMap["oldPath"].(string); ok && !strings.HasPrefix(op, "/") {
+							bodyMap["oldPath"] = strings.TrimRight(wsPath, "/") + "/" + strings.TrimLeft(op, "/")
+						}
+						if np, ok := bodyMap["newPath"].(string); ok && !strings.HasPrefix(np, "/") {
+							bodyMap["newPath"] = strings.TrimRight(wsPath, "/") + "/" + strings.TrimLeft(np, "/")
+						}
+						if newJSON, err := json.Marshal(bodyMap); err == nil {
+							bodyBytes = newJSON
+						}
+					}
+				}
+			}
+			reqBody = bytes.NewReader(bodyBytes)
+		}
+	}
+
+	proxyReq, err := http.NewRequestWithContext(r.Context(), r.Method, targetURL, reqBody)
 	if err != nil {
 		jsonError(w, http.StatusBadRequest, "failed to create proxy request: "+err.Error())
 		return

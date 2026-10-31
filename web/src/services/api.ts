@@ -168,6 +168,16 @@ export const api = {
       ...root,
       server: remoteEndpoint || 'local',
     };
+
+    // If connected to remote agent, ensure directory exists on agent
+    if (remoteEndpoint && root.path) {
+      try {
+        await this.createItem(root.path, true, root.id);
+      } catch (e) {
+        // Ignore if already exists or read-only
+      }
+    }
+
     const res = await webFetch(`/api/workspaces${srv}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -222,10 +232,22 @@ export const api = {
       throw new Error(err.error || 'Failed to list directory');
     }
     const data = await res.json();
+    const rawItems = data.items || data.nodes || [];
+    const items: FileItem[] = rawItems.map((it: any) => ({
+      name: it.name,
+      path: it.path,
+      root: it.root || root,
+      fullRelPath: it.fullRelPath || it.path,
+      isDir: Boolean(it.isDir),
+      size: Number(it.size || 0),
+      modTime: it.modTime || '',
+      createdAt: it.createdAt,
+      extension: it.extension || (it.isDir ? '' : it.name.includes('.') ? '.' + it.name.split('.').pop() : ''),
+    }));
     return {
       root: data.root || root,
       path: data.path || '',
-      items: data.items || [],
+      items,
     };
   },
 
@@ -237,7 +259,15 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to read file');
     }
-    return res.json();
+    const data = await res.json();
+    return {
+      root: data.root || root,
+      path: data.path || path,
+      fullRelPath: data.fullRelPath || path,
+      name: data.name || (data.path ? data.path.split('/').pop() || '' : path.split('/').pop() || ''),
+      content: data.content !== undefined ? data.content : '',
+      readOnly: data.readOnly || false,
+    };
   },
 
   async getFileInfo(path: string, root: string = ''): Promise<FileInfo> {
