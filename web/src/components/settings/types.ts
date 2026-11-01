@@ -1,9 +1,10 @@
-import { Settings } from '../../types';
+import { Settings, SSHHost } from '../../types';
 
 export type SettingsTab =
   | 'general'
   | 'security'
   | 'secrets'
+  | 'ssh'
   | 'plugins'
   | 'plugin-settings'
   | 'profile'
@@ -18,6 +19,7 @@ export interface SettingsModalProps {
   onReloadPlugins?: () => Promise<void>;
   onUploadIcon: (file: File) => Promise<void>;
   initialTab?: SettingsTab;
+  onOpenTerminal?: (host: SSHHost) => void;
 }
 
 export const PRESET_BASE_COLORS = [

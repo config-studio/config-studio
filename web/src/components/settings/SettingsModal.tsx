@@ -3,6 +3,7 @@ import {
   Palette,
   Shield,
   Key,
+  Server,
   Package,
   Sliders,
   Share2,
@@ -16,6 +17,7 @@ import { Modal, Tabs, Button, Badge } from '../ui';
 import { GeneralTab } from './tabs/GeneralTab';
 import { SecurityTab } from './tabs/SecurityTab';
 import { SecretsTab } from './tabs/SecretsTab';
+import { SSHHostsTab } from './SSHHostsTab';
 import { PluginsTab } from './tabs/PluginsTab';
 import { PluginSettingsTab } from './tabs/PluginSettingsTab';
 import { ProfileTab } from './tabs/ProfileTab';
@@ -30,6 +32,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onReloadPlugins,
   onUploadIcon,
   initialTab = 'general',
+  onOpenTerminal,
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [selectedPluginIdForSettings, setSelectedPluginIdForSettings] = useState<string | null>(null);
@@ -144,6 +147,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     { id: 'general', label: t.tabGeneral, icon: <Palette size={14} /> },
     { id: 'security', label: t.tabSecurity, icon: <Shield size={14} /> },
     { id: 'secrets', label: t.tabSecrets, icon: <Key size={14} /> },
+    { id: 'ssh', label: 'SSH & Хосты', icon: <Server size={14} /> },
     { id: 'plugins', label: t.tabPlugins, icon: <Package size={14} /> },
     { id: 'plugin-settings', label: t.tabPluginSettings, icon: <Sliders size={14} /> },
     { id: 'profile', label: t.tabProfile, icon: <Share2 size={14} /> },
@@ -162,7 +166,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         title={t.settings}
         badge={
           <Badge variant="accent" size="sm">
-            v2.0.0-beta
+            v2.0.0
           </Badge>
         }
       />
@@ -226,6 +230,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               language={language}
               t={t}
             />
+          )}
+
+          {activeTab === 'ssh' && (
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+              <SSHHostsTab
+                accentColor={accentColor}
+                onOpenTerminal={(host) => {
+                  onClose();
+                  onOpenTerminal?.(host);
+                }}
+              />
+            </div>
           )}
 
           {activeTab === 'plugins' && (

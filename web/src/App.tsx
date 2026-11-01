@@ -860,6 +860,11 @@ export const App: React.FC = () => {
         }}
         onUploadIcon={handleUploadIcon}
         initialTab={settingsTab}
+        onOpenTerminal={(host) => {
+          setIsSettingsOpen(false);
+          setIsBottomDockOpen(true);
+          setActiveBottomDockId('terminal');
+        }}
       />
 
       {/* File Properties & History Modal */}

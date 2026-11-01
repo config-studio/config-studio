@@ -39,7 +39,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Println("Config Studio v2.0.0-beta")
+		fmt.Println("Config Studio v2.0.0")
 		return
 	}
 

@@ -32,6 +32,8 @@ import {
 import { translations } from '../utils/i18n';
 import { ContextMenu } from './ContextMenu';
 import { contextMenuRegistry } from '../services/contextMenuRegistry';
+import { SftpSendModal } from './sftp/SftpSendModal';
+import { showGlobalToast } from './ui';
 
 interface FileExplorerProps {
   items?: FileItem[];
@@ -89,6 +91,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   const [uploadTargetRoot, setUploadTargetRoot] = useState<string>('');
   const [uploadTargetDir, setUploadTargetDir] = useState<string>('');
   const [dragOverRootId, setDragOverRootId] = useState<string | null>(null);
+  const [sftpSendTarget, setSftpSendTarget] = useState<{ path: string; root?: string; name: string } | null>(null);
 
   const t = translations[settings.language] || translations.ru;
 
@@ -265,6 +268,24 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           }
         },
       });
+
+      // SFTP Direct Send for files
+      if (!target.isDir) {
+        coreItems.push({
+          id: 'core.sftp.send',
+          label: '📁 Отправить по SFTP...',
+          icon: 'Send',
+          group: 'tools',
+          order: 25,
+          onClick: () => {
+            setSftpSendTarget({
+              path: target.path,
+              root: itemRoot,
+              name: target.name,
+            });
+          },
+        });
+      }
 
       // 3. Group 'edit' (New item inside this folder if target is directory)
       if (target.isDir) {
@@ -815,6 +836,19 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           items={getContextMenuItems(contextMenuState.target)}
           target={contextMenuState.target}
           onClose={() => setContextMenuState(null)}
+        />
+      )}
+
+      {/* SFTP Direct Send Modal */}
+      {sftpSendTarget && (
+        <SftpSendModal
+          isOpen={Boolean(sftpSendTarget)}
+          filePath={sftpSendTarget.path}
+          rootId={sftpSendTarget.root}
+          fileName={sftpSendTarget.name}
+          onClose={() => setSftpSendTarget(null)}
+          onSuccess={(msg) => showGlobalToast(msg, 'success')}
+          accentColor={settings.accentColor}
         />
       )}
     </aside>

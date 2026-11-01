@@ -251,6 +251,8 @@ const builtInTranslations = {
     applyProfile: 'Применить профиль',
 
     // Bottom Dock Strip
+    dockTerminal: 'Терминал',
+    dockTerminalTitle: '💻 SSH / Shell Терминал',
     dockProblems: 'Проблемы',
     dockOutput: 'Вывод',
     dockOutputTitle: '📋 Журнал вывода и аудита',
@@ -566,6 +568,8 @@ const builtInTranslations = {
     applyProfile: 'Apply Profile',
 
     // Bottom Dock Strip
+    dockTerminal: 'Terminal',
+    dockTerminalTitle: '💻 SSH / Shell Terminal',
     dockProblems: 'Problems',
     dockOutput: 'Output',
     dockOutputTitle: '📋 Core Output & Audit Stream',

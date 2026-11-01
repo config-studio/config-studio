@@ -377,3 +377,61 @@ export interface PluginCommandResult {
   warning?: string;
   error?: string;
 }
+
+export interface SSHHost {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  user: string;
+  authType: 'password' | 'private_key' | 'vault';
+  identityId?: string;
+  password?: string;
+  privateKey?: string;
+  passphrase?: string;
+  jumpHostId?: string;
+  defaultPath?: string;
+  tags?: string[];
+  createdAt?: string;
+}
+
+export interface SSHTestResult {
+  success: boolean;
+  serverVersion?: string;
+  latencyMs: number;
+  error?: string;
+}
+
+export interface SSHKeyPair {
+  type: string;
+  publicKey: string;
+  privateKey: string;
+  fingerprint: string;
+  comment: string;
+}
+
+export interface SFTPFileInfo {
+  name: string;
+  path: string;
+  size: number;
+  mode: string;
+  isDir: boolean;
+  modTime: string;
+}
+
+export interface SFTPRequest {
+  host: string;
+  port: number;
+  user: string;
+  authType?: string;
+  password?: string;
+  privateKey?: string;
+  passphrase?: string;
+  identityId?: string;
+  jumpHost?: any;
+  path?: string;
+  content?: string;
+  encoding?: string;
+  isDir?: boolean;
+  newPath?: string;
+}

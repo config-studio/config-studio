@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense, lazy } from 'react';
 import {
   Terminal,
   FileText,
@@ -14,12 +14,16 @@ import {
   Code,
   Copy,
   Check,
+  Server,
 } from 'lucide-react';
 import { BottomPanelDef } from '../services/pluginLoader';
-import { OpenFile, GuardValidationResult, GuardIssue, AuditEvent } from '../types';
+import { OpenFile, GuardValidationResult, GuardIssue, AuditEvent, SSHHost } from '../types';
 import { api } from '../services/api';
 import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
+import { sshHostService } from '../services/sshHosts';
+
+const XTerminal = lazy(() => import('./terminal/XTerminal'));
 
 interface BottomDockStripProps {
   panels: BottomPanelDef[];
@@ -64,7 +68,25 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
   const [auditCategory, setAuditCategory] = useState<string>('');
   const [copiedAi, setCopiedAi] = useState(false);
 
+  // SSH Hosts state for Terminal Tab
+  const [sshHosts, setSshHosts] = useState<SSHHost[]>(() => sshHostService.list());
+  const [selectedHostId, setSelectedHostId] = useState<string>(() => {
+    const last = sshHostService.getLastActiveHostId();
+    const list = sshHostService.list();
+    if (last && list.some((h) => h.id === last)) return last;
+    return list[0]?.id || '';
+  });
+
   const mountContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    return sshHostService.subscribe((updated) => {
+      setSshHosts(updated);
+      if (updated.length > 0 && !updated.some((h) => h.id === selectedHostId)) {
+        setSelectedHostId(updated[0].id);
+      }
+    });
+  }, [selectedHostId]);
 
   // Load audit events for Output tab
   const loadRecentAudit = async (category = auditCategory) => {
@@ -103,17 +125,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
     });
   }, [panels, activePanelId]);
 
-  // Zero-Clutter check (placed strictly after all React hooks):
-  // If dockMode is 'hidden', render nothing.
-  // If dockMode is 'auto', and there are NO plugin panels and dock is closed and no errors, render nothing!
-  const hasErrors = guardResult && !guardResult.valid && guardResult.issues.length > 0;
-  const hasPluginPanels = panels.length > 0;
-
   if (dockMode === 'hidden') {
-    return null;
-  }
-
-  if (dockMode === 'auto' && !hasPluginPanels && !isOpen && !hasErrors) {
     return null;
   }
 
@@ -144,7 +156,6 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
   const handleTabClick = (tabId: string) => {
     if (activePanelId === tabId) {
-      // If clicking already active tab, toggle open/close
       onToggleOpen(!isOpen);
     } else {
       onSelectPanel(tabId);
@@ -154,6 +165,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
   const criticalIssuesCount = guardResult?.issues.filter((i) => i.severity === 'critical').length || 0;
   const warningIssuesCount = guardResult?.issues.filter((i) => i.severity === 'warning').length || 0;
+  const currentHost = sshHosts.find((h) => h.id === selectedHostId) || sshHosts[0];
 
   return (
     <div
@@ -178,12 +190,35 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
           {/* Panel Header & Controls */}
           <div className="h-8 px-3 border-b border-base-border bg-[#161b22] flex items-center justify-between text-xs text-[#8b949e]">
-            <div className="flex items-center space-x-2">
-              <span className="font-semibold text-gray-200">
+            <div className="flex items-center space-x-2 min-w-0">
+              <span className="font-semibold text-gray-200 truncate">
+                {activePanelId === 'terminal' && (t.dockTerminalTitle || '💻 SSH / Shell Терминал')}
                 {activePanelId === 'output' && t.dockOutputTitle}
                 {activePanelId === 'problems' && t.dockProblemsTitle}
                 {panels.find((p) => p.id === activePanelId)?.title}
               </span>
+
+              {/* Host Selector for Terminal */}
+              {activePanelId === 'terminal' && sshHosts.length > 0 && (
+                <div className="flex items-center space-x-1.5 ml-2">
+                  <span className="text-gray-400 text-[11px] hidden sm:inline">Хост:</span>
+                  <select
+                    value={selectedHostId}
+                    onChange={(e) => {
+                      setSelectedHostId(e.target.value);
+                      sshHostService.setLastActiveHostId(e.target.value);
+                    }}
+                    className="px-2 py-0.5 bg-[#0d1117] border border-gray-700 rounded text-[11px] text-white focus:outline-none focus:border-accent"
+                  >
+                    {sshHosts.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.name || h.host} ({h.user}@{h.host}:{h.port || 22})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {activePanelId === 'problems' && (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-red-950/40 text-red-400 border border-red-800/40">
                   {criticalIssuesCount} {t.dockErrors}, {warningIssuesCount} {t.dockWarnings}
@@ -191,7 +226,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
               )}
             </div>
 
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-1 shrink-0">
               {activePanelId === 'output' && (
                 <>
                   <button
@@ -245,10 +280,36 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
           </div>
 
           {/* Panel Body Content */}
-          <div className="flex-1 overflow-auto relative p-2 font-mono text-xs custom-scrollbar">
-            {/* 1. Built-in: Problems Tab */}
+          <div className="flex-1 overflow-auto relative p-0 font-mono text-xs custom-scrollbar">
+            {/* 1. Built-in: Terminal Tab */}
+            {activePanelId === 'terminal' && (
+              <div className="h-full w-full bg-[#0d1117] flex flex-col overflow-hidden">
+                {currentHost ? (
+                  <Suspense
+                    fallback={
+                      <div className="p-4 text-xs text-gray-400 flex items-center justify-center h-full">
+                        <RefreshCw size={14} className="animate-spin mr-2" />
+                        <span>Загрузка встроенного терминала...</span>
+                      </div>
+                    }
+                  >
+                    <XTerminal host={currentHost} accentColor={accentColor} />
+                  </Suspense>
+                ) : (
+                  <div className="p-8 text-center text-xs text-gray-400 flex flex-col items-center justify-center h-full space-y-3">
+                    <Server size={32} className="text-gray-600 mb-1" />
+                    <div className="font-semibold text-gray-300">Нет сохраненных SSH-хостов</div>
+                    <div className="text-[11px] text-gray-500 max-w-sm">
+                      Добавьте SSH-сервер в настройках Config Studio (раздел «SSH & Хосты»), чтобы подключиться к нему в 1 клик.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2. Built-in: Problems Tab */}
             {activePanelId === 'problems' && (
-              <div className="space-y-1">
+              <div className="space-y-1 p-2">
                 {guardResult && guardResult.issues.length > 0 ? (
                   guardResult.issues.map((iss, idx) => (
                     <div
@@ -292,9 +353,9 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
               </div>
             )}
 
-            {/* 2. Built-in: Output / Audit Tab */}
+            {/* 3. Built-in: Output / Audit Tab */}
             {activePanelId === 'output' && (
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 p-2">
                 {/* Category Filter Pills */}
                 <div className="flex items-center gap-1 pb-1.5 border-b border-[#21262d]/70 overflow-x-auto text-[11px]">
                   <button
@@ -430,7 +491,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
               </div>
             )}
 
-            {/* 3. Plugin Mount Targets (e.g. Terminal, Docker) */}
+            {/* 4. Plugin Mount Targets */}
             {panels.map((p) => (
               <div
                 key={p.id}
@@ -446,7 +507,22 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
       <div className="min-h-[32px] sm:min-h-[28px] h-8 sm:h-7 px-2 bg-[#161b22] border-t border-[#30363d] flex items-center justify-between text-xs select-none shrink-0 pb-[env(safe-area-inset-bottom)]">
         {/* Left: Tab Buttons */}
         <div className="flex items-center space-x-1 overflow-x-auto custom-scrollbar flex-1 min-w-0 pr-1">
-          {/* Plugin Tabs (Terminal, Docker Logs, etc.) */}
+          {/* Built-in: Terminal */}
+          <button
+            type="button"
+            onClick={() => handleTabClick('terminal')}
+            className={`flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+              isOpen && activePanelId === 'terminal'
+                ? 'bg-accent text-gray-900 shadow-sm'
+                : 'text-[#8b949e] hover:text-[#c9d1d9] hover:bg-white/5'
+            }`}
+            style={isOpen && activePanelId === 'terminal' ? { backgroundColor: accentColor } : {}}
+          >
+            <Terminal size={12} />
+            <span>{t.dockTerminal || 'Терминал'}</span>
+          </button>
+
+          {/* Plugin Tabs (Docker Logs, etc.) */}
           {panels.map((p) => {
             const isActive = isOpen && activePanelId === p.id;
             return (
@@ -535,3 +611,5 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
     </div>
   );
 };
+
+export default BottomDockStrip;

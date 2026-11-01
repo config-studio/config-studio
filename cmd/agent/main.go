@@ -12,7 +12,7 @@ import (
 	"config-studio/internal/agent"
 )
 
-const version = "2.0.0-beta"
+const version = "2.0.0"
 
 func printUsage() {
 	fmt.Printf(`Config Studio Remote Agent v%s
