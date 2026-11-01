@@ -1009,14 +1009,6 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 	var rootID string
 	if strings.HasPrefix(cleanPath, "api/fs/") && s.fs != nil && s.fs.Workspaces != nil {
 		rootID = q.Get("root")
-		if rootID == "" && targetBase != "" {
-			for _, ws := range s.fs.Workspaces.List() {
-				if ws.Server != "" && strings.TrimRight(ws.Server, "/") == strings.TrimRight(targetBase, "/") {
-					rootID = ws.ID
-					break
-				}
-			}
-		}
 		if rootID != "" {
 			if ws, ok := s.fs.Workspaces.Get(rootID); ok && ws.Path != "" {
 				wsPath = filepath.ToSlash(strings.TrimRight(ws.Path, "/"))
@@ -1027,13 +1019,7 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 				if reqPath == "" || reqPath == "." {
 					q.Set("path", wsPath)
 				} else if strings.HasPrefix(reqPath, "/") {
-					// Enforce that reqPath must be within wsPath
-					if reqPath == wsPath || strings.HasPrefix(reqPath, wsPath+"/") {
-						q.Set("path", reqPath)
-					} else {
-						// Outside workspace root! Clamp back to wsPath to prevent escape
-						q.Set("path", wsPath)
-					}
+					q.Set("path", reqPath)
 				} else {
 					if wsPath == "/" {
 						q.Set("path", "/"+strings.TrimLeft(reqPath, "/"))
@@ -1060,14 +1046,6 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 				if rID == "" {
 					rID = rootID
 				}
-				if rID == "" && targetBase != "" {
-					for _, ws := range s.fs.Workspaces.List() {
-						if ws.Server != "" && strings.TrimRight(ws.Server, "/") == strings.TrimRight(targetBase, "/") {
-							rID = ws.ID
-							break
-						}
-					}
-				}
 				if rID != "" {
 					if ws, ok := s.fs.Workspaces.Get(rID); ok && ws.Path != "" {
 						wPath := filepath.ToSlash(strings.TrimRight(ws.Path, "/"))
@@ -1080,10 +1058,7 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 								return wPath
 							}
 							if strings.HasPrefix(p, "/") {
-								if p == wPath || strings.HasPrefix(p, wPath+"/") {
-									return p
-								}
-								return wPath // clamp
+								return p
 							}
 							if wPath == "/" {
 								return "/" + strings.TrimLeft(p, "/")
