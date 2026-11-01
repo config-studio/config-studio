@@ -73,6 +73,11 @@ func (s *Service) SafePathRoot(rootID, rel string) (string, WorkspaceRoot, error
 		return "", WorkspaceRoot{}, err
 	}
 
+	// Reject volume names (e.g. "C:"), colons, or absolute paths in relative path
+	if filepath.VolumeName(cleanRel) != "" || strings.Contains(cleanRel, ":") {
+		return "", root, errors.New("access denied: absolute paths or drive letters are not allowed")
+	}
+
 	clean := filepath.Clean(filepath.Join(root.Path, cleanRel))
 
 	// Ensure the cleaned path is still inside root.Path

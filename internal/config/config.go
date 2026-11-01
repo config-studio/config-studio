@@ -1,4 +1,4 @@
-﻿package config
+package config
 
 import (
 	"bytes"
@@ -255,11 +255,4 @@ func (m *Manager) SaveIcon(src io.Reader, filename string) error {
 	m.current.HasCustomIcon = true
 	m.current.IconMime = mime
 	return m.save()
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

@@ -367,3 +367,13 @@ export interface SecretsStatus {
   authEnabled: boolean;
   privilegedActive: boolean;
 }
+
+export interface PluginCommandResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  requiresConfirm?: boolean;
+  warning?: string;
+  error?: string;
+}

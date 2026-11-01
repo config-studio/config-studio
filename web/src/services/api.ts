@@ -18,6 +18,7 @@ import {
   SecretItem,
   SecretsStatus,
   WorkspaceRoot,
+  PluginCommandResult,
 } from '../types';
 import { telemetry } from './telemetry';
 
@@ -235,8 +236,18 @@ export const api = {
       throw new Error(err.error || 'Failed to list directory');
     }
     const data = await res.json();
-    const rawItems = data.items || data.nodes || [];
-    const items: FileItem[] = rawItems.map((it: any) => ({
+    const rawItems: Array<{
+      name: string;
+      path: string;
+      root?: string;
+      fullRelPath?: string;
+      isDir?: boolean;
+      size?: number;
+      modTime?: string;
+      createdAt?: string;
+      extension?: string;
+    }> = data.items || data.nodes || [];
+    const items: FileItem[] = rawItems.map((it) => ({
       name: it.name,
       path: it.path,
       root: it.root || root,
@@ -521,7 +532,7 @@ export const api = {
     args: string[] = [],
     cwd?: string,
     confirmed?: boolean
-  ): Promise<any> {
+  ): Promise<PluginCommandResult> {
     const res = await webFetch('/api/plugins/exec', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
