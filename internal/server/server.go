@@ -26,6 +26,7 @@ import (
 	"config-studio/internal/guard"
 	"config-studio/internal/plugin"
 	"config-studio/internal/secrets"
+	"config-studio/internal/ssh"
 )
 
 type Config struct {
@@ -42,6 +43,7 @@ type Server struct {
 	pluginRunner *plugin.Runner
 	audit        *audit.Logger
 	secrets      *secrets.Manager
+	ssh          *ssh.ClientManager
 	handler      http.Handler
 	sessionsMu   sync.RWMutex
 	sessions     map[string]time.Time
@@ -64,6 +66,7 @@ func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *p
 		pluginRunner: pRunner,
 		audit:        auditLogger,
 		secrets:      secMgr,
+		ssh:          ssh.NewClientManager(secMgr),
 		sessions:     make(map[string]time.Time),
 	}
 	s.setupRoutes()
@@ -155,6 +158,18 @@ func (s *Server) setupRoutes() {
 	mux.HandleFunc("POST /api/secrets/get", s.handleGetSecret)
 	mux.HandleFunc("POST /api/secrets/save", s.handleSaveSecret)
 	mux.HandleFunc("DELETE /api/secrets/{id}", s.handleDeleteSecret)
+
+	// SSH & SFTP APIs
+	mux.HandleFunc("GET /api/ssh/ws", s.handleSSHWebSocket)
+	mux.HandleFunc("POST /api/ssh/test", s.handleSSHTest)
+	mux.HandleFunc("POST /api/ssh/keys/generate", s.handleSSHGenerateKey)
+	mux.HandleFunc("POST /api/ssh/sftp/list", s.handleSFTPList)
+	mux.HandleFunc("POST /api/ssh/sftp/read", s.handleSFTPRead)
+	mux.HandleFunc("POST /api/ssh/sftp/write", s.handleSFTPWrite)
+	mux.HandleFunc("POST /api/ssh/sftp/stat", s.handleSFTPStat)
+	mux.HandleFunc("POST /api/ssh/sftp/mkdir", s.handleSFTPMkdir)
+	mux.HandleFunc("POST /api/ssh/sftp/delete", s.handleSFTPDelete)
+	mux.HandleFunc("POST /api/ssh/sftp/rename", s.handleSFTPRename)
 
 	// Remote Agent Proxy (bypasses browser mixed-content and CORS restrictions)
 	mux.HandleFunc("/api/remote-proxy/{path...}", s.handleRemoteProxy)
