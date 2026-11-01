@@ -144,6 +144,28 @@ var defaultFallbackCatalogJSON = []byte(`[
     "official": true,
     "icon": "🇷🇺",
     "tags": ["Localization", "Language", "Russian"]
+  },
+  {
+    "id": "ssh",
+    "name": "SSH & SFTP Manager",
+    "version": "1.0.1",
+    "description": "Интерактивный Web SSH терминал (PTY), SFTP проводник файлов, хранилище ключей (UniSSH Vault) и Bastion ProxyJump",
+    "author": "Config Studio Team",
+    "downloadUrl": "https://raw.githubusercontent.com/EdvardBaldanov/config-studio-plugins/main/packages/ssh.cspkg",
+    "sourceId": "official",
+    "official": true,
+    "icon": "💻",
+    "tags": ["SSH", "SFTP", "Terminal", "PTY", "Vault", "Bastion"],
+    "locales": {
+      "ru": {
+        "name": "SSH & SFTP Менеджер",
+        "description": "Интерактивный Web SSH терминал (PTY), SFTP проводник файлов, хранилище ключей (UniSSH Vault) и Bastion ProxyJump"
+      },
+      "en": {
+        "name": "SSH & SFTP Manager",
+        "description": "Interactive Web SSH terminal (PTY), SFTP file explorer, key vault (UniSSH pattern) and Bastion ProxyJump"
+      }
+    }
   }
 ]`)
 
