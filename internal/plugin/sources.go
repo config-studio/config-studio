@@ -148,10 +148,11 @@ var defaultFallbackCatalogJSON = []byte(`[
   {
     "id": "ssh",
     "name": "SSH & SFTP Manager",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Интерактивный Web SSH терминал (PTY), SFTP проводник файлов, хранилище ключей (UniSSH Vault) и Bastion ProxyJump",
     "author": "Config Studio Team",
     "downloadUrl": "https://raw.githubusercontent.com/EdvardBaldanov/config-studio-plugins/main/packages/ssh.cspkg",
+    "homepage": "https://github.com/EdvardBaldanov/config-studio-ssh",
     "sourceId": "official",
     "official": true,
     "icon": "💻",
