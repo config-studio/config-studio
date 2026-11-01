@@ -307,6 +307,14 @@ export const Editor: React.FC<EditorProps> = ({
                     • {locationHint}
                   </span>
                 )}
+                {tab.badge && (
+                  <span
+                    className="px-1 text-[9px] font-mono uppercase bg-accent/15 text-accent border border-accent/30 rounded shrink-0"
+                    title={tab.badge}
+                  >
+                    {tab.badge}
+                  </span>
+                )}
                 {tab.readOnly && (
                   <span
                     className="px-1 text-[9px] font-mono uppercase bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded shrink-0"

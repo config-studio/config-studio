@@ -84,6 +84,7 @@ class PluginLoader {
   private openFileHandler: (path: string) => Promise<void> = async () => {};
   private createFileHandler: (path: string, content?: string) => Promise<void> = async () => {};
   private refreshFilesHandler: () => Promise<void> = async () => {};
+  private openCustomTabHandler: (tab: any) => Promise<void> = async () => {};
 
   getOutlineProvider(languageOrExt: string) {
     if (!languageOrExt) return undefined;
@@ -245,6 +246,17 @@ class PluginLoader {
       },
       refreshFiles: async () => {
         await this.refreshFilesHandler();
+      },
+      openCustomTab: async (tab: {
+        path: string;
+        name: string;
+        content: string;
+        language?: string;
+        readOnly?: boolean;
+        badge?: string;
+        onSave?: (content: string) => Promise<void>;
+      }) => {
+        await this.openCustomTabHandler(tab);
       },
 
       showNotification: (msg: string, type?: 'info' | 'success' | 'error') => {
@@ -538,6 +550,7 @@ class PluginLoader {
     openFile?: (path: string) => Promise<void>;
     createFile?: (path: string, content?: string) => Promise<void>;
     refreshFiles?: () => Promise<void>;
+    openCustomTab?: (tab: any) => Promise<void>;
   }) {
     this.activeFileGetter = options.getActiveFile;
     this.activeContentSetter = options.setActiveContent;
@@ -546,6 +559,7 @@ class PluginLoader {
     if (options.openFile) this.openFileHandler = options.openFile;
     if (options.createFile) this.createFileHandler = options.createFile;
     if (options.refreshFiles) this.refreshFilesHandler = options.refreshFiles;
+    if (options.openCustomTab) this.openCustomTabHandler = options.openCustomTab;
   }
 
   private sortPluginsTopologically(plugins: PluginItem[]): PluginItem[] {

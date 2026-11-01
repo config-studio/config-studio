@@ -141,6 +141,35 @@ export const App: React.FC = () => {
       refreshFiles: async () => {
         await loadDir(currentDirRef.current);
       },
+      openCustomTab: async (customTab: {
+        path: string;
+        name: string;
+        content: string;
+        language?: string;
+        readOnly?: boolean;
+        badge?: string;
+        onSave?: (content: string) => Promise<void>;
+      }) => {
+        const existing = tabs.find((t) => t.path === customTab.path);
+        if (existing) {
+          setActiveTabKey(getTabKey(existing));
+          return;
+        }
+        const newTab: OpenFile = {
+          path: customTab.path,
+          name: customTab.name,
+          content: customTab.content,
+          initialContent: customTab.content,
+          isDirty: false,
+          readOnly: customTab.readOnly,
+          badge: customTab.badge,
+          language: customTab.language || customTab.name.split('.').pop() || '',
+          revisions: [],
+          onCustomSave: customTab.onSave,
+        };
+        setTabs((prev) => [...prev, newTab]);
+        setActiveTabKey(customTab.path);
+      },
     });
 
     const unsubscribe = pluginManager.subscribe((state) => {
@@ -429,6 +458,25 @@ export const App: React.FC = () => {
     const force = forceParam === true;
     setIsSaving(true);
     try {
+      if (currentFile.onCustomSave) {
+        await currentFile.onCustomSave(currentFile.content);
+        const activeKey = getTabKey(currentFile);
+        setTabs((prev) =>
+          prev.map((tab) =>
+            getTabKey(tab) === activeKey
+              ? {
+                  ...tab,
+                  initialContent: currentFile.content,
+                  isDirty: false,
+                }
+              : tab
+          )
+        );
+        pluginManager.notifyFileSave(currentFile);
+        showGlobalToast(`${currentFile.name} успешно сохранен`, 'success');
+        return;
+      }
+
       await api.saveFile(
         currentFile.path,
         currentFile.content,

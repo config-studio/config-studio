@@ -200,6 +200,8 @@ export interface OpenFile {
   readOnly?: boolean;
   language: string;
   revisions: FileRevision[];
+  badge?: string;
+  onCustomSave?: (content: string) => Promise<void>;
 }
 
 export type AuditSeverity = 'info' | 'warn' | 'critical' | 'error';
