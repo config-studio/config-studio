@@ -183,7 +183,7 @@ export interface OutlineNode {
 
 export interface FileRevision {
   id: string;
-  timestamp: Date;
+  timestamp: Date | string;
   content: string;
   linesCount: number;
   linesDelta: number;

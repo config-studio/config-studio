@@ -14,6 +14,7 @@ import { PreSaveGuardModal } from './components/PreSaveGuardModal';
 import { api, PreSaveGuardError } from './services/api';
 import { pluginManager, PluginSystemState } from './services/pluginLoader';
 import { showGlobalToast } from './components/ui';
+import { revisionHistoryService } from './services/revisionHistory';
 import { Settings, FileItem, OpenFile, FileRevision, GuardIssue, GuardValidationResult, WorkspaceRoot } from './types';
 import { parseContentToOutline } from './utils/astParser';
 import { translations, Language, DEFAULT_LANGUAGE } from './utils/i18n';
@@ -68,6 +69,7 @@ export const App: React.FC = () => {
   const [cursorPos, setCursorPos] = useState<{ line: number; col: number }>({ line: 1, col: 1 });
   const [isMobileFileDrawerOpen, setIsMobileFileDrawerOpen] = useState<boolean>(false);
   const [isMobileOutlineDrawerOpen, setIsMobileOutlineDrawerOpen] = useState<boolean>(false);
+  const [isTimeMachineOpen, setIsTimeMachineOpen] = useState<boolean>(false);
 
   // Open bottom dock if a plugin requested a bottom panel
   useEffect(() => {
@@ -77,12 +79,15 @@ export const App: React.FC = () => {
     }
   }, [pluginState.activeBottomPanelId]);
 
-  // Global hotkeys (Ctrl+~, Ctrl+J to toggle bottom dock)
+  // Global hotkeys (Ctrl+~, Ctrl+J to toggle bottom dock, Alt+H for Time Machine)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && (e.key === '`' || e.key === '~' || e.key === 'j' || e.key === 'J')) {
         e.preventDefault();
         setIsBottomDockOpen((prev) => !prev);
+      } else if (e.altKey && (e.key === 'h' || e.key === 'H' || e.key === 'р' || e.key === 'Р')) {
+        e.preventDefault();
+        setIsTimeMachineOpen((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -299,6 +304,7 @@ export const App: React.FC = () => {
       const fullRelPath =
         fileData.fullRelPath || targetKey;
 
+      const savedRevisions = revisionHistoryService.getRevisions(fullRelPath);
       const newTab: OpenFile = {
         path: fileData.path,
         root: fileData.root || root,
@@ -309,7 +315,7 @@ export const App: React.FC = () => {
         isDirty: false,
         readOnly: fileData.readOnly,
         language: fileData.name.split('.').pop() || '',
-        revisions: [],
+        revisions: savedRevisions,
       };
       setTabs((prev) => [...prev, newTab]);
       setActiveTabKey(fullRelPath);
@@ -461,6 +467,29 @@ export const App: React.FC = () => {
       if (currentFile.onCustomSave) {
         await currentFile.onCustomSave(currentFile.content);
         const activeKey = getTabKey(currentFile);
+
+        const currentLines = currentFile.content.split('\n').length;
+        const initialLines = currentFile.initialContent.split('\n').length;
+        if (currentFile.revisions.length === 0 && currentFile.initialContent) {
+          const baseRev: FileRevision = {
+            id: `rev_base_${Date.now() - 1000}`,
+            timestamp: new Date(Date.now() - 1000).toISOString(),
+            content: currentFile.initialContent,
+            linesCount: initialLines,
+            linesDelta: 0,
+          };
+          revisionHistoryService.addRevision(activeKey, baseRev);
+        }
+
+        const newRev: FileRevision = {
+          id: `rev_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          content: currentFile.content,
+          linesCount: currentLines,
+          linesDelta: currentLines - initialLines,
+        };
+        const updatedRevisions = revisionHistoryService.addRevision(activeKey, newRev);
+
         setTabs((prev) =>
           prev.map((tab) =>
             getTabKey(tab) === activeKey
@@ -468,6 +497,7 @@ export const App: React.FC = () => {
                   ...tab,
                   initialContent: currentFile.content,
                   isDirty: false,
+                  revisions: updatedRevisions,
                 }
               : tab
           )
@@ -485,18 +515,33 @@ export const App: React.FC = () => {
         currentFile.root
       );
 
-      // Create a revision snapshot
+      // Create and persist revision snapshot
+      const activeKey = getTabKey(currentFile);
       const currentLines = currentFile.content.split('\n').length;
       const initialLines = currentFile.initialContent.split('\n').length;
+
+      // If this is the first save of this file, record baseline before changes
+      if (currentFile.revisions.length === 0 && currentFile.initialContent) {
+        const baseRev: FileRevision = {
+          id: `rev_base_${Date.now() - 1000}`,
+          timestamp: new Date(Date.now() - 1000).toISOString(),
+          content: currentFile.initialContent,
+          linesCount: initialLines,
+          linesDelta: 0,
+        };
+        revisionHistoryService.addRevision(activeKey, baseRev);
+      }
+
       const newRev: FileRevision = {
         id: `rev_${Date.now()}`,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         content: currentFile.content,
         linesCount: currentLines,
         linesDelta: currentLines - initialLines,
       };
 
-      const activeKey = getTabKey(currentFile);
+      const updatedRevisions = revisionHistoryService.addRevision(activeKey, newRev);
+
       setTabs((prev) =>
         prev.map((tab) =>
           getTabKey(tab) === activeKey
@@ -504,7 +549,7 @@ export const App: React.FC = () => {
                 ...tab,
                 initialContent: currentFile.content,
                 isDirty: false,
-                revisions: [newRev, ...tab.revisions],
+                revisions: updatedRevisions,
               }
             : tab
         )
@@ -545,6 +590,12 @@ export const App: React.FC = () => {
       editorRef.current.setValue(content);
     }
     handleContentChange(content);
+    showGlobalToast(
+      settings.language === 'ru'
+        ? `Откат к версии выполнен (${currentFile.name})`
+        : `Restored revision for ${currentFile.name}`,
+      'info'
+    );
   };
 
   const handleDownload = () => {
@@ -802,6 +853,9 @@ export const App: React.FC = () => {
             onSelectLine={handleJumpToLine}
             onCursorChange={(line, col) => setCursorPos({ line, col })}
             editorRef={editorRef}
+            isTimeMachineOpen={isTimeMachineOpen}
+            onToggleTimeMachine={setIsTimeMachineOpen}
+            onRestoreRevision={handleRestoreRevision}
           />
 
           <BottomDockStrip
@@ -874,6 +928,10 @@ export const App: React.FC = () => {
         file={currentFile}
         settings={settings}
         onRestoreRevision={handleRestoreRevision}
+        onOpenTimeMachine={() => {
+          setIsPropertiesOpen(false);
+          setIsTimeMachineOpen(true);
+        }}
       />
 
       {/* Sensitive Command Confirmation Modal */}
