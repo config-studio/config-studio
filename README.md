@@ -1,7 +1,7 @@
-# Config Studio 🚀
+﻿# Config Studio 🚀
 
-[![Build & Release](https://github.com/EdvardBaldanov/config-studio/actions/workflows/build.yml/badge.svg)](https://github.com/EdvardBaldanov/config-studio/actions/workflows/build.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/EdvardBaldanov/config-studio?color=blue)](https://github.com/EdvardBaldanov/config-studio/releases)
+[![Build & Release](https://github.com/config-studio/config-studio/actions/workflows/build.yml/badge.svg)](https://github.com/config-studio/config-studio/actions/workflows/build.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/config-studio/config-studio?color=blue)](https://github.com/config-studio/config-studio/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > [🇷🇺 Описание на русском](#-config-studio-на-русском) | [🇬🇧 English version below](#-config-studio-english)
@@ -68,16 +68,16 @@
     - Всплывающее окно подтверждения выполнения системных команд.
     - Переключатель «Режим повышенных привилегий («Я знаю, что делаю»)» для доверенного окружения.
   - **Каталог официальных плагинов (1-клик установка)**:
-    - 🌐 **[config-studio-web-devkit](https://github.com/EdvardBaldanov/config-studio-web-devkit)**: Живой предпросмотр HTML/PHP в сплит-панели с эмуляцией мобильных устройств, сниппетами Monaco и запуском встроенного веб-сервера (`php -S`).
-    - 🖥️ **[config-studio-remote-agent](https://github.com/EdvardBaldanov/config-studio-remote-agent)**: Переключатель серверов в шапке для редактирования файлов на нескольких серверах из единого интерфейса.
-  - 📖 **[Документация и SDK по созданию плагинов](https://github.com/EdvardBaldanov/config-studio-plugin-docs)**: Полное пошаговое руководство, спецификация `plugin.json`, TypeScript типизация, справочник JavaScript API и готовые шаблоны.
+    - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)**: Живой предпросмотр HTML/PHP в сплит-панели с эмуляцией мобильных устройств, сниппетами Monaco и запуском встроенного веб-сервера (`php -S`).
+    - 🖥️ **[config-studio-remote-agent](https://github.com/config-studio/config-studio-remote-agent)**: Переключатель серверов в шапке для редактирования файлов на нескольких серверах из единого интерфейса.
+  - 📖 **[Документация и SDK по созданию плагинов](https://github.com/config-studio/config-studio-plugin-docs)**: Полное пошаговое руководство, спецификация `plugin.json`, TypeScript типизация, справочник JavaScript API и готовые шаблоны.
 
 ---
 
 ### 🚀 Быстрый запуск
 
 #### Скачивание готового бинарника
-Скачайте бинарник для вашей системы со страницы **[GitHub Releases](https://github.com/EdvardBaldanov/config-studio/releases)**:
+Скачайте бинарник для вашей системы со страницы **[GitHub Releases](https://github.com/config-studio/config-studio/releases)**:
 - **Windows (amd64)**: `config-studio-windows-amd64.exe`
 - **Linux (x86_64 / amd64)**: `config-studio-linux-amd64`
 - **Linux (ARM64)**: `config-studio-linux-arm64`
@@ -114,7 +114,7 @@ sudo ./config-studio-linux-amd64 -uninstall
 
 ```bash
 # 1. Клонирование репозитория
-git clone https://github.com/EdvardBaldanov/config-studio.git
+git clone https://github.com/config-studio/config-studio.git
 cd config-studio
 
 # 2. Сборка веб-интерфейса
@@ -207,16 +207,16 @@ Shipped as a **single standalone portable binary** for **Linux** and **Windows**
     - Interactive confirmation modal for risky commands.
     - "I know what I'm doing" mode to run host processes without prompts.
   - **Official Plugins Catalog (1-click install)**:
-    - 🌐 **[config-studio-web-devkit](https://github.com/EdvardBaldanov/config-studio-web-devkit)**: Live split-screen HTML/PHP preview, responsive viewport simulation, Monaco snippets, and live web server runner (`php -S`).
-    - 🖥️ **[config-studio-remote-agent](https://github.com/EdvardBaldanov/config-studio-remote-agent)**: Header server switcher to connect to remote Config Studio instances and edit files across machines from a single UI.
-  - 📖 **[Plugin Development Documentation & SDK](https://github.com/EdvardBaldanov/config-studio-plugin-docs)**: Full developer guide, `plugin.json` manifest schema, TypeScript definitions, JavaScript API reference, and ready-to-use starter templates.
+    - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)**: Live split-screen HTML/PHP preview, responsive viewport simulation, Monaco snippets, and live web server runner (`php -S`).
+    - 🖥️ **[config-studio-remote-agent](https://github.com/config-studio/config-studio-remote-agent)**: Header server switcher to connect to remote Config Studio instances and edit files across machines from a single UI.
+  - 📖 **[Plugin Development Documentation & SDK](https://github.com/config-studio/config-studio-plugin-docs)**: Full developer guide, `plugin.json` manifest schema, TypeScript definitions, JavaScript API reference, and ready-to-use starter templates.
 
 ---
 
 ### 🚀 Quick Start
 
 #### Download Pre-compiled Binary
-Grab the latest release from **[GitHub Releases](https://github.com/EdvardBaldanov/config-studio/releases)**:
+Grab the latest release from **[GitHub Releases](https://github.com/config-studio/config-studio/releases)**:
 - **Windows (amd64)**: `config-studio-windows-amd64.exe`
 - **Linux (x86_64 / amd64)**: `config-studio-linux-amd64`
 - **Linux (ARM64)**: `config-studio-linux-arm64`
@@ -252,7 +252,7 @@ Open your browser at `http://localhost:8080`.
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/EdvardBaldanov/config-studio.git
+git clone https://github.com/config-studio/config-studio.git
 cd config-studio
 
 # 2. Build Web Frontend

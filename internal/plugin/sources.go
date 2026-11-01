@@ -1,4 +1,4 @@
-package plugin
+﻿package plugin
 
 import (
 	"context"
@@ -60,7 +60,7 @@ func DefaultSources() []Source {
 		{
 			ID:           "official",
 			Name:         "Config Studio Official Catalog",
-			URL:          "https://raw.githubusercontent.com/EdvardBaldanov/config-studio-plugins/main/registry.json",
+			URL:          "https://raw.githubusercontent.com/config-studio/config-studio-plugins/main/registry.json",
 			Official:     true,
 			Enabled:      true,
 			PluginsCount: 0,
@@ -68,7 +68,7 @@ func DefaultSources() []Source {
 		{
 			ID:           "community",
 			Name:         "Config Studio Community",
-			URL:          "https://raw.githubusercontent.com/EdvardBaldanov/config-studio-community-plugins/main/registry.json",
+			URL:          "https://raw.githubusercontent.com/config-studio/config-studio-community-plugins/main/registry.json",
 			Official:     false,
 			Enabled:      false,
 			PluginsCount: 0,
@@ -83,7 +83,7 @@ var defaultFallbackCatalogJSON = []byte(`[
     "version": "1.3.2",
     "description": "HTML & PHP Live Preview с симуляцией вкладки Chrome, сервер :8085, AST-структура и автодополнение",
     "author": "Config Studio Team",
-    "downloadUrl": "https://github.com/EdvardBaldanov/config-studio-web-devkit/releases/latest/download/web-devkit.cspkg",
+    "downloadUrl": "https://github.com/config-studio/config-studio-web-devkit/releases/latest/download/web-devkit.cspkg",
     "sourceId": "official",
     "official": true,
     "icon": "🌐",
@@ -105,7 +105,7 @@ var defaultFallbackCatalogJSON = []byte(`[
     "version": "2.1.1",
     "description": "Управление парком удаленных серверов (VPS, хосты), 1-Click Adopt сопряжение, двухсоставная TOTP авторизация и переключение между ними из шапки редактора",
     "author": "Config Studio Team",
-    "downloadUrl": "https://raw.githubusercontent.com/EdvardBaldanov/config-studio-plugins/main/packages/remote-agent.cspkg",
+    "downloadUrl": "https://raw.githubusercontent.com/config-studio/config-studio-plugins/main/packages/remote-agent.cspkg",
     "sourceId": "official",
     "official": true,
     "icon": "🖥️",
@@ -127,7 +127,7 @@ var defaultFallbackCatalogJSON = []byte(`[
     "version": "1.0.0",
     "description": "Full English localization for Config Studio UI 🇬🇧",
     "author": "Edvard Baldanov",
-    "downloadUrl": "https://github.com/EdvardBaldanov/config-studio-lang-en/releases/latest/download/lang-en.cspkg",
+    "downloadUrl": "https://github.com/config-studio/config-studio-lang-en/releases/latest/download/lang-en.cspkg",
     "sourceId": "official",
     "official": true,
     "icon": "🇬🇧",
@@ -139,7 +139,7 @@ var defaultFallbackCatalogJSON = []byte(`[
     "version": "1.0.0",
     "description": "Полная русская локализация интерфейса Config Studio 🇷🇺",
     "author": "Edvard Baldanov",
-    "downloadUrl": "https://github.com/EdvardBaldanov/config-studio-lang-ru/releases/latest/download/lang-ru.cspkg",
+    "downloadUrl": "https://github.com/config-studio/config-studio-lang-ru/releases/latest/download/lang-ru.cspkg",
     "sourceId": "official",
     "official": true,
     "icon": "🇷🇺",
@@ -151,8 +151,8 @@ var defaultFallbackCatalogJSON = []byte(`[
     "version": "1.0.2",
     "description": "Интерактивный Web SSH терминал (PTY), SFTP проводник файлов, хранилище ключей (UniSSH Vault) и Bastion ProxyJump",
     "author": "Config Studio Team",
-    "downloadUrl": "https://raw.githubusercontent.com/EdvardBaldanov/config-studio-plugins/main/packages/ssh.cspkg",
-    "homepage": "https://github.com/EdvardBaldanov/config-studio-ssh",
+    "downloadUrl": "https://raw.githubusercontent.com/config-studio/config-studio-plugins/main/packages/ssh.cspkg",
+    "homepage": "https://github.com/config-studio/config-studio-ssh",
     "sourceId": "official",
     "official": true,
     "icon": "💻",

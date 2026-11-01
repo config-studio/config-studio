@@ -1,4 +1,4 @@
-package plugin
+﻿package plugin
 
 import (
 	"encoding/json"
@@ -68,8 +68,8 @@ type ProfileImportResult struct {
 }
 
 var KnownOfficialPlugins = map[string]string{
-	"web-devkit":   "https://github.com/EdvardBaldanov/config-studio-web-devkit",
-	"remote-agent": "https://github.com/EdvardBaldanov/config-studio-remote-agent",
+	"web-devkit":   "https://github.com/config-studio/config-studio-web-devkit",
+	"remote-agent": "https://github.com/config-studio/config-studio-remote-agent",
 }
 
 // GenerateProfile creates an exportable StudioProfile from current settings, sources, and plugins.

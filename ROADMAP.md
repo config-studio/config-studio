@@ -1,4 +1,4 @@
-# Config Studio Roadmap & Master Architecture Plan 🗺️
+﻿# Config Studio Roadmap & Master Architecture Plan 🗺️
 
 План развития экосистемы **Config Studio** и официальных плагинов.
 
@@ -399,7 +399,7 @@
   - Zero-Disk / In-Memory монтирование: считывание плагина в память ядра без распаковки во временные папки на диске.
   - Сохранение режима разработки (Dev Mode): поддержка распакованных папок и ZIP-архивов для hot-reload.
   - Автономная CLI-утилита `cmd/cspkg` (`pack`, `inspect`, `unpack`, `validate`) под Windows, Linux и macOS.
-- [x] **Синхронизация документации плагинов ([config-studio-plugin-docs](https://github.com/EdvardBaldanov/config-studio-plugin-docs))**:
+- [x] **Синхронизация документации плагинов ([config-studio-plugin-docs](https://github.com/config-studio/config-studio-plugin-docs))**:
   - Обновление спецификации манифеста `plugin.json` (права `permissions`, зависимости `dependencies` с SemVer).
   - Спецификация бинарного формата `.cspkg`, публикация готовых бинарников компилятора в Release v1.0.0.
 
