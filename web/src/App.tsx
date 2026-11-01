@@ -4,6 +4,7 @@ import { FileExplorer } from './components/FileExplorer';
 import { Editor } from './components/Editor';
 import { StructureOutline } from './components/StructureOutline';
 import { SettingsModal } from './components/SettingsModal';
+import { SettingsTab } from './components/settings/types';
 import { FilePropertiesModal } from './components/FilePropertiesModal';
 import { LoginScreen } from './components/LoginScreen';
 import { AddWorkspaceModal } from './components/AddWorkspaceModal';
@@ -15,7 +16,7 @@ import { api, PreSaveGuardError } from './services/api';
 import { pluginManager, PluginSystemState } from './services/pluginLoader';
 import { showGlobalToast } from './components/ui';
 import { revisionHistoryService } from './services/revisionHistory';
-import { Settings, FileItem, OpenFile, FileRevision, GuardIssue, GuardValidationResult, WorkspaceRoot } from './types';
+import { Settings, FileItem, OpenFile, FileRevision, GuardIssue, GuardValidationResult, WorkspaceRoot, SSHHost } from './types';
 import { parseContentToOutline } from './utils/astParser';
 import { translations, Language, DEFAULT_LANGUAGE } from './utils/i18n';
 import { adjustBrightness, getLuminance } from './utils/color';
@@ -59,7 +60,7 @@ export const App: React.FC = () => {
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [settingsTab, setSettingsTab] = useState<'general' | 'security' | 'plugins' | 'profile' | 'audit'>('general');
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('general');
   const [isPropertiesOpen, setIsPropertiesOpen] = useState<boolean>(false);
   const [preSaveGuardIssue, setPreSaveGuardIssue] = useState<GuardIssue | null>(null);
   const [isPreSaveGuardOpen, setIsPreSaveGuardOpen] = useState<boolean>(false);
@@ -321,6 +322,75 @@ export const App: React.FC = () => {
       setActiveTabKey(fullRelPath);
     } catch (err: any) {
       alert(`Error reading file: ${err.message}`);
+    }
+  };
+
+  const handleOpenSftpFile = async (host: SSHHost, remotePath: string) => {
+    try {
+      setIsSaving(true);
+      const fileData = await api.sftpRead({
+        host: host.host,
+        port: host.port || 22,
+        user: host.user || 'root',
+        authType: host.authType,
+        identityId: host.identityId,
+        password: host.password,
+        privateKey: host.privateKey,
+        passphrase: host.passphrase,
+        path: remotePath,
+      });
+
+      const fileName = remotePath.split('/').pop() || remotePath;
+      const sftpKey = `sftp://${host.host}:${host.port || 22}${remotePath}`;
+
+      // If already open, switch to it
+      const existing = tabs.find((t) => getTabKey(t) === sftpKey);
+      if (existing) {
+        setActiveTabKey(sftpKey);
+        return;
+      }
+
+      const savedRevisions = revisionHistoryService.getRevisions(sftpKey);
+      const newTab: OpenFile = {
+        path: remotePath,
+        root: `sftp:${host.id || host.host}`,
+        fullRelPath: sftpKey,
+        name: fileName,
+        content: fileData.content || '',
+        initialContent: fileData.content || '',
+        isDirty: false,
+        readOnly: false,
+        language: fileName.split('.').pop() || '',
+        revisions: savedRevisions,
+        badge: `SFTP: ${host.name || host.host}`,
+        onCustomSave: async (newContent: string) => {
+          await api.sftpWrite({
+            host: host.host,
+            port: host.port || 22,
+            user: host.user || 'root',
+            authType: host.authType,
+            identityId: host.identityId,
+            password: host.password,
+            privateKey: host.privateKey,
+            passphrase: host.passphrase,
+            path: remotePath,
+            content: newContent,
+          });
+        },
+      };
+
+      setTabs((prev) => [...prev, newTab]);
+      setActiveTabKey(sftpKey);
+      showGlobalToast(
+        settings.language === 'ru'
+          ? `Файл ${fileName} открыт с сервера ${host.name || host.host}`
+          : `Opened ${fileName} from ${host.name || host.host}`,
+        'success'
+      );
+    } catch (err: any) {
+      alert(`Ошибка чтения файла по SFTP: ${err.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -828,6 +898,15 @@ export const App: React.FC = () => {
           onDeleteWorkspace={handleDeleteWorkspace}
           isMobileDrawerOpen={isMobileFileDrawerOpen}
           onCloseMobileDrawer={() => setIsMobileFileDrawerOpen(false)}
+          onOpenSftpFile={handleOpenSftpFile}
+          onOpenTerminalHost={(host) => {
+            setIsBottomDockOpen(true);
+            setActiveBottomDockId('terminal');
+          }}
+          onOpenSettingsSsh={() => {
+            setSettingsTab('ssh');
+            setIsSettingsOpen(true);
+          }}
         />
 
         {/* Center: Monaco Editor with multi-tabs & full-width tag bar & bottom dock */}

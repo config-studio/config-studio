@@ -28,11 +28,14 @@ import {
   ContextMenuItem,
   ContextMenuTarget,
   WorkspaceRoot,
+  SSHHost,
 } from '../types';
 import { translations } from '../utils/i18n';
 import { ContextMenu } from './ContextMenu';
 import { contextMenuRegistry } from '../services/contextMenuRegistry';
 import { SftpSendModal } from './sftp/SftpSendModal';
+import { SftpTreeExplorer } from './sftp/SftpTreeExplorer';
+import { sshHostService } from '../services/sshHosts';
 import { showGlobalToast } from './ui';
 
 interface FileExplorerProps {
@@ -55,6 +58,9 @@ interface FileExplorerProps {
   onDeleteWorkspace?: (rootId: string) => void;
   isMobileDrawerOpen?: boolean;
   onCloseMobileDrawer?: () => void;
+  onOpenSftpFile?: (host: SSHHost, remotePath: string) => void;
+  onOpenTerminalHost?: (host: SSHHost) => void;
+  onOpenSettingsSsh?: () => void;
 }
 
 export const FileExplorer: React.FC<FileExplorerProps> = ({
@@ -77,7 +83,12 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   onDeleteWorkspace,
   isMobileDrawerOpen = false,
   onCloseMobileDrawer,
+  onOpenSftpFile,
+  onOpenTerminalHost,
+  onOpenSettingsSsh,
 }) => {
+  const [sidebarTab, setSidebarTab] = useState<'workspaces' | 'sftp'>('workspaces');
+  const [hostsCount, setHostsCount] = useState<number>(() => sshHostService.list().length);
   const [isDragging, setIsDragging] = useState(false);
   const [collapsedRoots, setCollapsedRoots] = useState<Record<string, boolean>>({});
   const [contextMenuState, setContextMenuState] = useState<{
@@ -110,6 +121,13 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       fileInputRef.current.click();
     }
   };
+
+  useEffect(() => {
+    const unsub = sshHostService.subscribe((hosts) => {
+      setHostsCount(hosts.length);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     return contextMenuRegistry.subscribe(() => {
@@ -579,11 +597,49 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
   const explorerAside = (
     <aside className="w-72 sm:w-64 bg-base-surface border-r border-base-border flex flex-col h-full select-none shrink-0">
-      {/* Title & Toolbar */}
-      <div className="p-3 border-b border-base-border flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-          {t.workspaces || t.fileExplorer || 'Рабочие области'}
-        </span>
+      {/* Top Sidebar Tab Switcher: Workspaces vs SFTP */}
+      <div className="h-10 bg-base-surface border-b border-base-border flex items-center px-1.5 space-x-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => setSidebarTab('workspaces')}
+          className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-lg flex items-center justify-center space-x-1.5 transition-colors cursor-pointer ${
+            sidebarTab === 'workspaces'
+              ? 'bg-accent/15 text-accent font-bold border border-accent/30 shadow-2xs'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+          }`}
+          title="Локальные рабочие папки и подключенные узлы"
+        >
+          <Folder className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{t.workspaces || 'Рабочая область'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSidebarTab('sftp')}
+          className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-lg flex items-center justify-center space-x-1.5 transition-colors cursor-pointer ${
+            sidebarTab === 'sftp'
+              ? 'bg-accent/15 text-accent font-bold border border-accent/30 shadow-2xs'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+          }`}
+          title="Удаленные серверы по SFTP"
+        >
+          <Server className="w-3.5 h-3.5 shrink-0" />
+          <span>SFTP</span>
+          {hostsCount > 0 && (
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-white/10 text-gray-700 dark:text-gray-300">
+              {hostsCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {sidebarTab === 'workspaces' ? (
+        <>
+          {/* Title & Toolbar */}
+          <div className="p-3 border-b border-base-border flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              {t.workspaces || t.fileExplorer || 'Рабочие области'}
+            </span>
         <div className="flex items-center space-x-1">
           {onAddWorkspace && (
             <button
@@ -827,6 +883,16 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           );
         })()}
       </div>
+        </>
+      ) : (
+        <SftpTreeExplorer
+          settings={settings}
+          onOpenFile={(host, remotePath) => onOpenSftpFile?.(host, remotePath)}
+          onOpenTerminal={onOpenTerminalHost}
+          onOpenSettingsSsh={onOpenSettingsSsh}
+          onCloseMobileDrawer={onCloseMobileDrawer}
+        />
+      )}
 
       {/* Context Menu Modal / Popup */}
       {contextMenuState && (
