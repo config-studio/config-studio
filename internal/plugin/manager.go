@@ -905,7 +905,9 @@ func (m *Manager) ServeFile(w http.ResponseWriter, r *http.Request, pluginID, re
 		w.Header().Set("Content-Type", "image/png")
 	}
 
-	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 
 	if p.PackageFile != "" {
 		data, err := cspkg.ReadFile(p.PackageFile, cleanRel)

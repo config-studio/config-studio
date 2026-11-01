@@ -216,6 +216,8 @@ func (s *Server) setupRoutes() {
 			}
 			defer indexFile.Close()
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+			w.Header().Set("Pragma", "no-cache")
 			_, _ = io.Copy(w, indexFile)
 		})
 		s.handler = s.gzipMiddleware(s.logMiddleware(fullMux))
@@ -439,6 +441,9 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 func jsonResponse(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
 }

@@ -63,6 +63,8 @@ async function webFetch(url: string, options: RequestInit = {}): Promise<Respons
   const headers = new Headers(options.headers || {});
   headers.set('X-ConfigStudio-Web', '1');
   headers.set('X-Nonce', `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+  headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  headers.set('Pragma', 'no-cache');
 
   let finalUrl = url;
   if (shouldRouteToRemote(url) && remoteEndpoint) {
@@ -78,6 +80,7 @@ async function webFetch(url: string, options: RequestInit = {}): Promise<Respons
     const res = await fetch(finalUrl, {
       ...options,
       headers,
+      cache: 'no-store',
     });
     if (!res.ok && !url.includes('/api/audit/ingest')) {
       telemetry.captureNetworkError(url, res.status, res.statusText, {
@@ -384,7 +387,7 @@ export const api = {
 
   // Plugin APIs
   async getPlugins(): Promise<PluginItem[]> {
-    const res = await webFetch('/api/plugins');
+    const res = await webFetch(`/api/plugins?_t=${Date.now()}`);
     if (!res.ok) throw new Error('Failed to load plugins');
     const data = await res.json();
     return data.plugins || [];

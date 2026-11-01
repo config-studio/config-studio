@@ -651,7 +651,8 @@ class PluginLoader {
       if (!document.getElementById(cssId)) {
         try {
           const res = await fetch(`/api/plugins/${encodeURIComponent(p.id)}/files/${p.css}?t=${Date.now()}`, {
-            headers: { 'X-ConfigStudio-Web': '1' },
+            headers: { 'X-ConfigStudio-Web': '1', 'Cache-Control': 'no-cache, no-store' },
+            cache: 'no-store',
           });
           if (res.ok) {
             const cssText = await res.text();
@@ -670,7 +671,8 @@ class PluginLoader {
     if (p.entry && !this.loadedPluginIds.has(p.id)) {
       try {
         const res = await fetch(`/api/plugins/${encodeURIComponent(p.id)}/files/${p.entry}?t=${Date.now()}`, {
-          headers: { 'X-ConfigStudio-Web': '1' },
+          headers: { 'X-ConfigStudio-Web': '1', 'Cache-Control': 'no-cache, no-store' },
+          cache: 'no-store',
         });
         if (res.ok) {
           const code = await res.text();
