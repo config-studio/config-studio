@@ -281,13 +281,27 @@ func (s *Server) handleFSTree(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) resolveSandboxPath(p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return ""
+	}
+	if filepath.IsAbs(p) || strings.HasPrefix(p, "/") {
+		return filepath.Clean(p)
+	}
+	if len(s.cfg.Sandbox.AllowedRoots) > 0 {
+		return filepath.Clean(filepath.Join(s.cfg.Sandbox.AllowedRoots[0], p))
+	}
+	return filepath.Clean(p)
+}
+
 func (s *Server) handleFSReadFile(w http.ResponseWriter, r *http.Request) {
 	ctx := s.authenticate(w, r)
 	if ctx == nil {
 		return
 	}
 
-	filePath := r.URL.Query().Get("path")
+	filePath := s.resolveSandboxPath(r.URL.Query().Get("path"))
 	if filePath == "" {
 		jsonError(w, http.StatusBadRequest, "path query parameter is required")
 		return
@@ -332,11 +346,13 @@ func (s *Server) handleFSWriteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.Path = s.resolveSandboxPath(req.Path)
 	if req.Path == "" {
 		jsonError(w, http.StatusBadRequest, "path is required")
 		return
 	}
 
+	req.Path = s.resolveSandboxPath(req.Path)
 	if !s.auth.CanAccessPath(ctx, req.Path, true) {
 		jsonError(w, http.StatusForbidden, "Path write access denied by agent sandbox")
 		return
@@ -382,6 +398,7 @@ func (s *Server) handleFSDelete(w http.ResponseWriter, r *http.Request) {
 		targetPath = req.Path
 	}
 
+	targetPath = s.resolveSandboxPath(targetPath)
 	if targetPath == "" {
 		jsonError(w, http.StatusBadRequest, "path parameter is required")
 		return
@@ -423,6 +440,8 @@ func (s *Server) handleFSRename(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.OldPath = s.resolveSandboxPath(req.OldPath)
+	req.NewPath = s.resolveSandboxPath(req.NewPath)
 	if req.OldPath == "" || req.NewPath == "" {
 		jsonError(w, http.StatusBadRequest, "oldPath and newPath are required")
 		return
@@ -465,6 +484,7 @@ func (s *Server) handleFSCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.Path = s.resolveSandboxPath(req.Path)
 	if !s.auth.CanAccessPath(ctx, req.Path, true) {
 		jsonError(w, http.StatusForbidden, "Path creation denied by sandbox")
 		return

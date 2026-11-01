@@ -1009,6 +1009,14 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 	var rootID string
 	if strings.HasPrefix(cleanPath, "api/fs/") && s.fs != nil && s.fs.Workspaces != nil {
 		rootID = q.Get("root")
+		if rootID == "" && targetBase != "" {
+			for _, ws := range s.fs.Workspaces.List() {
+				if ws.Server != "" && strings.TrimRight(ws.Server, "/") == strings.TrimRight(targetBase, "/") {
+					rootID = ws.ID
+					break
+				}
+			}
+		}
 		if rootID != "" {
 			if ws, ok := s.fs.Workspaces.Get(rootID); ok && ws.Path != "" {
 				wsPath = filepath.ToSlash(strings.TrimRight(ws.Path, "/"))
@@ -1051,6 +1059,14 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 				rID, _ := bodyMap["root"].(string)
 				if rID == "" {
 					rID = rootID
+				}
+				if rID == "" && targetBase != "" {
+					for _, ws := range s.fs.Workspaces.List() {
+						if ws.Server != "" && strings.TrimRight(ws.Server, "/") == strings.TrimRight(targetBase, "/") {
+							rID = ws.ID
+							break
+						}
+					}
 				}
 				if rID != "" {
 					if ws, ok := s.fs.Workspaces.Get(rID); ok && ws.Path != "" {
