@@ -990,16 +990,33 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	q.Del("target")
 
+	var wsPath string
+	var rootID string
 	if strings.HasPrefix(cleanPath, "api/fs/") && s.fs != nil && s.fs.Workspaces != nil {
-		rootID := q.Get("root")
+		rootID = q.Get("root")
 		if rootID != "" {
 			if ws, ok := s.fs.Workspaces.Get(rootID); ok && ws.Path != "" {
-				wsPath := filepath.ToSlash(ws.Path)
-				reqPath := q.Get("path")
+				wsPath = filepath.ToSlash(strings.TrimRight(ws.Path, "/"))
+				if wsPath == "" {
+					wsPath = "/"
+				}
+				reqPath := strings.TrimSpace(q.Get("path"))
 				if reqPath == "" || reqPath == "." {
 					q.Set("path", wsPath)
-				} else if !strings.HasPrefix(reqPath, "/") {
-					q.Set("path", strings.TrimRight(wsPath, "/")+"/"+strings.TrimLeft(reqPath, "/"))
+				} else if strings.HasPrefix(reqPath, "/") {
+					// Enforce that reqPath must be within wsPath
+					if reqPath == wsPath || strings.HasPrefix(reqPath, wsPath+"/") {
+						q.Set("path", reqPath)
+					} else {
+						// Outside workspace root! Clamp back to wsPath to prevent escape
+						q.Set("path", wsPath)
+					}
+				} else {
+					if wsPath == "/" {
+						q.Set("path", "/"+strings.TrimLeft(reqPath, "/"))
+					} else {
+						q.Set("path", wsPath+"/"+strings.TrimLeft(reqPath, "/"))
+					}
 				}
 			}
 		}
@@ -1016,22 +1033,40 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 		if err == nil && len(bodyBytes) > 0 && s.fs != nil && s.fs.Workspaces != nil {
 			var bodyMap map[string]any
 			if err := json.Unmarshal(bodyBytes, &bodyMap); err == nil {
-				rootID, _ := bodyMap["root"].(string)
-				if rootID != "" {
-					if ws, ok := s.fs.Workspaces.Get(rootID); ok && ws.Path != "" {
-						wsPath := filepath.ToSlash(ws.Path)
-						if p, ok := bodyMap["path"].(string); ok {
+				rID, _ := bodyMap["root"].(string)
+				if rID == "" {
+					rID = rootID
+				}
+				if rID != "" {
+					if ws, ok := s.fs.Workspaces.Get(rID); ok && ws.Path != "" {
+						wPath := filepath.ToSlash(strings.TrimRight(ws.Path, "/"))
+						if wPath == "" {
+							wPath = "/"
+						}
+						resolvePath := func(p string) string {
+							p = strings.TrimSpace(p)
 							if p == "" || p == "." {
-								bodyMap["path"] = wsPath
-							} else if !strings.HasPrefix(p, "/") {
-								bodyMap["path"] = strings.TrimRight(wsPath, "/") + "/" + strings.TrimLeft(p, "/")
+								return wPath
 							}
+							if strings.HasPrefix(p, "/") {
+								if p == wPath || strings.HasPrefix(p, wPath+"/") {
+									return p
+								}
+								return wPath // clamp
+							}
+							if wPath == "/" {
+								return "/" + strings.TrimLeft(p, "/")
+							}
+							return wPath + "/" + strings.TrimLeft(p, "/")
 						}
-						if op, ok := bodyMap["oldPath"].(string); ok && !strings.HasPrefix(op, "/") {
-							bodyMap["oldPath"] = strings.TrimRight(wsPath, "/") + "/" + strings.TrimLeft(op, "/")
+						if p, ok := bodyMap["path"].(string); ok {
+							bodyMap["path"] = resolvePath(p)
 						}
-						if np, ok := bodyMap["newPath"].(string); ok && !strings.HasPrefix(np, "/") {
-							bodyMap["newPath"] = strings.TrimRight(wsPath, "/") + "/" + strings.TrimLeft(np, "/")
+						if op, ok := bodyMap["oldPath"].(string); ok {
+							bodyMap["oldPath"] = resolvePath(op)
+						}
+						if np, ok := bodyMap["newPath"].(string); ok {
+							bodyMap["newPath"] = resolvePath(np)
 						}
 						if newJSON, err := json.Marshal(bodyMap); err == nil {
 							bodyBytes = newJSON
@@ -1072,6 +1107,108 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
+
+	// For filesystem tree listings scoped to a workspace, relativize paths so client sees "" at root
+	if cleanPath == "api/fs/tree" && resp.StatusCode == http.StatusOK && wsPath != "" {
+		respBytes, err := io.ReadAll(resp.Body)
+		if err == nil {
+			var data map[string]any
+			if err := json.Unmarshal(respBytes, &data); err == nil {
+				absDirPath, _ := data["path"].(string)
+				absDirPath = filepath.ToSlash(strings.TrimRight(strings.TrimSpace(absDirPath), "/"))
+				relDirPath := ""
+				if absDirPath != wsPath && strings.HasPrefix(absDirPath, wsPath+"/") {
+					relDirPath = strings.TrimPrefix(absDirPath, wsPath+"/")
+				}
+				data["path"] = relDirPath
+				data["root"] = rootID
+
+				relativizeItems := func(key string) {
+					if rawList, ok := data[key].([]any); ok {
+						for _, itemRaw := range rawList {
+							if itemMap, ok := itemRaw.(map[string]any); ok {
+								itemAbs, _ := itemMap["path"].(string)
+								itemAbs = filepath.ToSlash(itemAbs)
+								itemRel := itemAbs
+								if itemAbs == wsPath {
+									itemRel = ""
+								} else if strings.HasPrefix(itemAbs, wsPath+"/") {
+									itemRel = strings.TrimPrefix(itemAbs, wsPath+"/")
+								}
+								itemMap["path"] = itemRel
+								itemMap["root"] = rootID
+								itemMap["fullRelPath"] = rootID + ":" + itemRel
+								if _, ok := itemMap["extension"]; !ok {
+									name, _ := itemMap["name"].(string)
+									isDir, _ := itemMap["isDir"].(bool)
+									if !isDir && name != "" {
+										itemMap["extension"] = filepath.Ext(name)
+									} else {
+										itemMap["extension"] = ""
+									}
+								}
+							}
+						}
+					}
+				}
+				relativizeItems("items")
+				relativizeItems("nodes")
+
+				newRespBytes, err := json.Marshal(data)
+				if err == nil {
+					for k, vv := range resp.Header {
+						if strings.EqualFold(k, "Content-Length") {
+							continue
+						}
+						for _, v := range vv {
+							w.Header().Add(k, v)
+						}
+					}
+					w.Header().Set("Content-Length", strconv.Itoa(len(newRespBytes)))
+					w.WriteHeader(resp.StatusCode)
+					_, _ = w.Write(newRespBytes)
+					return
+				}
+			}
+		}
+	}
+
+	// For file read responses, ensure path is relative to workspace root
+	if cleanPath == "api/fs/file" && r.Method == http.MethodGet && resp.StatusCode == http.StatusOK && wsPath != "" {
+		respBytes, err := io.ReadAll(resp.Body)
+		if err == nil {
+			var data map[string]any
+			if err := json.Unmarshal(respBytes, &data); err == nil {
+				filePath, _ := data["path"].(string)
+				filePath = filepath.ToSlash(filePath)
+				relFilePath := filePath
+				if strings.HasPrefix(filePath, wsPath+"/") {
+					relFilePath = strings.TrimPrefix(filePath, wsPath+"/")
+				}
+				data["path"] = relFilePath
+				data["root"] = rootID
+				data["fullRelPath"] = rootID + ":" + relFilePath
+				if _, ok := data["name"]; !ok {
+					data["name"] = filepath.Base(filePath)
+				}
+				newRespBytes, err := json.Marshal(data)
+				if err == nil {
+					for k, vv := range resp.Header {
+						if strings.EqualFold(k, "Content-Length") {
+							continue
+						}
+						for _, v := range vv {
+							w.Header().Add(k, v)
+						}
+					}
+					w.Header().Set("Content-Length", strconv.Itoa(len(newRespBytes)))
+					w.WriteHeader(resp.StatusCode)
+					_, _ = w.Write(newRespBytes)
+					return
+				}
+			}
+		}
+	}
 
 	for k, vv := range resp.Header {
 		for _, v := range vv {

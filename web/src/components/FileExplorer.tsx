@@ -429,12 +429,24 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   };
 
   const goUp = (rootId: string) => {
+    const ws = workspaces.find((w) => w.id === rootId);
     const wsData = itemsByRoot[rootId];
     const cDir = wsData?.currentDir || currentDir;
     if (!cDir) return;
-    const parts = cDir.split('/');
+    const normDir = cDir.replace(/\\/g, '/').replace(/\/+$/, '');
+    const normWsPath = (ws?.path || '').replace(/\\/g, '/').replace(/\/+$/, '');
+    if (normDir === '' || normDir === '.' || (normWsPath && normDir === normWsPath)) {
+      return;
+    }
+    const parts = normDir.split('/').filter(Boolean);
     parts.pop();
-    onNavigateDir(parts.join('/'), rootId);
+    const target = normDir.startsWith('/') ? '/' + parts.join('/') : parts.join('/');
+    // Do not navigate above workspace root
+    if (normWsPath && target.length < normWsPath.length && !target.startsWith(normWsPath)) {
+      onNavigateDir('', rootId);
+      return;
+    }
+    onNavigateDir(target, rootId);
   };
 
   // Render a single root's files
@@ -442,11 +454,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     const wsData = itemsByRoot[ws.id];
     const wsItems = wsData?.items || (workspaces.length <= 1 ? items : []);
     const wsDir = wsData?.currentDir || (workspaces.length <= 1 ? currentDir : '');
+    const normWsDir = wsDir.replace(/\\/g, '/').replace(/\/+$/, '');
+    const normWsPath = (ws.path || '').replace(/\\/g, '/').replace(/\/+$/, '');
+    const isAtRoot = !normWsDir || normWsDir === '.' || (normWsPath && normWsDir === normWsPath);
 
     return (
       <div className="space-y-0.5 pl-2 border-l border-base-border/50 ml-2.5 my-1">
         {/* Parent dir up link */}
-        {wsDir && (
+        {!isAtRoot && (
           <div
             onClick={() => goUp(ws.id)}
             className="px-2 py-1.5 flex items-center space-x-1.5 text-xs text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer rounded-lg transition-colors"

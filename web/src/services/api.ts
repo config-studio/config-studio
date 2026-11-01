@@ -237,7 +237,7 @@ export const api = {
       name: it.name,
       path: it.path,
       root: it.root || root,
-      fullRelPath: it.fullRelPath || it.path,
+      fullRelPath: it.fullRelPath || (root ? `${root}:${it.path}` : it.path),
       isDir: Boolean(it.isDir),
       size: Number(it.size || 0),
       modTime: it.modTime || '',
