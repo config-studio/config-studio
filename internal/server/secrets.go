@@ -119,12 +119,6 @@ func (s *Server) handleGetSecret(w http.ResponseWriter, r *http.Request) {
 	settings := s.config.Get()
 	token := s.getSessionToken(r)
 
-	// Privileged check: user must be authenticated with password and unlocked
-	if !settings.AuthEnabled || !s.secrets.IsPrivileged(token) {
-		http.Error(w, `{"error":"Privileged mode required to access secret value"}`, http.StatusForbidden)
-		return
-	}
-
 	var req getSecretRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"Invalid request payload"}`, http.StatusBadRequest)
@@ -132,6 +126,19 @@ func (s *Server) handleGetSecret(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cleanID := strings.TrimSpace(req.ID)
+	meta, exists := s.secrets.GetMeta(cleanID)
+	if !exists {
+		http.Error(w, `{"error":"secret '`+cleanID+`' not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Privileged check: only require privileged unlock for shared secrets when auth is enabled.
+	// Plugin-scoped secrets (ScopePlugin) or requests when Auth is disabled are accessible to Web UI/plugins.
+	if settings.AuthEnabled && meta.Scope == secrets.ScopeShared && !s.secrets.IsPrivileged(token) {
+		http.Error(w, `{"error":"Privileged mode required to access secret value"}`, http.StatusForbidden)
+		return
+	}
+
 	val, err := s.secrets.Get(cleanID)
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
@@ -159,12 +166,6 @@ func (s *Server) handleSaveSecret(w http.ResponseWriter, r *http.Request) {
 	settings := s.config.Get()
 	token := s.getSessionToken(r)
 
-	// Privileged check: user must be authenticated with password and unlocked
-	if !settings.AuthEnabled || !s.secrets.IsPrivileged(token) {
-		http.Error(w, `{"error":"Privileged mode required to save or edit secrets"}`, http.StatusForbidden)
-		return
-	}
-
 	var item secrets.SecretItem
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		http.Error(w, `{"error":"Invalid request payload"}`, http.StatusBadRequest)
@@ -173,6 +174,21 @@ func (s *Server) handleSaveSecret(w http.ResponseWriter, r *http.Request) {
 
 	if item.ID == "" {
 		http.Error(w, `{"error":"Secret ID is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	if item.Scope == "" {
+		if item.PluginID != "" {
+			item.Scope = secrets.ScopePlugin
+		} else {
+			item.Scope = secrets.ScopeShared
+		}
+	}
+
+	// Privileged check: only require privileged unlock for shared secrets when auth is enabled.
+	// Plugin-scoped secrets can be saved directly by plugins and Web UI.
+	if settings.AuthEnabled && item.Scope == secrets.ScopeShared && !s.secrets.IsPrivileged(token) {
+		http.Error(w, `{"error":"Privileged mode required to save or edit shared secrets"}`, http.StatusForbidden)
 		return
 	}
 
@@ -207,14 +223,15 @@ func (s *Server) handleDeleteSecret(w http.ResponseWriter, r *http.Request) {
 	settings := s.config.Get()
 	token := s.getSessionToken(r)
 
-	if !settings.AuthEnabled || !s.secrets.IsPrivileged(token) {
-		http.Error(w, `{"error":"Privileged mode required to delete secrets"}`, http.StatusForbidden)
-		return
-	}
-
 	id := strings.TrimSpace(r.PathValue("id"))
 	if id == "" {
 		http.Error(w, `{"error":"Secret ID is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	meta, exists := s.secrets.GetMeta(id)
+	if exists && settings.AuthEnabled && meta.Scope == secrets.ScopeShared && !s.secrets.IsPrivileged(token) {
+		http.Error(w, `{"error":"Privileged mode required to delete shared secrets"}`, http.StatusForbidden)
 		return
 	}
 

@@ -151,6 +151,14 @@ func (m *Manager) Has(id string) bool {
 	return ok
 }
 
+func (m *Manager) GetMeta(id string) (SecretMeta, bool) {
+	cleanID := strings.TrimSpace(id)
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	meta, ok := m.items[cleanID]
+	return meta, ok
+}
+
 func (m *Manager) Get(id string) (string, error) {
 	cleanID := strings.TrimSpace(id)
 	if cleanID == "" {
