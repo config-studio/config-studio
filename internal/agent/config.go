@@ -27,6 +27,7 @@ type Config struct {
 	Host         string        `yaml:"host" json:"host"`
 	Port         int           `yaml:"port" json:"port"`
 	TLS          TLSConfig     `yaml:"tls" json:"tls"`
+	Adopted      bool          `yaml:"adopted" json:"adopted"`
 	Master       MasterAuth    `yaml:"master" json:"master"`
 	Sandbox      SandboxConfig `yaml:"sandbox" json:"sandbox"`
 	ScopedTokens []ScopedToken `yaml:"scoped_tokens" json:"scopedTokens"`
@@ -43,8 +44,9 @@ func DefaultConfig(configPath string) *Config {
 	}
 
 	return &Config{
-		Host: "0.0.0.0",
-		Port: 8085,
+		Host:    "0.0.0.0",
+		Port:    8085,
+		Adopted: false,
 		TLS: TLSConfig{
 			Enabled: false,
 		},

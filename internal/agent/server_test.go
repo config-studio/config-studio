@@ -122,3 +122,44 @@ func TestServerMetricsPrometheus(t *testing.T) {
 		t.Errorf("Expected Prometheus metrics to contain cs_agent_cpu_cores")
 	}
 }
+
+func TestServerAdopt(t *testing.T) {
+	srv, cfg, _ := setupTestServer(t)
+
+	// Verify health check returns adopted: false
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	srv.srv.Handler.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200 on /health, got %d", w.Code)
+	}
+	var healthRes map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &healthRes)
+	if healthRes["adopted"] != false {
+		t.Fatalf("Expected adopted: false, got %v", healthRes["adopted"])
+	}
+
+	// 1. First adopt call -> MUST SUCCEED (200 OK)
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/adopt", nil)
+	srv.srv.Handler.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200 on /api/adopt, got %d", w.Code)
+	}
+	var adoptRes map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &adoptRes)
+	if adoptRes["keyId"] != cfg.Master.KeyID || adoptRes["secret"] != cfg.Master.Secret {
+		t.Errorf("Credentials mismatch in adopt response: %v", adoptRes)
+	}
+	if !cfg.Adopted {
+		t.Errorf("Expected cfg.Adopted to be true")
+	}
+
+	// 2. Second adopt call -> MUST FAIL (403 Forbidden)
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/adopt", nil)
+	srv.srv.Handler.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("Expected 403 on second adopt call, got %d", w.Code)
+	}
+}

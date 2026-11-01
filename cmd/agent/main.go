@@ -70,16 +70,21 @@ func main() {
 		cfg.TLS.Enabled = true
 	}
 
-	if isNew {
+	if isNew || !cfg.Adopted {
 		fmt.Println("==================================================================")
-		fmt.Printf("  Config Studio Remote Agent v%s (Initialized)\n", version)
+		fmt.Printf("  Config Studio Remote Agent v%s\n", version)
 		fmt.Println("==================================================================")
-		fmt.Println("Created new agent configuration: " + *configPath)
+		if !cfg.Adopted {
+			fmt.Println("  Status:         UNADOPTED (Ready for 1-Click Adopt from Config Studio)")
+		} else {
+			fmt.Println("  Status:         ADOPTED")
+		}
+		fmt.Println("  Config:         " + *configPath)
 		fmt.Println()
 		fmt.Printf("  Master Key ID:  %s\n", cfg.Master.KeyID)
 		fmt.Printf("  Master Secret:  %s\n", cfg.Master.Secret)
 		fmt.Println()
-		fmt.Println("  Use these credentials in Config Studio Client to connect:")
+		fmt.Println("  Use these credentials or click 'Adopt' in Config Studio:")
 		fmt.Printf("  URL:            http://%s:%d (or https if TLS enabled)\n", cfg.Host, cfg.Port)
 		fmt.Println("==================================================================")
 	}

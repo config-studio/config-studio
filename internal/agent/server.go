@@ -47,6 +47,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/status", s.handleStatus)
+	mux.HandleFunc("POST /api/adopt", s.handleAdopt)
 
 	// 2. Metrics (Prometheus / JSON)
 	mux.HandleFunc("GET /metrics", s.handleMetrics)
@@ -129,12 +130,44 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) *AuthConte
 // ============================================================================
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	hostname, _ := os.Hostname()
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"status":    "ok",
 		"version":   s.version,
 		"timestamp": time.Now().Unix(),
 		"uptime":    int64(time.Since(agentStartTime).Seconds()),
+		"hostname":  hostname,
+		"adopted":   s.cfg.Adopted,
 	})
+}
+
+// handleAdopt performs a one-time pairing handshake with Config Studio host.
+// Once adopted, it sets adopted: true, persists configuration, and permanently locks the endpoint.
+func (s *Server) handleAdopt(w http.ResponseWriter, r *http.Request) {
+	s.cfg.mu.Lock()
+	if s.cfg.Adopted {
+		s.cfg.mu.Unlock()
+		jsonError(w, http.StatusForbidden, "Agent is already adopted")
+		return
+	}
+
+	hostname, _ := os.Hostname()
+	res := map[string]any{
+		"status":   "adopted",
+		"hostname": hostname,
+		"keyId":    s.cfg.Master.KeyID,
+		"secret":   s.cfg.Master.Secret,
+	}
+
+	s.cfg.Adopted = true
+	s.cfg.mu.Unlock()
+
+	if err := s.cfg.Save(); err != nil {
+		log.Printf("[Agent] Failed to save adopted status: %v", err)
+	}
+	log.Printf("[Agent] Successfully adopted by Config Studio Host! Hostname: %s", hostname)
+
+	jsonResponse(w, http.StatusOK, res)
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
