@@ -74,6 +74,26 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
     return () => unsub();
   }, [selectedHostId]);
 
+  useEffect(() => {
+    const handleOpenHost = (e: any) => {
+      const detail = e.detail;
+      if (!detail) return;
+      const currentHosts = sshHostService.list();
+      setHosts(currentHosts);
+      let targetHost = currentHosts.find(
+        (h) => h.id === detail.id || (h.host === detail.host && h.user === (detail.user || 'root'))
+      );
+      if (targetHost) {
+        setSelectedHostId(targetHost.id);
+        sshHostService.setLastActiveHostId(targetHost.id);
+        const lastPath = sshHostService.getLastSftpPath(targetHost.id) || '/etc';
+        loadDirectory(lastPath, targetHost);
+      }
+    };
+    window.addEventListener('cs:open-sftp-host', handleOpenHost);
+    return () => window.removeEventListener('cs:open-sftp-host', handleOpenHost);
+  }, []);
+
   // Load directory when active host or path changes
   useEffect(() => {
     if (!activeHost) {

@@ -91,6 +91,26 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
     });
   }, [selectedHostId]);
 
+  useEffect(() => {
+    const handleOpenSSH = (e: any) => {
+      const detail = e.detail;
+      const hosts = sshHostService.list();
+      setSshHosts(hosts);
+      if (detail && detail.id) {
+        setSelectedHostId(detail.id);
+        sshHostService.setLastActiveHostId(detail.id);
+      } else if (detail && detail.host) {
+        const match = hosts.find((h) => h.host === detail.host);
+        if (match) {
+          setSelectedHostId(match.id);
+          sshHostService.setLastActiveHostId(match.id);
+        }
+      }
+    };
+    window.addEventListener('cs:open-ssh-terminal', handleOpenSSH);
+    return () => window.removeEventListener('cs:open-ssh-terminal', handleOpenSSH);
+  }, []);
+
   // Load audit events for Output tab
   const loadRecentAudit = async (category = auditCategory) => {
     setAuditLoading(true);

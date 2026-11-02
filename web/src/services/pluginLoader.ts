@@ -1,4 +1,5 @@
 import { api, setRemoteEndpoint } from './api';
+import { sshHostService } from './sshHosts';
 import { telemetry } from './telemetry';
 import {
   PluginItem,
@@ -263,6 +264,20 @@ class PluginLoader {
       showNotification: (msg: string, type?: 'info' | 'success' | 'error') => {
         this.notificationHandler(msg, type);
       },
+
+      showToast: (msg: string, type?: 'info' | 'success' | 'error') => {
+        this.notificationHandler(msg, type);
+      },
+
+      openTerminal: (host?: any) => {
+        window.dispatchEvent(new CustomEvent('cs:open-ssh-terminal', { detail: host }));
+      },
+
+      openSftp: (host?: any) => {
+        window.dispatchEvent(new CustomEvent('cs:open-sftp-host', { detail: host }));
+      },
+
+      ssh: sshHostService,
 
       setRemoteEndpoint: (url: string | null, token?: string) => {
         setRemoteEndpoint(url, token);

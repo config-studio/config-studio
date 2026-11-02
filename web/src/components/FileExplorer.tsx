@@ -137,6 +137,23 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     });
   }, []);
 
+  useEffect(() => {
+    const handleSwitchSidebarTab = (e: any) => {
+      if (e.detail === 'sftp' || e.detail === 'workspaces') {
+        setSidebarTab(e.detail);
+      }
+    };
+    const handleOpenSftpHost = () => {
+      setSidebarTab('sftp');
+    };
+    window.addEventListener('cs:switch-sidebar-tab', handleSwitchSidebarTab);
+    window.addEventListener('cs:open-sftp-host', handleOpenSftpHost);
+    return () => {
+      window.removeEventListener('cs:switch-sidebar-tab', handleSwitchSidebarTab);
+      window.removeEventListener('cs:open-sftp-host', handleOpenSftpHost);
+    };
+  }, []);
+
   const toggleRootCollapse = (rootId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setCollapsedRoots((prev) => ({

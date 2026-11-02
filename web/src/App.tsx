@@ -431,6 +431,16 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [tabs]);
 
+  // Listen for terminal and SFTP requests from plugins
+  useEffect(() => {
+    const handleOpenSSHTerminal = () => {
+      setIsBottomDockOpen(true);
+      setActiveBottomDockId('terminal');
+    };
+    window.addEventListener('cs:open-ssh-terminal', handleOpenSSHTerminal);
+    return () => window.removeEventListener('cs:open-ssh-terminal', handleOpenSSHTerminal);
+  }, []);
+
   // Sync <head> title and favicon
   useEffect(() => {
     const filePart = currentFile ? currentFile.name : currentDir ? currentDir : 'Workspace';

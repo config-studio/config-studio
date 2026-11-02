@@ -73,6 +73,19 @@ class SSHHostService {
     };
   }
 
+  public reload(): SSHHost[] {
+    this.cachedHosts = null;
+    const hosts = this.list();
+    this.listeners.forEach((l) => {
+      try {
+        l(hosts);
+      } catch (err) {
+        console.error('[SSHHostService] Listener error:', err);
+      }
+    });
+    return hosts;
+  }
+
   private persist(hosts: SSHHost[]): void {
     this.cachedHosts = hosts;
     try {
