@@ -10,6 +10,7 @@ import {
   Clock,
   Calendar,
   ExternalLink,
+  X,
 } from 'lucide-react';
 import { OpenFile, Settings, FileRevision } from '../types';
 import { translations } from '../utils/i18n';
@@ -121,7 +122,7 @@ export const FilePropertiesModal: React.FC<FilePropertiesModalProps> = ({
           onClick={onClose}
           className="p-1.5 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
         >
-          ✕
+          <X className="w-4 h-4" />
         </button>
       </div>
 

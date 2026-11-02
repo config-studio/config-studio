@@ -258,11 +258,11 @@ const builtInTranslations = {
 
     // Bottom Dock Strip
     dockTerminal: 'Терминал',
-    dockTerminalTitle: '💻 SSH / Shell Терминал',
+    dockTerminalTitle: 'SSH / Shell Терминал',
     dockProblems: 'Проблемы',
     dockOutput: 'Вывод',
-    dockOutputTitle: '📋 Журнал вывода и аудита',
-    dockProblemsTitle: '🔍 Проблемы и синтаксический анализ',
+    dockOutputTitle: 'Журнал вывода и аудита',
+    dockProblemsTitle: 'Проблемы и синтаксический анализ',
     dockNoProblems: 'Проблем не обнаружено. Структура конфигурации валидна.',
     dockNoOutput: 'Событий вывода пока нет',
     dockErrors: 'ошибок',
@@ -581,11 +581,11 @@ const builtInTranslations = {
 
     // Bottom Dock Strip
     dockTerminal: 'Terminal',
-    dockTerminalTitle: '💻 SSH / Shell Terminal',
+    dockTerminalTitle: 'SSH / Shell Terminal',
     dockProblems: 'Problems',
     dockOutput: 'Output',
-    dockOutputTitle: '📋 Core Output & Audit Stream',
-    dockProblemsTitle: '🔍 Diagnostic & Syntax Issues',
+    dockOutputTitle: 'Core Output & Audit Stream',
+    dockProblemsTitle: 'Diagnostic & Syntax Issues',
     dockNoProblems: 'No issues detected. Configuration syntax is valid.',
     dockNoOutput: 'No output events recorded yet',
     dockErrors: 'errors',

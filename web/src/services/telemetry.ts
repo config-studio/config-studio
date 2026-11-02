@@ -198,18 +198,18 @@ class TelemetryService {
     const now = new Date().toISOString();
     const recent = this.ringBuffer.slice(-20);
 
-    let md = `### 🛠 Config Studio Diagnostic Report\n`;
+    let md = `### Config Studio Diagnostic Report\n`;
     md += `- **Generated:** ${now}\n`;
     md += `- **URL:** \`${window.location.href}\`\n`;
     md += `- **Platform:** \`${navigator.platform || 'Unknown'}\`\n`;
     md += `- **User Agent:** \`${navigator.userAgent}\`\n\n`;
 
     if (opts?.customNote) {
-      md += `#### 💬 User Note\n${opts.customNote}\n\n`;
+      md += `#### User Note\n${opts.customNote}\n\n`;
     }
 
     if (opts?.error) {
-      md += `#### ⚠️ Error Details\n`;
+      md += `#### Error Details\n`;
       md += `\`\`\`\n${opts.error.name || 'Error'}: ${opts.error.message || ''}\n`;
       if (opts.error.stack) {
         md += `\nStack trace:\n${opts.error.stack}\n`;
@@ -218,7 +218,7 @@ class TelemetryService {
     }
 
     if (opts?.componentStack) {
-      md += `#### 📜 React Component Hierarchy\n`;
+      md += `#### React Component Hierarchy\n`;
       md += `\`\`\`\n${opts.componentStack.trim()}\n\`\`\`\n\n`;
     }
 

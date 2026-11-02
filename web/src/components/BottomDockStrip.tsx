@@ -3,6 +3,9 @@ import {
   Terminal,
   FileText,
   AlertCircle,
+  User,
+  Globe,
+  Cpu,
   ChevronUp,
   ChevronDown,
   Maximize2,
@@ -192,7 +195,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
           <div className="h-8 px-3 border-b border-base-border bg-[#161b22] flex items-center justify-between text-xs text-[#8b949e]">
             <div className="flex items-center space-x-2 min-w-0">
               <span className="font-semibold text-gray-200 truncate">
-                {activePanelId === 'terminal' && (t.dockTerminalTitle || '💻 SSH / Shell Терминал')}
+                {activePanelId === 'terminal' && (t.dockTerminalTitle || 'SSH / Shell Терминал')}
                 {activePanelId === 'output' && t.dockOutputTitle}
                 {activePanelId === 'problems' && t.dockProblemsTitle}
                 {panels.find((p) => p.id === activePanelId)?.title}
@@ -384,7 +387,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                         : 'text-gray-400 hover:text-rose-300 bg-white/5'
                     }`}
                   >
-                    <span>🛑</span>
+                    <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
                     <span>{t.auditCatError || 'Ошибки'}</span>
                   </button>
                   <button
@@ -399,7 +402,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                         : 'text-gray-400 hover:text-emerald-300 bg-white/5'
                     }`}
                   >
-                    <span>👤</span>
+                    <User className="w-3 h-3 text-emerald-400 shrink-0" />
                     <span>{t.auditCatUser || 'Действия'}</span>
                   </button>
                   <button
@@ -414,7 +417,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                         : 'text-gray-400 hover:text-indigo-300 bg-white/5'
                     }`}
                   >
-                    <span>🌐</span>
+                    <Globe className="w-3 h-3 text-indigo-400 shrink-0" />
                     <span>{t.auditCatNetwork || 'Сеть'}</span>
                   </button>
                   <button
@@ -429,7 +432,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                         : 'text-gray-400 hover:text-slate-300 bg-white/5'
                     }`}
                   >
-                    <span>⚙️</span>
+                    <Cpu className="w-3 h-3 text-slate-300 shrink-0" />
                     <span>{t.auditCatSystem || 'Система'}</span>
                   </button>
                 </div>

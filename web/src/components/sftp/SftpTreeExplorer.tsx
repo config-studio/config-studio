@@ -19,6 +19,7 @@ import {
   Home,
   CheckCircle,
 } from 'lucide-react';
+import { FileFormatIcon } from '../icons/FileFormatIcon';
 import { SSHHost, SFTPFileInfo, Settings } from '../../types';
 import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
@@ -520,7 +521,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
               title={`${entry.name} (${formatBytes(entry.size)}) — кликните для открытия в редакторе`}
             >
               <div className="flex items-center space-x-2 truncate min-w-0">
-                <FileCode className="w-3.5 h-3.5 text-teal-400/80 shrink-0" />
+                <FileFormatIcon filename={entry.name} isDir={false} className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate font-mono text-[11px] text-gray-800 dark:text-gray-200">
                   {entry.name}
                 </span>

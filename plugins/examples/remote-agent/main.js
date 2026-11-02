@@ -7,6 +7,25 @@
   const pluginId = 'remote-agent';
   if (!window.ConfigStudio) return;
 
+  
+  const ICONS = {
+    host: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>',
+    server: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>',
+    settings: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+    trash: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+    plus: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+    search: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+    shield: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>',
+    zap: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    lock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    folder: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
+    send: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
+    close: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+    eye: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+    check: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M20 6 9 17l-5-5"/></svg>',
+    up: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="m18 15-6-6-6 6"/></svg>'
+  };
+
   const storageKey = 'cs_remote_servers_v2';
   let servers = [];
   let activeServerId = localStorage.getItem('cs_active_server_id') || 'local';
@@ -231,16 +250,16 @@
 
       function renderBtnContent() {
         if (activeServerId === 'local') {
-          btn.innerHTML = `<span>🖥️</span> <span>Localhost</span> <span class="cs-remote-badge online">● HOST</span> <span style="font-size: 8px;">▾</span>`;
+          btn.innerHTML = `<span>${ICONS.host}</span> <span>Localhost</span> <span class="cs-remote-badge online">● HOST</span> <span style="font-size: 8px;">▾</span>`;
         } else {
           const s = servers.find(x => x.id === activeServerId);
           if (s) {
             const badgeClass = s.status === 'offline' ? 'offline' : (s.isRW ? 'online' : 'ro');
             const badgeLabel = s.status === 'offline' ? 'OFFLINE' : (s.isRW ? 'RW' : 'RO');
             const pingText = s.pingMs ? `${s.pingMs}ms • ` : '';
-            btn.innerHTML = `<span>🌐</span> <span>${s.name}</span> <span class="cs-remote-badge ${badgeClass}">${pingText}${badgeLabel}</span> <span style="font-size: 8px;">▾</span>`;
+            btn.innerHTML = `<span>${ICONS.server}</span> <span>${s.name}</span> <span class="cs-remote-badge ${badgeClass}">${pingText}${badgeLabel}</span> <span style="font-size: 8px;">▾</span>`;
           } else {
-            btn.innerHTML = `<span>🖥️</span> <span>Localhost</span> <span style="font-size: 8px;">▾</span>`;
+            btn.innerHTML = `<span>${ICONS.host}</span> <span>Localhost</span> <span style="font-size: 8px;">▾</span>`;
           }
         }
       }
@@ -260,7 +279,7 @@
         localItem.className = `cs-remote-item ${activeServerId === 'local' ? 'active' : ''}`;
         localItem.innerHTML = `
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span>🖥️</span>
+            <span>${ICONS.host}</span>
             <div>
               <div style="font-size: 12px; font-weight: 500;">Localhost</div>
               <div style="font-size: 10px; opacity: 0.6;">Локальный хост Config Studio</div>
@@ -291,7 +310,7 @@
 
             item.innerHTML = `
               <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                <span>🌐</span>
+                <span>${ICONS.server}</span>
                 <div style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   <div style="font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis;">${srv.name}</div>
                   <div style="font-size: 10px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis;">${srv.url}</div>
@@ -299,8 +318,8 @@
               </div>
               <div style="display: flex; align-items: center; gap: 6px; shrink: 0;">
                 <span class="cs-remote-badge ${badgeClass}">${srv.status === 'offline' ? 'OFF' : pingText} • ${badgeLabel}</span>
-                <button class="cs-edit-btn" style="background: none; border: none; color: #8b949e; cursor: pointer; padding: 2px;" title="Редактировать">⚙️</button>
-                <button class="cs-del-btn" style="background: none; border: none; color: #f85149; cursor: pointer; padding: 2px;" title="Удалить">🗑️</button>
+                <button class="cs-edit-btn" style="background: none; border: none; color: #8b949e; cursor: pointer; padding: 2px;" title="Редактировать">${ICONS.settings}</button>
+                <button class="cs-del-btn" style="background: none; border: none; color: #f85149; cursor: pointer; padding: 2px;" title="Удалить">${ICONS.trash}</button>
               </div>
             `;
 
@@ -337,7 +356,7 @@
         const addBtn = document.createElement('div');
         addBtn.className = 'cs-remote-item';
         addBtn.style.color = '#00d2b4';
-        addBtn.innerHTML = `<span>➕</span> <span style="font-size: 12px; font-weight: 500;">${t('addServer', 'Добавить сервер...')}</span>`;
+        addBtn.innerHTML = `<span>${ICONS.plus}</span> <span style="font-size: 12px; font-weight: 500;">${t('addServer', 'Добавить сервер...')}</span>`;
         addBtn.onclick = () => {
           openServerModal(null);
           closeDropdown();
@@ -347,7 +366,7 @@
         // Scan LAN button
         const scanBtn = document.createElement('div');
         scanBtn.className = 'cs-remote-item';
-        scanBtn.innerHTML = `<span>🔍</span> <span style="font-size: 12px; font-weight: 500;">${t('discoverBtn', 'Поиск агентов в сети')}</span>`;
+        scanBtn.innerHTML = `<span>${ICONS.search}</span> <span style="font-size: 12px; font-weight: 500;">${t('discoverBtn', 'Поиск агентов в сети')}</span>`;
         scanBtn.onclick = () => {
           closeDropdown();
           openDiscoveryModal();
@@ -358,7 +377,7 @@
         if (activeServerId !== 'local') {
           const tokensBtn = document.createElement('div');
           tokensBtn.className = 'cs-remote-item';
-          tokensBtn.innerHTML = `<span>🛡️</span> <span style="font-size: 12px; font-weight: 500;">${t('manageTokens', 'Токены мониторинга...')}</span>`;
+          tokensBtn.innerHTML = `<span>${ICONS.shield}</span> <span style="font-size: 12px; font-weight: 500;">${t('manageTokens', 'Токены мониторинга...')}</span>`;
           tokensBtn.onclick = () => {
             openTokensModal();
             closeDropdown();
@@ -626,10 +645,10 @@
     modal.innerHTML = `
       <div class="cs-remote-modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 16px;">🔍</span>
+          <span>${ICONS.search}</span>
           <span style="font-weight: 600; font-size: 14px; color: #fff;">${t('discoverTitle', 'Автообнаружение агентов в сети')}</span>
         </div>
-        <button class="cs-close-modal" style="background: none; border: none; color: #8b949e; cursor: pointer; font-size: 16px;">✕</button>
+        <button class="cs-close-modal" style="background: none; border: none; color: #8b949e; cursor: pointer; font-size: 16px;">${ICONS.close}</button>
       </div>
 
       <div class="cs-remote-modal-body">
@@ -699,18 +718,18 @@
 
         let actionBtnHtml = '';
         if (isAlreadyConfigured) {
-          actionBtnHtml = `<span class="cs-remote-badge online" style="font-size: 11px;">✓ ${t('alreadyInFleet', 'Во флоте')}</span>`;
+          actionBtnHtml = `<span class="cs-remote-badge online" style="font-size: 11px;">${ICONS.check} ${t('alreadyInFleet', 'Во флоте')}</span>`;
         } else if (!item.adopted) {
-          actionBtnHtml = `<button class="cs-remote-btn cs-remote-btn-primary cs-btn-adopt-act" style="padding: 4px 10px; font-size: 11px;">${t('adoptBtn', '⚡ Принять (Adopt)')}</button>`;
+          actionBtnHtml = `<button class="cs-remote-btn cs-remote-btn-primary cs-btn-adopt-act" style="padding: 4px 10px; font-size: 11px;">${ICONS.zap} ${t('adoptBtn', 'Принять (Adopt)')}</button>`;
         } else {
           actionBtnHtml = `<button class="cs-remote-btn cs-remote-btn-secondary cs-btn-add-act" style="padding: 4px 10px; font-size: 11px;">+ ${t('addServer', 'Добавить')}</button>`;
         }
 
-        const badgeState = !item.adopted ? '<span class="cs-remote-badge unadopted">✨ UNADOPTED</span>' : '<span class="cs-remote-badge ro">ADOPTED</span>';
+        const badgeState = !item.adopted ? '<span class="cs-remote-badge unadopted">NEW • UNADOPTED</span>' : '<span class="cs-remote-badge ro">ADOPTED</span>';
 
         card.innerHTML = `
           <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-            <span style="font-size: 18px;">🌐</span>
+            <span>${ICONS.server}</span>
             <div style="min-width: 0;">
               <div style="display: flex; align-items: center; gap: 6px;">
                 <span style="font-weight: 600; color: #fff; font-size: 13px;">${item.hostname}</span>
@@ -797,17 +816,17 @@
     modal.innerHTML = `
       <div class="cs-remote-modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 16px;">🌐</span>
+          <span>${ICONS.server}</span>
           <span style="font-weight: 600; font-size: 14px; color: #fff;">${isEdit ? t('modalTitleEdit', 'Настройка удаленного сервера') : t('modalTitleAdd', 'Подключение удаленного сервера')}</span>
         </div>
-        <button class="cs-close-modal" style="background: none; border: none; color: #8b949e; cursor: pointer; font-size: 16px;">✕</button>
+        <button class="cs-close-modal" style="background: none; border: none; color: #8b949e; cursor: pointer; font-size: 16px;">${ICONS.close}</button>
       </div>
 
       <div class="cs-remote-modal-body">
         ${!isEdit ? `
         <div style="background: rgba(0, 210, 180, 0.08); border: 1px dashed rgba(0, 210, 180, 0.3); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
           <div style="font-size: 11px; color: #c9d1d9;">Автоматический поиск нового сервера:</div>
-          <button type="button" id="cs-modal-quick-scan" class="cs-remote-btn cs-remote-btn-primary" style="padding: 4px 10px; font-size: 11px;">🔍 Поиск в LAN (1-Click Adopt)</button>
+          <button type="button" id="cs-modal-quick-scan" class="cs-remote-btn cs-remote-btn-primary" style="padding: 4px 10px; font-size: 11px;">${ICONS.search} Поиск в LAN (1-Click Adopt)</button>
         </div>
         ` : ''}
         <div class="cs-remote-input-group">
@@ -832,10 +851,10 @@
           </div>
           <div style="position: relative;">
             <input type="password" id="cs-inp-secret" class="cs-remote-input" style="padding-right: 32px;" placeholder="${t('secretPlaceholder', 'Base32 секрет')}" value="${editServer ? (editServer.secret || '') : ''}">
-            <button type="button" id="cs-toggle-pwd" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #8b949e; cursor: pointer;">👁️</button>
+            <button type="button" id="cs-toggle-pwd" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #8b949e; cursor: pointer;">${ICONS.eye}</button>
           </div>
           <div style="font-size: 11px; color: #00d2b4; display: flex; align-items: center; gap: 4px; margin-top: 2px;">
-            <span>🔒</span>
+            <span>${ICONS.lock}</span>
             <span>${t('vaultProtected', 'Ключ защищен шифрованием ядра (OS Keychain / AES-256 Vault)')}</span>
           </div>
         </div>
@@ -850,7 +869,7 @@
       </div>
 
       <div style="padding: 16px 20px; border-top: 1px solid #21262d; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2);">
-        <button type="button" id="cs-btn-test" class="cs-remote-btn cs-remote-btn-secondary">${t('testPing', '⚡ Проверить связь')}</button>
+        <button type="button" id="cs-btn-test" class="cs-remote-btn cs-remote-btn-secondary">${ICONS.zap} ${t('testPing', 'Проверить связь')}</button>
         <div style="display: flex; gap: 8px;">
           <button type="button" id="cs-btn-cancel" class="cs-remote-btn cs-remote-btn-secondary">${t('cancel', 'Отмена')}</button>
           <button type="button" id="cs-btn-save" class="cs-remote-btn cs-remote-btn-primary">${t('save', 'Сохранить')}</button>
@@ -1002,10 +1021,10 @@
     modal.innerHTML = `
       <div class="cs-remote-modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 16px;">🛡️</span>
+          <span>${ICONS.shield}</span>
           <span style="font-weight: 600; font-size: 14px; color: #fff;">Токены мониторинга (${srv.name})</span>
         </div>
-        <button class="cs-close-modal" style="background: none; border: none; color: #8b949e; cursor: pointer; font-size: 16px;">✕</button>
+        <button class="cs-close-modal" style="background: none; border: none; color: #8b949e; cursor: pointer; font-size: 16px;">${ICONS.close}</button>
       </div>
 
       <div class="cs-remote-modal-body">
@@ -1180,7 +1199,7 @@
                 <p style="font-size: 12px; color: #8b949e; margin: 4px 0 0 0;">Подключенные экземпляры серверов с двухсоставной TOTP защитой</p>
               </div>
               <div style="display: flex; gap: 8px;">
-                <button id="cs-settings-scan-srv" class="cs-remote-btn cs-remote-btn-secondary">🔍 Поиск в LAN</button>
+                <button id="cs-settings-scan-srv" class="cs-remote-btn cs-remote-btn-secondary">${ICONS.search} Поиск в LAN</button>
                 <button id="cs-settings-add-srv" class="cs-remote-btn cs-remote-btn-primary">+ Добавить сервер</button>
               </div>
             </div>
@@ -1253,7 +1272,7 @@
     if (res.ok) {
       localStorage.setItem('cs_agent_last_dir_' + srv.id, cleanDir);
       window.ConfigStudio.showNotification?.(
-        `✅ Файл "${filename}" успешно передан в папку "${fullRemotePath}" агента "${srv.name || srv.url}"!`,
+        `Файл "${filename}" успешно передан в папку "${fullRemotePath}" агента "${srv.name || srv.url}"!`,
         'success'
       );
       try {
@@ -1293,7 +1312,7 @@
     if (res.ok) {
       localStorage.setItem('cs_agent_last_dir_local', cleanDir);
       window.ConfigStudio.showNotification?.(
-        `✅ Файл "${filename}" успешно сохранен на локальный хост в "${localRelPath || '/'}"!`,
+        `Файл "${filename}" успешно сохранен на локальный хост в "${localRelPath || '/'}"!`,
         'success'
       );
       try {
@@ -1344,7 +1363,7 @@
         availableTargets.push({
           id: s.id,
           name: s.name || s.url,
-          label: `🌐 ${s.name || s.url} (${s.url})`,
+          label: `${s.name || s.url} (${s.url})`,
           isLocal: false,
           server: s,
         });
@@ -1355,7 +1374,7 @@
       availableTargets.push({
         id: 'local',
         name: 'Localhost',
-        label: '🖥️ Localhost (Основной хост)',
+        label: 'Localhost (Основной хост)',
         isLocal: true,
         server: null,
       });
@@ -1364,7 +1383,7 @@
         availableTargets.push({
           id: s.id,
           name: s.name || s.url,
-          label: `🌐 ${s.name || s.url} (${s.url})`,
+          label: `${s.name || s.url} (${s.url})`,
           isLocal: false,
           server: s,
         });
@@ -1412,10 +1431,10 @@
       <div class="cs-remote-modal-content" style="max-width: 520px;">
         <div class="cs-remote-modal-header">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 18px;">🚀</span>
+            <span>${ICONS.send}</span>
             <span style="font-weight: 600; font-size: 14px; color: #e6edf3;">Отправить файл на узел / хост</span>
           </div>
-          <button class="cs-remote-btn-close" style="background: none; border: none; color: #8b949e; cursor: pointer; font-size: 16px;">✕</button>
+          <button class="cs-remote-btn-close" style="background: none; border: none; color: #8b949e; cursor: pointer; font-size: 16px;">${ICONS.close}</button>
         </div>
         <div class="cs-remote-modal-body">
           <div class="cs-remote-input-group">
@@ -1430,7 +1449,7 @@
             <label class="cs-remote-label" id="cs-agent-dest-dir-label">${escapeHtml(initialLabel)}</label>
             <div style="display: flex; gap: 8px;">
               <input class="cs-remote-input" id="cs-agent-dest-dir" value="${escapeHtml(initialDir)}" placeholder="${escapeHtml(initialPlaceholder)}" style="flex: 1;" />
-              <button class="cs-remote-btn cs-remote-btn-secondary" id="cs-agent-browse-btn" type="button" title="Выбрать папку">📂 Обзор...</button>
+              <button class="cs-remote-btn cs-remote-btn-secondary" id="cs-agent-browse-btn" type="button" title="Выбрать папку">${ICONS.folder} Обзор...</button>
             </div>
             <div id="cs-agent-folder-picker" style="display: none;" class="cs-remote-folder-picker">
               <div id="cs-agent-picker-crumbs" class="cs-remote-breadcrumbs"></div>
@@ -1444,7 +1463,7 @@
         </div>
         <div style="padding: 16px 20px; border-top: 1px solid #21262d; display: flex; justify-content: flex-end; gap: 10px;">
           <button class="cs-remote-btn cs-remote-btn-secondary" id="cs-agent-cancel">Отмена</button>
-          <button class="cs-remote-btn cs-remote-btn-primary" id="cs-agent-submit">🚀 Отправить</button>
+          <button class="cs-remote-btn cs-remote-btn-primary" id="cs-agent-submit">${ICONS.send} Отправить</button>
         </div>
       </div>
     `;
@@ -1537,7 +1556,7 @@
           // Root crumb for localhost
           const rootCrumb = document.createElement('span');
           rootCrumb.className = 'cs-remote-crumb';
-          rootCrumb.textContent = '📁 [Корень]';
+          rootCrumb.innerHTML = `${ICONS.folder} [Корень]`;
           rootCrumb.onclick = () => {
             destDirInput.value = '';
             loadFolderPicker('');
@@ -1561,7 +1580,7 @@
           if (parts.length > 0) {
             const upDiv = document.createElement('div');
             upDiv.className = 'cs-remote-folder-item';
-            upDiv.innerHTML = '<span>⬆️</span> <span>[ Наверх ]</span>';
+            upDiv.innerHTML = `<span>${ICONS.up}</span> <span>[ Наверх ]</span>`;
             upDiv.onclick = () => {
               const parentDir = parts.slice(0, -1).join('/');
               destDirInput.value = parentDir;
@@ -1579,7 +1598,7 @@
             dirs.forEach(d => {
               const folderDiv = document.createElement('div');
               folderDiv.className = 'cs-remote-folder-item';
-              folderDiv.innerHTML = `<span>📁</span> <span>${escapeHtml(d.name)}</span>`;
+              folderDiv.innerHTML = `<span>${ICONS.folder}</span> <span>${escapeHtml(d.name)}</span>`;
               folderDiv.onclick = () => {
                 const newPath = cleanLocal ? `${cleanLocal}/${d.name}` : d.name;
                 destDirInput.value = newPath;
@@ -1631,7 +1650,7 @@
             dirs.forEach(d => {
               const folderDiv = document.createElement('div');
               folderDiv.className = 'cs-remote-folder-item';
-              folderDiv.innerHTML = `<span>📁</span> <span>${escapeHtml(d.name)}</span>`;
+              folderDiv.innerHTML = `<span>${ICONS.folder}</span> <span>${escapeHtml(d.name)}</span>`;
               folderDiv.onclick = () => {
                 const newPath = cleanDir === '/' ? `/${d.name}` : `${cleanDir}/${d.name}`;
                 destDirInput.value = newPath;
@@ -1664,7 +1683,7 @@
         closeModal();
       } catch (err) {
         submitBtn.disabled = false;
-        submitBtn.textContent = '🚀 Отправить';
+        submitBtn.innerHTML = `${ICONS.send} Отправить`;
       }
     };
   }
@@ -1673,7 +1692,7 @@
     window.ConfigStudio.registerContextMenu({
       id: 'remote-agent-send-file',
       pluginId: pluginId,
-      label: '🚀 Отправить на узел / агент (Remote Agent)',
+      label: 'Отправить на узел / агент (Remote Agent)',
       icon: 'server',
       group: 'tools',
       order: 25,

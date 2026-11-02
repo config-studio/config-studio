@@ -96,8 +96,8 @@ export class ErrorBoundary extends Component<Props, State> {
                 {this.state.copied ? <Check size={14} /> : <Copy size={14} />}
                 <span>
                   {this.state.copied
-                    ? '✓ Отчёт скопирован для ИИ'
-                    : '📋 Скопировать диагностический отчёт для ИИ'}
+                    ? 'Отчёт скопирован для ИИ'
+                    : 'Скопировать диагностический отчёт для ИИ'}
                 </span>
               </button>
 
@@ -108,7 +108,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 title="Скачать структурированный JSON отчёт о сбое"
               >
                 <Download size={14} />
-                <span>💾 Crash Report</span>
+                <span>Crash Report</span>
               </button>
             </div>
 

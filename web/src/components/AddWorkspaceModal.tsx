@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import {
   Folder,
   Server,
@@ -23,14 +24,14 @@ interface AddWorkspaceModalProps {
 }
 
 const iconOptions = [
-  { value: 'folder', label: '📁 Папка (Folder)' },
-  { value: 'server', label: '🖧 Сервер (Server / Fleet)' },
-  { value: 'box', label: '📦 Контейнеры (Docker / Podman)' },
-  { value: 'shield', label: '🛡️ Безопасность (Clash / VPN)' },
-  { value: 'terminal', label: '💻 Системный (System / Scripts)' },
-  { value: 'globe', label: '🌐 Веб-сервер (Nginx / Web)' },
-  { value: 'cpu', label: '⚙️ Службы (Systemd / Daemons)' },
-  { value: 'database', label: '🗄️ Базы данных (Database / Storage)' },
+  { value: 'folder', label: 'Папка (Folder)' },
+  { value: 'server', label: 'Сервер (Server / Fleet)' },
+  { value: 'box', label: 'Контейнеры (Docker / Podman)' },
+  { value: 'shield', label: 'Безопасность (Clash / VPN)' },
+  { value: 'terminal', label: 'Системный (System / Scripts)' },
+  { value: 'globe', label: 'Веб-сервер (Nginx / Web)' },
+  { value: 'cpu', label: 'Службы (Systemd / Daemons)' },
+  { value: 'database', label: 'Базы данных (Database / Storage)' },
 ];
 
 export const AddWorkspaceModal: React.FC<AddWorkspaceModalProps> = ({
@@ -128,7 +129,7 @@ export const AddWorkspaceModal: React.FC<AddWorkspaceModalProps> = ({
         <Modal.Body className="space-y-4">
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500 flex items-center space-x-2">
-              <span>⚠️</span>
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
               <span>{error}</span>
             </div>
           )}

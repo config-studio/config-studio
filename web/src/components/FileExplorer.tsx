@@ -21,7 +21,9 @@ import {
   Database,
   Lock,
   MoreVertical,
+  X,
 } from 'lucide-react';
+import { FileFormatIcon } from './icons/FileFormatIcon';
 import {
   FileItem,
   Settings,
@@ -291,7 +293,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       if (!target.isDir) {
         coreItems.push({
           id: 'core.sftp.send',
-          label: '📁 Отправить по SFTP...',
+          label: 'Отправить по SFTP...',
           icon: 'Send',
           group: 'tools',
           order: 25,
@@ -451,20 +453,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   };
 
   const getFileIcon = (item: FileItem) => {
-    if (item.isDir) {
-      return <Folder className="w-4 h-4 text-accent shrink-0" />;
-    }
-    const ext = (item.extension || '').toLowerCase();
-    if (ext === '.yaml' || ext === '.yml') {
-      return <FileCode className="w-4 h-4 text-emerald-500 shrink-0" />;
-    }
-    if (ext === '.json') {
-      return <FileCode className="w-4 h-4 text-amber-500 shrink-0" />;
-    }
-    if (ext === '.toml') {
-      return <FileCode className="w-4 h-4 text-purple-500 shrink-0" />;
-    }
-    return <FileText className="w-4 h-4 text-gray-400 shrink-0" />;
+    return <FileFormatIcon filename={item.name} isDir={item.isDir} className="w-4 h-4 shrink-0" />;
   };
 
   const goUp = (rootId: string) => {
@@ -663,7 +652,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
               className="md:hidden p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
               title="Закрыть"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>

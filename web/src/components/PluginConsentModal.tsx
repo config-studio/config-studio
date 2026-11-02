@@ -5,12 +5,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   FileText,
+  Link2,
+  Layers,
+  Zap,
   Terminal,
   Globe,
   Key,
   Server,
   Edit3,
-  Layers,
   Sparkles,
 } from 'lucide-react';
 import { PendingInstall, CatalogItem } from '../types';
@@ -322,7 +324,7 @@ export const PluginConsentModal: React.FC<PluginConsentModalProps> = ({
                     key={depId}
                     className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-300 rounded font-mono text-[10px]"
                   >
-                    🔗 {depId} {ver ? `(${ver})` : ''}
+                    <span className="inline-flex items-center"><Link2 className="w-2.5 h-2.5 text-blue-300 mr-1 shrink-0" />{depId} {ver ? `(${ver})` : ''}</span>
                   </span>
                 ))}
               </div>
@@ -338,7 +340,7 @@ export const PluginConsentModal: React.FC<PluginConsentModalProps> = ({
                     key={depId}
                     className="px-1.5 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 rounded font-mono text-[10px]"
                   >
-                    🧩 {depId} {ver ? `(${ver})` : ''}
+                    <span className="inline-flex items-center"><Layers className="w-2.5 h-2.5 text-purple-300 mr-1 shrink-0" />{depId} {ver ? `(${ver})` : ''}</span>
                   </span>
                 ))}
               </div>
@@ -354,7 +356,7 @@ export const PluginConsentModal: React.FC<PluginConsentModalProps> = ({
                     key={svc}
                     className="px-1.5 py-0.5 bg-teal-500/10 border border-teal-500/20 text-teal-300 rounded font-mono text-[10px]"
                   >
-                    ⚡ {svc}
+                    <span className="inline-flex items-center"><Zap className="w-2.5 h-2.5 text-teal-300 mr-1 shrink-0" />{svc}</span>
                   </span>
                 ))}
               </div>

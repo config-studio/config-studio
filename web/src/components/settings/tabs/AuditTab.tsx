@@ -6,6 +6,13 @@ import {
   RefreshCw,
   Copy,
   Check,
+  AlertCircle,
+  AlertTriangle,
+  Info,
+  ShieldAlert,
+  User,
+  Globe,
+  Cpu,
 } from 'lucide-react';
 import { AuditEvent } from '../../../types';
 import { api } from '../../../services/api';
@@ -165,7 +172,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
                   : 'text-gray-400 hover:text-red-400'
               }`}
             >
-              <span>🛑</span>
+              <ShieldAlert className="w-3.5 h-3.5 text-red-400 shrink-0" />
               <span>{t.auditSeverityCritical}</span>
             </button>
             <button
@@ -180,7 +187,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
                   : 'text-gray-400 hover:text-amber-400'
               }`}
             >
-              <span>⚠️</span>
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span>{t.auditSeverityWarn}</span>
             </button>
             <button
@@ -195,7 +202,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
                   : 'text-gray-400 hover:text-blue-400'
               }`}
             >
-              <span>ℹ️</span>
+              <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
               <span>{t.auditSeverityInfo}</span>
             </button>
           </div>
@@ -245,7 +252,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
                 : 'text-gray-400 hover:text-rose-300 bg-black/5 dark:bg-white/5'
             }`}
           >
-            <span>🛑</span>
+            <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
             <span>{t.auditCatError || 'Ошибки'}</span>
           </button>
           <button
@@ -260,7 +267,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
                 : 'text-gray-400 hover:text-emerald-300 bg-black/5 dark:bg-white/5'
             }`}
           >
-            <span>👤</span>
+            <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span>{t.auditCatUser || 'Действия'}</span>
           </button>
           <button
@@ -275,7 +282,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
                 : 'text-gray-400 hover:text-indigo-300 bg-black/5 dark:bg-white/5'
             }`}
           >
-            <span>🌐</span>
+            <Globe className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
             <span>{t.auditCatNetwork || 'Сеть'}</span>
           </button>
           <button
@@ -290,7 +297,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
                 : 'text-gray-400 hover:text-slate-300 bg-black/5 dark:bg-white/5'
             }`}
           >
-            <span>⚙️</span>
+            <Cpu className="w-3.5 h-3.5 text-slate-300 shrink-0" />
             <span>{t.auditCatSystem || 'Система'}</span>
           </button>
         </ScrollArea>

@@ -239,7 +239,7 @@ export const StructureOutline: React.FC<StructureOutlineProps> = ({
               className="lg:hidden p-1 rounded-lg text-gray-400 hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors ml-1"
               title="Закрыть"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>

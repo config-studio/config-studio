@@ -16,6 +16,8 @@ import {
   Edit3,
   Trash2,
   Check,
+  Globe,
+  Layers,
 } from 'lucide-react';
 import { SecretMeta, SecretsStatus, SecretType, SecretScope } from '../../../types';
 import { api } from '../../../services/api';
@@ -409,7 +411,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
                             : 'Секрет конкретного плагина'
                         }
                       >
-                        {item.scope === 'shared' ? '🌐 Shared' : `🧩 ${item.pluginId || 'Plugin'}`}
+                        {item.scope === 'shared' ? <span className="inline-flex items-center"><Globe className="w-2.5 h-2.5 mr-1 shrink-0" />Shared</span> : <span className="inline-flex items-center"><Layers className="w-2.5 h-2.5 mr-1 shrink-0" />{item.pluginId || 'Plugin'}</span>}
                       </Badge>
                       <Badge variant="neutral" size="sm">
                         {typeLabel}

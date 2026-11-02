@@ -13,6 +13,8 @@ import {
   AlertTriangle,
   Check,
   CheckCircle2,
+  Zap,
+  Layers,
   Settings as SettingsIcon,
 } from 'lucide-react';
 import { PluginItem, CatalogItem, PendingInstall } from '../../../types';
@@ -304,7 +306,7 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                               className="font-mono text-[9px]"
                               title={isUnknown ? 'Неизвестное разрешение вне спецификации' : undefined}
                             >
-                              {isUnknown ? `⚠️ ${perm}` : perm}
+                              {isUnknown ? <span className="inline-flex items-center"><AlertTriangle className="w-2.5 h-2.5 text-amber-400 mr-1 shrink-0" />{perm}</span> : perm}
                             </Badge>
                           );
                         })}
@@ -321,7 +323,7 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                             className="font-mono text-[9px]"
                             title={`Provides inter-plugin service '${svc}'`}
                           >
-                            ⚡ {svc}
+                            <span className="inline-flex items-center"><Zap className="w-2.5 h-2.5 text-amber-400 mr-1 shrink-0" />{svc}</span>
                           </Badge>
                         ))}
                       </div>
@@ -337,7 +339,7 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                             className="font-mono text-[9px]"
                             title={`Requires plugin '${depId}'`}
                           >
-                            📦 {depId} {ver ? `(${ver})` : ''}
+                            <span className="inline-flex items-center"><Package className="w-2.5 h-2.5 text-sky-400 mr-1 shrink-0" />{depId} {ver ? `(${ver})` : ''}</span>
                           </Badge>
                         ))}
                       </div>
@@ -353,7 +355,7 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                             className="font-mono text-[9px] text-purple-300 border-purple-500/30 bg-purple-500/10"
                             title={`Optional extension '${depId}'`}
                           >
-                            🧩 {depId} {ver ? `(${ver})` : ''} (опц.)
+                            <span className="inline-flex items-center"><Layers className="w-2.5 h-2.5 text-purple-400 mr-1 shrink-0" />{depId} {ver ? `(${ver})` : ''} (опц.)</span>
                           </Badge>
                         ))}
                       </div>
@@ -367,7 +369,7 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                           className="font-medium text-[9px]"
                           title="Active plugins that depend on this plugin"
                         >
-                          🔗 {language === 'en' ? 'Used by:' : 'Используется:'} {p.dependents.join(', ')}
+                          <span className="inline-flex items-center"><Link2 className="w-2.5 h-2.5 text-indigo-400 mr-1 shrink-0" />{language === 'en' ? 'Used by:' : 'Используется:'} {p.dependents.join(', ')}</span>
                         </Badge>
                       </div>
                     )}
