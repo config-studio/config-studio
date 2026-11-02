@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"config-studio/internal/agent"
 	"config-studio/internal/audit"
 	"config-studio/internal/config"
 	"config-studio/internal/fleet"
@@ -1031,25 +1032,29 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 
 	var wsPath string
 	var rootID string
-	if strings.HasPrefix(cleanPath, "api/fs/") && s.fs != nil && s.fs.Workspaces != nil {
+	if strings.HasPrefix(cleanPath, "api/fs/") {
 		rootID = q.Get("root")
-		if rootID != "" {
+		if rootID == "root" {
+			wsPath = "/"
+		} else if s.fs != nil && s.fs.Workspaces != nil && rootID != "" {
 			if ws, ok := s.fs.Workspaces.Get(rootID); ok && ws.Path != "" {
 				wsPath = filepath.ToSlash(strings.TrimRight(ws.Path, "/"))
-				if wsPath == "" {
-					wsPath = "/"
-				}
-				reqPath := strings.TrimSpace(q.Get("path"))
-				if reqPath == "" || reqPath == "." {
-					q.Set("path", wsPath)
-				} else if strings.HasPrefix(reqPath, "/") {
-					q.Set("path", reqPath)
+			}
+		}
+		if wsPath != "" {
+			if wsPath == "" {
+				wsPath = "/"
+			}
+			reqPath := strings.TrimSpace(q.Get("path"))
+			if reqPath == "" || reqPath == "." {
+				q.Set("path", wsPath)
+			} else if strings.HasPrefix(reqPath, "/") {
+				q.Set("path", reqPath)
+			} else {
+				if wsPath == "/" {
+					q.Set("path", "/"+strings.TrimLeft(reqPath, "/"))
 				} else {
-					if wsPath == "/" {
-						q.Set("path", "/"+strings.TrimLeft(reqPath, "/"))
-					} else {
-						q.Set("path", wsPath+"/"+strings.TrimLeft(reqPath, "/"))
-					}
+					q.Set("path", wsPath+"/"+strings.TrimLeft(reqPath, "/"))
 				}
 			}
 		}
@@ -1063,7 +1068,7 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 	var reqBody io.Reader = r.Body
 	if strings.HasPrefix(cleanPath, "api/fs/") && r.Body != nil && (r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete) {
 		bodyBytes, err := io.ReadAll(r.Body)
-		if err == nil && len(bodyBytes) > 0 && s.fs != nil && s.fs.Workspaces != nil {
+		if err == nil && len(bodyBytes) > 0 {
 			var bodyMap map[string]any
 			if err := json.Unmarshal(bodyBytes, &bodyMap); err == nil {
 				rID, _ := bodyMap["root"].(string)
@@ -1071,8 +1076,15 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 					rID = rootID
 				}
 				if rID != "" {
-					if ws, ok := s.fs.Workspaces.Get(rID); ok && ws.Path != "" {
-						wPath := filepath.ToSlash(strings.TrimRight(ws.Path, "/"))
+					var wPath string
+					if rID == "root" {
+						wPath = "/"
+					} else if s.fs != nil && s.fs.Workspaces != nil {
+						if ws, ok := s.fs.Workspaces.Get(rID); ok && ws.Path != "" {
+							wPath = filepath.ToSlash(strings.TrimRight(ws.Path, "/"))
+						}
+					}
+					if wPath != "" {
 						if wPath == "" {
 							wPath = "/"
 						}
@@ -1121,6 +1133,48 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, v := range vv {
 			proxyReq.Header.Add(k, v)
+		}
+	}
+
+	// Auto-inject or refresh credentials from Core Vault if target matches a fleet server
+	if s.fleet != nil && s.secrets != nil {
+		targetClean := strings.TrimRight(targetBase, "/")
+		for _, srv := range s.fleet.ListServers() {
+			if srv.Connection.Agent != nil && srv.Connection.Agent.Enabled {
+				srvURLClean := strings.TrimRight(srv.Connection.Agent.URL, "/")
+				if strings.EqualFold(targetClean, srvURLClean) {
+					vKey := srv.Connection.Agent.VaultSecret
+					if vKey != "" {
+						secVal, err := s.secrets.Get(vKey)
+						if err == nil && secVal != "" {
+							var creds struct {
+								KeyID  string `json:"keyId"`
+								Secret string `json:"secret"`
+							}
+							keyID := "cs_master"
+							totpSecret := secVal
+							if json.Unmarshal([]byte(secVal), &creds) == nil && creds.KeyID != "" {
+								keyID = creds.KeyID
+								totpSecret = creds.Secret
+							}
+							otp, _ := agent.GenerateTOTP(totpSecret, time.Now(), 6)
+							nonceBytes := make([]byte, 8)
+							_, _ = rand.Read(nonceBytes)
+							nonce := fmt.Sprintf("%d-%s", time.Now().UnixNano(), hex.EncodeToString(nonceBytes))
+							proxyReq.Header.Set("X-Nonce", nonce)
+							if otp != "" {
+								proxyReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s:%s", keyID, otp))
+								proxyReq.Header.Set("X-CS-Agent-Key", keyID)
+								proxyReq.Header.Set("X-CS-Agent-OTP", otp)
+							} else {
+								proxyReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", keyID))
+								proxyReq.Header.Set("X-CS-Agent-Key", keyID)
+							}
+						}
+					}
+					break
+				}
+			}
 		}
 	}
 

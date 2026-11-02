@@ -12,7 +12,7 @@ import { PluginSplitPanel } from './components/PluginSplitPanel';
 import { BottomDockStrip } from './components/BottomDockStrip';
 import { CommandConfirmModal } from './components/CommandConfirmModal';
 import { PreSaveGuardModal } from './components/PreSaveGuardModal';
-import { api, PreSaveGuardError } from './services/api';
+import { api, getRemoteEndpoint, PreSaveGuardError } from './services/api';
 import { pluginManager, PluginSystemState } from './services/pluginLoader';
 import { showGlobalToast } from './components/ui';
 import { revisionHistoryService } from './services/revisionHistory';
@@ -49,7 +49,7 @@ export const App: React.FC = () => {
   }>({ authRequired: false, authenticated: true, user: 'guest' });
 
   const [workspaces, setWorkspaces] = useState<WorkspaceRoot[]>([]);
-  const [itemsByRoot, setItemsByRoot] = useState<Record<string, { currentDir: string; items: FileItem[]; loading?: boolean }>>({});
+  const [itemsByRoot, setItemsByRoot] = useState<Record<string, { currentDir: string; items: FileItem[]; loading?: boolean; error?: string }>>({});
   const [isAddWorkspaceOpen, setIsAddWorkspaceOpen] = useState<boolean>(false);
   const [editingWorkspace, setEditingWorkspace] = useState<WorkspaceRoot | null>(null);
 
@@ -145,7 +145,7 @@ export const App: React.FC = () => {
         await openFile(path);
       },
       refreshFiles: async () => {
-        await loadDir(currentDirRef.current);
+        await loadWorkspaces();
       },
       openCustomTab: async (customTab: {
         path: string;
@@ -227,16 +227,27 @@ export const App: React.FC = () => {
 
   const loadWorkspaces = async () => {
     try {
+      setItemsByRoot({});
       const res = await api.getWorkspaces();
       const wsList = res.workspaces || [];
       setWorkspaces(wsList);
+      if (wsList.length === 0) {
+        setDirItems([]);
+      }
       for (const ws of wsList) {
         await loadDir('', ws.id);
       }
     } catch (err) {
       console.error('Failed to load workspaces:', err);
-      // Fallback: load default root
-      await loadDir('');
+      // Fallback: load default root only if no remote endpoint is set
+      const { endpoint } = getRemoteEndpoint();
+      if (!endpoint) {
+        await loadDir('');
+      } else {
+        setWorkspaces([]);
+        setItemsByRoot({});
+        setDirItems([]);
+      }
     }
   };
 
@@ -273,6 +284,13 @@ export const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(`Failed to list directory for root ${root}:`, err);
+      setItemsByRoot((prev) => ({
+        ...prev,
+        [root]: { currentDir: path, items: [], loading: false, error: err.message },
+      }));
+      if (!workspaces.length || root === (workspaces[0]?.id || 'default')) {
+        setDirItems([]);
+      }
     }
   };
 

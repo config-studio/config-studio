@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base32"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -159,17 +160,22 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	_, _ = rand.Read(secretBytes)
 	totpSecret := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(secretBytes)
 
+	credsJSON, _ := json.Marshal(map[string]string{
+		"keyId":  keyID,
+		"secret": totpSecret,
+	})
+
 	vaultSecretID := fmt.Sprintf("agent:%s", srv.ID)
 	if secMgr != nil {
 		_ = secMgr.Set(secrets.SecretItem{
 			SecretMeta: secrets.SecretMeta{
 				ID:       vaultSecretID,
-				Title:    fmt.Sprintf("TOTP Secret (%s)", srv.Name),
+				Title:    fmt.Sprintf("Agent Credentials (%s)", srv.Name),
 				Type:     secrets.TypePassword,
 				Scope:    secrets.ScopeShared,
 				PluginID: "servers",
 			},
-			Value: totpSecret,
+			Value: string(credsJSON),
 		})
 		addLog("Секрет авторизации сгенерирован и безопасно сохранен в Core Vault (ID: %s)", vaultSecretID)
 	}
@@ -207,7 +213,7 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	_ = dstFile.Close()
 	_ = sftpClient.Chmod(remoteTmpBin, 0755)
 
-	// 8. Place binary in target directory and create agent.yaml
+	// 8. Stop old agent instances and safely place new binary
 	sudoPrefix := ""
 	if opts.UseSudo && !strings.EqualFold(sshCfg.User, "root") {
 		sudoPrefix = "sudo "
@@ -220,9 +226,13 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 		targetCfgDir = "$HOME/.config-studio"
 	}
 
+	addLog("Остановка предыдущих процессов агента (если были)...")
+	_, _ = runRemoteCmd(client, fmt.Sprintf("%ssystemctl stop config-studio-agent 2>/dev/null || %src-service config-studio-agent stop 2>/dev/null || %spkill -9 -f config-studio-agent 2>/dev/null || true", sudoPrefix, sudoPrefix, sudoPrefix))
+
 	addLog("Установка бинарника в %s...", targetBinPath)
 	_, _ = runRemoteCmd(client, fmt.Sprintf("%smkdir -p $(dirname %s) %s", sudoPrefix, targetBinPath, targetCfgDir))
-	_, err = runRemoteCmd(client, fmt.Sprintf("%scp %s %s && %schmod 755 %s", sudoPrefix, remoteTmpBin, targetBinPath, sudoPrefix, targetBinPath))
+	// install unlinks existing target inode so running processes don't trigger ETXTBSY (Text file busy)
+	_, err = runRemoteCmd(client, fmt.Sprintf("%sinstall -m 755 %s %s 2>/dev/null || (%scp -f %s %s && %schmod 755 %s)", sudoPrefix, remoteTmpBin, targetBinPath, sudoPrefix, remoteTmpBin, targetBinPath, sudoPrefix, targetBinPath))
 	if err != nil {
 		addLog("Предупреждение/ошибка при копировании бинарника: %v", err)
 	}
@@ -282,7 +292,7 @@ WantedBy=multi-user.target
 			_, _ = sf.Write([]byte(serviceContent))
 			_ = sf.Close()
 			_, _ = runRemoteCmd(client, fmt.Sprintf("%smv %s /etc/systemd/system/config-studio-agent.service", sudoPrefix, tmpSvc))
-			_, _ = runRemoteCmd(client, fmt.Sprintf("%ssystemctl daemon-reload && %ssystemctl enable --now config-studio-agent", sudoPrefix, sudoPrefix))
+			_, _ = runRemoteCmd(client, fmt.Sprintf("%ssystemctl daemon-reload && %ssystemctl restart config-studio-agent && %ssystemctl enable config-studio-agent", sudoPrefix, sudoPrefix, sudoPrefix))
 			addLog("Служба systemd запущена и включена в автозагрузку")
 		}
 	} else if serviceType == "openrc" {
@@ -305,7 +315,7 @@ depend() {
 			_, _ = sf.Write([]byte(openrcContent))
 			_ = sf.Close()
 			_, _ = runRemoteCmd(client, fmt.Sprintf("%smv %s /etc/init.d/config-studio-agent && %schmod +x /etc/init.d/config-studio-agent", sudoPrefix, tmpInit, sudoPrefix))
-			_, _ = runRemoteCmd(client, fmt.Sprintf("%src-update add config-studio-agent default && %src-service config-studio-agent start", sudoPrefix, sudoPrefix))
+			_, _ = runRemoteCmd(client, fmt.Sprintf("%src-update add config-studio-agent default && (%src-service config-studio-agent restart || %src-service config-studio-agent start)", sudoPrefix, sudoPrefix, sudoPrefix))
 			addLog("Служба OpenRC запущена и добавлена в runlevel default")
 		}
 	} else {

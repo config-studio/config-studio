@@ -136,6 +136,7 @@ export interface WorkspaceRoot {
   readOnly: boolean;
   icon?: string;
   order?: number;
+  server?: string;
 }
 
 export interface FileItem {

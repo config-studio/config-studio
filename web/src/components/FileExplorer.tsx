@@ -47,7 +47,7 @@ interface FileExplorerProps {
   settings: Settings;
   workspaces?: WorkspaceRoot[];
   activeRootId?: string;
-  itemsByRoot?: Record<string, { currentDir: string; items: FileItem[]; loading?: boolean }>;
+  itemsByRoot?: Record<string, { currentDir: string; items: FileItem[]; loading?: boolean; error?: string }>;
   onSelectFile: (path: string, root?: string) => void;
   onNavigateDir: (path: string, root?: string) => void;
   onRefresh: (rootId?: string) => void;
@@ -497,8 +497,10 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   // Render a single root's files
   const renderRootFiles = (ws: WorkspaceRoot) => {
     const wsData = itemsByRoot[ws.id];
-    const wsItems = wsData?.items || (workspaces.length <= 1 ? items : []);
-    const wsDir = wsData?.currentDir || (workspaces.length <= 1 ? currentDir : '');
+    const isRemote = Boolean(ws.server && ws.server !== 'local');
+    const isSingleLocalDefault = workspaces.length <= 1 && (ws.id === 'default' || !ws.server || ws.server === 'local');
+    const wsItems = wsData?.items || (isSingleLocalDefault && !isRemote ? items : []);
+    const wsDir = wsData?.currentDir || (isSingleLocalDefault && !isRemote ? currentDir : '');
     const normWsDir = wsDir.replace(/\\/g, '/').replace(/\/+$/, '');
     const normWsPath = (ws.path || '').replace(/\\/g, '/').replace(/\/+$/, '');
     const isAtRoot = !normWsDir || normWsDir === '.' || (normWsPath && normWsDir === normWsPath);
@@ -506,7 +508,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     return (
       <div className="space-y-0.5 pl-2 border-l border-base-border/50 ml-2.5 my-1">
         {/* Parent dir up link */}
-        {!isAtRoot && (
+        {!isAtRoot && !wsData?.error && (
           <div
             onClick={() => goUp(ws.id)}
             className="px-2 py-1.5 flex items-center space-x-1.5 text-xs text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer rounded-lg transition-colors"
@@ -517,7 +519,11 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           </div>
         )}
 
-        {wsItems.length === 0 ? (
+        {wsData?.error ? (
+          <div className="text-[11px] text-red-400 py-2 px-2 text-center bg-red-500/10 rounded-lg mx-1 my-1">
+            {wsData.error}
+          </div>
+        ) : wsItems.length === 0 ? (
           <div className="text-[11px] text-gray-400 dark:text-gray-500 py-3 text-center">
             {t.emptyFolder || 'Папка пуста'}
           </div>
