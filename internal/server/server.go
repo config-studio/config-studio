@@ -188,6 +188,7 @@ func (s *Server) setupRoutes() {
 	mux.HandleFunc("GET /api/servers/raw", s.handleGetRawServersYAML)
 	mux.HandleFunc("PUT /api/servers/raw", s.handleSetRawServersYAML)
 	mux.HandleFunc("POST /api/servers/ping/{id}", s.handlePingServer)
+	mux.HandleFunc("POST /api/servers/install-agent/{id}", s.handleInstallAgent)
 
 	// Remote Agent Proxy (bypasses browser mixed-content and CORS restrictions)
 	mux.HandleFunc("/api/remote-proxy/{path...}", s.handleRemoteProxy)

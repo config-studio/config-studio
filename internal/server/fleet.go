@@ -182,3 +182,66 @@ func (s *Server) handlePingServer(w http.ResponseWriter, r *http.Request) {
 	res := s.fleet.Ping(r.Context(), id)
 	jsonResponse(w, http.StatusOK, res)
 }
+
+// handleInstallAgent installs config-studio-agent daemon to a remote SSH server.
+func (s *Server) handleInstallAgent(w http.ResponseWriter, r *http.Request) {
+	if s.fleet == nil {
+		jsonError(w, http.StatusInternalServerError, "fleet manager not initialized")
+		return
+	}
+	if s.ssh == nil {
+		jsonError(w, http.StatusInternalServerError, "ssh client manager not initialized")
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		id = strings.TrimPrefix(r.URL.Path, "/api/servers/install-agent/")
+	}
+	if id == "" {
+		jsonError(w, http.StatusBadRequest, "server id required")
+		return
+	}
+
+	var opts fleet.InstallAgentOptions
+	if r.Body != nil && r.ContentLength > 0 {
+		_ = json.NewDecoder(r.Body).Decode(&opts)
+	}
+
+	res, err := s.fleet.InstallAgent(r.Context(), id, opts, s.ssh, s.secrets)
+	if err != nil {
+		if s.audit != nil {
+			_ = s.audit.Log(audit.Event{
+				User:     s.getAuditUser(r),
+				IP:       r.RemoteAddr,
+				Action:   "fleet.agent.install_error",
+				Severity: audit.SeverityError,
+				Target:   id,
+				Details:  map[string]any{"error": err.Error(), "port": opts.Port},
+			})
+		}
+		if res == nil {
+			res = &fleet.InstallAgentResult{
+				Success: false,
+				Error:   err.Error(),
+				Logs:    []string{err.Error()},
+			}
+		}
+		jsonResponse(w, http.StatusInternalServerError, res)
+		return
+	}
+
+	if s.audit != nil {
+		_ = s.audit.Log(audit.Event{
+			User:     s.getAuditUser(r),
+			IP:       r.RemoteAddr,
+			Action:   "fleet.agent.install",
+			Severity: audit.SeverityInfo,
+			Target:   id,
+			Details:  map[string]any{"port": opts.Port, "agentUrl": res.AgentURL},
+		})
+	}
+
+	jsonResponse(w, http.StatusOK, res)
+}
+

@@ -124,4 +124,14 @@ func TestFleetServerEndpoints(t *testing.T) {
 	if recDelLocal.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 on deleting localhost, got %d", recDelLocal.Code)
 	}
+
+	// 7. POST /api/servers/install-agent/localhost (Should fail because localhost cannot be remote-installed)
+	reqInstall := httptest.NewRequest("POST", "/api/servers/install-agent/localhost", bytes.NewReader([]byte(`{"port":9090}`)))
+	reqInstall.Header.Set("Content-Type", "application/json")
+	reqInstall.Header.Set("X-ConfigStudio-Web", "1")
+	recInstall := httptest.NewRecorder()
+	srv.ServeHTTP(recInstall, reqInstall)
+	if recInstall.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 when installing agent on localhost, got %d", recInstall.Code)
+	}
 }
