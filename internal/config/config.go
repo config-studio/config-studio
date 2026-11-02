@@ -78,6 +78,10 @@ func (m *Manager) settingsPath() string {
 	return filepath.Join(m.dataDir, "settings.yaml")
 }
 
+func (m *Manager) DataDir() string {
+	return m.dataDir
+}
+
 func (m *Manager) IconPath() string {
 	return filepath.Join(m.dataDir, "custom-icon")
 }

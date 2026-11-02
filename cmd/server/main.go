@@ -15,6 +15,7 @@ import (
 
 	"config-studio/internal/audit"
 	"config-studio/internal/config"
+	"config-studio/internal/fleet"
 	appfs "config-studio/internal/fs"
 	"config-studio/internal/plugin"
 	"config-studio/internal/secrets"
@@ -117,6 +118,12 @@ func main() {
 		log.Fatalf("Failed to initialize secrets manager: %v", err)
 	}
 
+	// Initialize fleet inventory manager
+	fleetMgr, err := fleet.NewManager(*dataDir)
+	if err != nil {
+		log.Printf("Warning: failed to initialize fleet manager: %v", err)
+	}
+
 	// Prepare embedded Web FS
 	subFS, err := web.GetFS()
 	if err != nil {
@@ -129,7 +136,7 @@ func main() {
 		WebFS:    subFS,
 	}
 
-	appServer := server.NewServer(srvConfig, cfgMgr, fsSvc, pluginMgr, pluginRunner, auditLogger, secretsMgr)
+	appServer := server.NewServer(srvConfig, cfgMgr, fsSvc, pluginMgr, pluginRunner, auditLogger, secretsMgr, fleetMgr)
 
 	useTLS := *tlsFlag || os.Getenv("CONFIG_TLS") == "true" || os.Getenv("CONFIG_TLS") == "1"
 	certFile := *tlsCert

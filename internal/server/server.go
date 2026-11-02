@@ -22,6 +22,7 @@ import (
 
 	"config-studio/internal/audit"
 	"config-studio/internal/config"
+	"config-studio/internal/fleet"
 	appfs "config-studio/internal/fs"
 	"config-studio/internal/guard"
 	"config-studio/internal/plugin"
@@ -44,6 +45,7 @@ type Server struct {
 	audit        *audit.Logger
 	secrets      *secrets.Manager
 	ssh          *ssh.ClientManager
+	fleet        *fleet.Manager
 	handler      http.Handler
 	sessionsMu   sync.RWMutex
 	sessions     map[string]time.Time
@@ -57,7 +59,14 @@ func init() {
 	_ = mime.AddExtensionType(".mjs", "application/javascript")
 }
 
-func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *plugin.Manager, pRunner *plugin.Runner, auditLogger *audit.Logger, secMgr *secrets.Manager) *Server {
+func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *plugin.Manager, pRunner *plugin.Runner, auditLogger *audit.Logger, secMgr *secrets.Manager, optFleet ...*fleet.Manager) *Server {
+	var fleetMgr *fleet.Manager
+	if len(optFleet) > 0 && optFleet[0] != nil {
+		fleetMgr = optFleet[0]
+	} else if cfgMgr != nil {
+		fleetMgr, _ = fleet.NewManager(cfgMgr.DataDir())
+	}
+
 	s := &Server{
 		cfg:          cfg,
 		config:       cfgMgr,
@@ -67,6 +76,7 @@ func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *p
 		audit:        auditLogger,
 		secrets:      secMgr,
 		ssh:          ssh.NewClientManager(secMgr),
+		fleet:        fleetMgr,
 		sessions:     make(map[string]time.Time),
 	}
 	s.setupRoutes()
@@ -170,6 +180,14 @@ func (s *Server) setupRoutes() {
 	mux.HandleFunc("POST /api/ssh/sftp/mkdir", s.handleSFTPMkdir)
 	mux.HandleFunc("POST /api/ssh/sftp/delete", s.handleSFTPDelete)
 	mux.HandleFunc("POST /api/ssh/sftp/rename", s.handleSFTPRename)
+
+	// Fleet Inventory APIs
+	mux.HandleFunc("GET /api/servers", s.handleListServers)
+	mux.HandleFunc("POST /api/servers", s.handleAddOrUpdateServer)
+	mux.HandleFunc("DELETE /api/servers/{id}", s.handleDeleteServer)
+	mux.HandleFunc("GET /api/servers/raw", s.handleGetRawServersYAML)
+	mux.HandleFunc("PUT /api/servers/raw", s.handleSetRawServersYAML)
+	mux.HandleFunc("POST /api/servers/ping/{id}", s.handlePingServer)
 
 	// Remote Agent Proxy (bypasses browser mixed-content and CORS restrictions)
 	mux.HandleFunc("/api/remote-proxy/{path...}", s.handleRemoteProxy)
