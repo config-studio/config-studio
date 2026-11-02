@@ -1,4 +1,5 @@
 import { api, setRemoteEndpoint } from './api';
+import { telemetry } from './telemetry';
 import {
   PluginItem,
   OpenFile,
@@ -521,6 +522,11 @@ class PluginLoader {
         toast: (message: string, type?: 'info' | 'success' | 'error' | 'warning', title?: string) => {
           this.notificationHandler(message, type as any);
         },
+      },
+      telemetry: {
+        captureError: (err: Error, context?: Record<string, any>) => telemetry.captureError(err, context),
+        log: (action: string, details?: Record<string, any>, severity?: 'info' | 'warn' | 'critical') =>
+          telemetry.record({ action, details, severity: severity as any, source: 'plugin' }),
       },
     };
   }
