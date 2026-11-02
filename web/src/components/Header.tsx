@@ -24,6 +24,7 @@ import { translations, Language, getAvailableLanguages, subscribeLanguages, Lang
 import { api } from '../services/api';
 import { formatBytes } from '../utils/color';
 import { TreeAsciiIcon } from './ui';
+import { FileFormatIcon } from './icons/FileFormatIcon';
 
 interface HeaderProps {
   settings: Settings;
@@ -71,6 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [fileSearchQuery, setFileSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FileItem[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
   const [availableLanguages, setAvailableLanguages] = useState<LanguageMeta[]>(getAvailableLanguages());
 
@@ -83,8 +85,10 @@ export const Header: React.FC<HeaderProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const mobileSearchContainerRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
 
   // Close mobile more menu on outside click
   useEffect(() => {
@@ -112,9 +116,18 @@ export const Header: React.FC<HeaderProps> = ({
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
         e.preventDefault();
-        inputRef.current?.focus();
-        inputRef.current?.select();
-        setIsSearchOpen(true);
+        if (window.innerWidth < 768) {
+          setIsMobileSearchOpen(true);
+          setIsSearchOpen(true);
+          setTimeout(() => {
+            mobileInputRef.current?.focus();
+            mobileInputRef.current?.select();
+          }, 50);
+        } else {
+          inputRef.current?.focus();
+          inputRef.current?.select();
+          setIsSearchOpen(true);
+        }
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -124,11 +137,15 @@ export const Header: React.FC<HeaderProps> = ({
   // Click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(e.target as Node)
-      ) {
+      const target = e.target as Node;
+      const isSearchTrigger = (target as Element)?.closest?.('[data-mobile-search-trigger]');
+      if (isSearchTrigger) return;
+
+      const clickedInsideDesktop = searchContainerRef.current?.contains(target);
+      const clickedInsideMobile = mobileSearchContainerRef.current?.contains(target);
+      if (!clickedInsideDesktop && !clickedInsideMobile) {
         setIsSearchOpen(false);
+        setIsMobileSearchOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -172,8 +189,10 @@ export const Header: React.FC<HeaderProps> = ({
       onOpenFile(item.path);
     }
     setIsSearchOpen(false);
+    setIsMobileSearchOpen(false);
     setFileSearchQuery('');
     inputRef.current?.blur();
+    mobileInputRef.current?.blur();
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
@@ -197,7 +216,9 @@ export const Header: React.FC<HeaderProps> = ({
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setIsSearchOpen(false);
+      setIsMobileSearchOpen(false);
       inputRef.current?.blur();
+      mobileInputRef.current?.blur();
     }
   };
 
@@ -247,8 +268,149 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const renderSearchResults = (isMobile: boolean) => (
+    <div
+      className={`absolute ${
+        isMobile ? 'top-full left-2 right-2 mt-1.5' : 'top-full left-0 right-0 mt-2'
+      } bg-base-surface border border-base-border rounded-2xl shadow-2xl overflow-hidden z-50 animate-fade-in text-gray-800 dark:text-gray-200`}
+    >
+      {/* Header info */}
+      <div className="px-3 py-2 border-b border-base-border bg-gray-50/50 dark:bg-black/20 flex items-center justify-between text-[11px] text-gray-400">
+        <span className="font-semibold uppercase tracking-wider text-[10px]">
+          {isLoading ? (
+            <span className="flex items-center space-x-1 text-accent">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Поиск файлов...</span>
+            </span>
+          ) : (
+            <span>
+              {searchResults.length} {searchResults.length === 1 ? 'файл' : 'файлов'}
+            </span>
+          )}
+        </span>
+        {!isMobile && (
+          <div className="flex items-center space-x-2 text-[10px]">
+            <span>↑↓ навигация</span>
+            <span>↵ открыть</span>
+            <span>Esc закрыть</span>
+          </div>
+        )}
+      </div>
+
+      {/* Results List */}
+      <div className={`${isMobile ? 'max-h-[60vh]' : 'max-h-80'} overflow-y-auto p-1.5 space-y-0.5`}>
+        {isLoading && searchResults.length === 0 ? (
+          <div className="py-8 text-center text-xs text-gray-400 flex items-center justify-center space-x-2">
+            <Loader2 className="w-4 h-4 animate-spin text-accent" />
+            <span>Поиск файлов...</span>
+          </div>
+        ) : searchResults.length === 0 ? (
+          <div className="py-8 text-center text-xs text-gray-400">
+            <FileCode className="w-8 h-8 mx-auto mb-1.5 opacity-30 text-accent" />
+            {t.noFilesFound}
+          </div>
+        ) : (
+          searchResults.map((item, idx) => {
+            const isSelected = idx === selectedIndex;
+            return (
+              <div
+                key={item.path}
+                onClick={() => handleSelectFile(item)}
+                onMouseEnter={() => setSelectedIndex(idx)}
+                className={`group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer transition-all ${
+                  isSelected
+                    ? 'bg-accent/15 text-gray-900 dark:text-white font-medium border border-accent ring-1 ring-accent/30'
+                    : 'hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2.5 truncate min-w-0 pr-2">
+                  <FileFormatIcon filename={item.name} isDir={item.isDir} className="w-4 h-4 shrink-0" />
+
+                  <div className="truncate">
+                    <span className="font-semibold text-gray-900 dark:text-white block truncate">
+                      {item.name}
+                    </span>
+                    <span className="text-[11px] text-gray-400 font-mono block truncate">
+                      /{item.path}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  {!item.isDir && (
+                    <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                      {formatBytes(item.size)}
+                    </span>
+                  )}
+                  {getFileBadge(item)}
+                  <CornerDownLeft
+                    className={`w-3.5 h-3.5 text-accent transition-opacity ${
+                      isSelected ? 'opacity-100' : 'opacity-0'
+                    }`}
+                  />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+
   return (
-    <header className="h-14 bg-base-surface border-b border-base-border px-3 sm:px-4 flex items-center justify-between select-none z-30">
+    <header className="relative h-14 bg-base-surface border-b border-base-border px-3 sm:px-4 flex items-center justify-between select-none z-30">
+      {/* Mobile Search Overlay Bar */}
+      {isMobileSearchOpen && (
+        <div
+          ref={mobileSearchContainerRef}
+          className="md:hidden absolute inset-0 z-50 bg-base-surface flex items-center px-3 space-x-2 border-b border-base-border shadow-lg"
+        >
+          <Search className="w-4 h-4 text-accent shrink-0" />
+          <input
+            ref={mobileInputRef}
+            type="text"
+            placeholder={t.searchFiles}
+            value={fileSearchQuery}
+            autoFocus
+            onChange={(e) => {
+              setFileSearchQuery(e.target.value);
+              setIsSearchOpen(true);
+            }}
+            onKeyDown={handleInputKeyDown}
+            className="flex-1 min-w-0 bg-gray-100 dark:bg-black/25 text-gray-900 dark:text-gray-200 text-xs sm:text-sm rounded-xl px-3 py-1.5 border border-base-border focus:outline-none focus:border-accent transition-colors"
+          />
+
+          {fileSearchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setFileSearchQuery('');
+                mobileInputRef.current?.focus();
+              }}
+              className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-white shrink-0"
+              title="Очистить"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileSearchOpen(false);
+              setIsSearchOpen(false);
+              setFileSearchQuery('');
+            }}
+            className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 shrink-0"
+            title="Закрыть поиск"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          {/* Floating File Search Results Dropdown for Mobile */}
+          {isSearchOpen && renderSearchResults(true)}
+        </div>
+      )}
       {/* Left: Mobile Hamburger, Branding & Path */}
       <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
         {onToggleMobileFiles && (
@@ -333,99 +495,23 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Floating File Search Results Dropdown */}
-        {isSearchOpen && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-base-surface border border-base-border rounded-2xl shadow-2xl overflow-hidden z-50 animate-fade-in text-gray-800 dark:text-gray-200">
-            {/* Header info */}
-            <div className="px-3 py-2 border-b border-base-border bg-gray-50/50 dark:bg-black/20 flex items-center justify-between text-[11px] text-gray-400">
-              <span className="font-semibold uppercase tracking-wider text-[10px]">
-                {isLoading ? (
-                  <span className="flex items-center space-x-1 text-accent">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    <span>Поиск файлов...</span>
-                  </span>
-                ) : (
-                  <span>
-                    {searchResults.length} {searchResults.length === 1 ? 'файл' : 'файлов'}
-                  </span>
-                )}
-              </span>
-              <div className="flex items-center space-x-2 text-[10px]">
-                <span>↑↓ навигация</span>
-                <span>↵ открыть</span>
-                <span>Esc закрыть</span>
-              </div>
-            </div>
-
-            {/* Results List */}
-            <div className="max-h-80 overflow-y-auto p-1.5 space-y-0.5">
-              {isLoading && searchResults.length === 0 ? (
-                <div className="py-8 text-center text-xs text-gray-400 flex items-center justify-center space-x-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-accent" />
-                  <span>Поиск файлов...</span>
-                </div>
-              ) : searchResults.length === 0 ? (
-                <div className="py-8 text-center text-xs text-gray-400">
-                  <FileCode className="w-8 h-8 mx-auto mb-1.5 opacity-30 text-accent" />
-                  {t.noFilesFound}
-                </div>
-              ) : (
-                searchResults.map((item, idx) => {
-                  const isSelected = idx === selectedIndex;
-                  return (
-                    <div
-                      key={item.path}
-                      onClick={() => handleSelectFile(item)}
-                      onMouseEnter={() => setSelectedIndex(idx)}
-                      className={`group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer transition-all ${
-                        isSelected
-                          ? 'bg-accent/15 text-gray-900 dark:text-white font-medium border border-accent ring-1 ring-accent/30'
-                          : 'hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2.5 truncate min-w-0 pr-2">
-                        {item.isDir ? (
-                          <Folder className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                        ) : (
-                          <FileCode className="w-4 h-4 text-accent flex-shrink-0" />
-                        )}
-
-                        <div className="truncate">
-                          <span className="font-semibold text-gray-900 dark:text-white block truncate">
-                            {item.name}
-                          </span>
-                          <span className="text-[11px] text-gray-400 font-mono block truncate">
-                            /{item.path}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2 flex-shrink-0">
-                        {!item.isDir && (
-                          <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
-                            {formatBytes(item.size)}
-                          </span>
-                        )}
-                        {getFileBadge(item)}
-                        <CornerDownLeft
-                          className={`w-3.5 h-3.5 text-accent transition-opacity ${
-                            isSelected ? 'opacity-100' : 'opacity-0'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
+        {isSearchOpen && renderSearchResults(false)}
       </div>
 
       {/* Right: Actions */}
       <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
         {/* Mobile search trigger icon */}
         <button
-          onClick={() => setIsSearchOpen(true)}
+          type="button"
+          data-mobile-search-trigger
+          onClick={() => {
+            setIsMobileSearchOpen(true);
+            setIsSearchOpen(true);
+            setTimeout(() => {
+              mobileInputRef.current?.focus();
+              mobileInputRef.current?.select();
+            }, 50);
+          }}
           className="md:hidden p-2 rounded-xl text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
           title={t.searchFiles}
         >
