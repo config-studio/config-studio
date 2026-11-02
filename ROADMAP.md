@@ -94,7 +94,7 @@
 |---|---|:---:|
 | **v2.0.0** | Стабильный релиз 2.0: Core SSH/SFTP, Time Machine, Мульти-рабочие области (`workspaces.yaml`), Zero-Emoji Lucide SVG | Завершена |
 | **remote-agent v2.2** | Bi-directional Transfer, Adopt, HTTP Subnet Sweep, Scoped-токены, Zero-Emoji Lucide SVG | Завершена |
-| **config-studio-ssh v1.0.3** | UniSSH, E2EE Core Vault, xterm.js PTY, SFTP Explorer | Завершена |
+| **config-studio-ssh** | Функционал полностью перенесен в нативное ядро v2.0 (PTY, SFTP, UniSSH Vault); плагин выведен из эксплуатации | Интегрирован в Core |
 | **v2.0.0-beta** | Версия 2.0 Beta: Мобильный UI, PWA, Soft Dependencies и пакетная установка | Завершена |
 | **v1.9.9** | Mobile Layout & PWA: 100% унификация интерфейса (@config-studio/ui), адаптивность и PWA | Завершена |
 | **v1.9.8** | Unified Observability: структурированная телеметрия, 1-Click отчёт для ИИ в ErrorBoundary | Завершена |
@@ -177,7 +177,8 @@
 <details>
 <summary><b>🖧 Детали: Официальные плагины v2.0 (SSH UniSSH, Remote Agent v2.2, Subnet Sweep & Adopt)</b></summary>
 
-- [x] **config-studio-ssh (SSH/SFTP Терминал и управление серверами — архитектура UniSSH / E2EE Vault)**:
+- [x] **config-studio-ssh (SSH/SFTP Терминал и управление серверами — полностью перенесен в ядро v2.0)**:
+  - *Статус*: Весь функционал (Web SSH PTY, SFTP проводник, E2EE Core Vault, ProxyJump) перенесен непосредственно в нативное ядро редактора; отдельный плагин отправлен на пенсию (Retired).
   - [x] **Identity & Key Vault (концепция UniSSH)**: разделение профилей хостов и учетных данных. SSH-ключи (ed25519/rsa с passphrase) и пароли хранятся централизованно в зашифрованном хранилище ядра Core Vault (`ScopeShared`), хосты лишь ссылаются на `Identity ID`.
   - [x] **Поддержка Bastion / Jump Host (`ProxyJump`)**: прозрачное сквозное подключение к серверам в закрытых подсетях и за NAT через промежуточный узел-шлюз.
   - [x] **Интерактивный Web SSH терминал (PTY)**: полнофункциональный терминал на базе `xterm.js` + WebSocket + `golang.org/x/crypto/ssh`, поддержка ресайза окон (`window-change`), разделения потоков `stdout`/`stderr`, автопереподключения (Auto-Reconnect) и Shell Integration (OSC 133).

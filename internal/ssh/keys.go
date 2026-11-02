@@ -19,7 +19,7 @@ type KeyPair struct {
 // GenerateEd25519KeyPair generates a brand new Ed25519 SSH keypair.
 func GenerateEd25519KeyPair(comment string) (*KeyPair, error) {
 	if comment == "" {
-		comment = "config-studio-ssh"
+		comment = "config-studio-key"
 	}
 
 	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
