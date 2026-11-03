@@ -13,6 +13,7 @@ export interface VanillaDropdownConfig {
   description?: string;
   error?: string;
   disabled?: boolean;
+  size?: 'sm' | 'md';
   className?: string;
   menuClassName?: string;
   clearable?: boolean;
@@ -62,6 +63,7 @@ export function mountDropdown(
         menuClassName={config.menuClassName}
         clearable={config.clearable}
         accentColor={config.accentColor}
+        size={config.size}
       />
     );
   }

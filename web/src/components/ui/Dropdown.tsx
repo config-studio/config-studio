@@ -27,6 +27,7 @@ export interface DropdownProps {
   description?: React.ReactNode;
   error?: string;
   disabled?: boolean;
+  size?: 'sm' | 'md';
   className?: string;
   menuClassName?: string;
   clearable?: boolean;
@@ -47,6 +48,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   description,
   error,
   disabled = false,
+  size = 'md',
   className = '',
   menuClassName = '',
   clearable = false,
@@ -56,12 +58,26 @@ export const Dropdown: React.FC<DropdownProps> = ({
   renderSelected,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Auto flip if not enough room below
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 220 && rect.top > spaceBelow) {
+        setOpenUpward(true);
+      } else {
+        setOpenUpward(false);
+      }
+    }
+  }, [isOpen]);
 
   // Auto-enable search if more than 6 options
   const isSearchable = searchable !== undefined ? searchable : options.length > 6;
@@ -256,7 +272,9 @@ export const Dropdown: React.FC<DropdownProps> = ({
       <div
         tabIndex={disabled ? -1 : 0}
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full min-h-[36px] px-3 py-1.5 bg-[#0d1117] border rounded-lg text-xs flex items-center justify-between cursor-pointer transition select-none ${
+        className={`w-full ${
+          size === 'sm' ? 'min-h-[30px] px-2.5 py-1 text-xs' : 'min-h-[36px] px-3 py-1.5 text-xs'
+        } bg-[#0d1117] border rounded-lg flex items-center justify-between cursor-pointer transition select-none ${
           error
             ? 'border-red-500 ring-1 ring-red-500'
             : isOpen
@@ -322,7 +340,9 @@ export const Dropdown: React.FC<DropdownProps> = ({
       {/* Floating Dropdown Menu */}
       {isOpen && (
         <div
-          className={`absolute left-0 right-0 z-50 mt-1 bg-[#161b22] border border-[#30363d] rounded-xl shadow-2xl overflow-hidden text-xs animate-in fade-in zoom-in-95 duration-100 flex flex-col ${menuClassName}`}
+          className={`absolute left-0 right-0 z-50 bg-[#161b22] border border-[#30363d] rounded-xl shadow-2xl overflow-hidden text-xs animate-in fade-in zoom-in-95 duration-100 flex flex-col ${
+            openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+          } ${menuClassName}`}
           style={{ maxHeight: '280px' }}
         >
           {/* Search Box */}

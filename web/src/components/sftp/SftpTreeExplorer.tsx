@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Server,
   Folder,
@@ -25,6 +25,7 @@ import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
 import { formatBytes } from '../../utils/color';
 import { translations } from '../../utils/i18n';
+import { Dropdown, DropdownOption } from '@config-studio/ui';
 
 interface SftpTreeExplorerProps {
   settings: Settings;
@@ -60,6 +61,18 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
 
   const t = translations[settings.language] || translations.ru;
   const activeHost = hosts.find((h) => h.id === selectedHostId) || null;
+
+  const hostOptions = useMemo<DropdownOption[]>(() => {
+    return hosts.map((h) => ({
+      value: h.id,
+      label: h.name || h.host,
+      subtitle: `${h.user || 'root'}@${h.host}:${h.port || 22}`,
+      icon: <Server size={12} className="text-sky-400" />,
+      badge: (h.authType || 'ssh').toUpperCase(),
+      badgeColor: 'blue',
+      statusDot: 'online',
+    }));
+  }, [hosts]);
 
   // Subscribe to host changes
   useEffect(() => {
@@ -352,19 +365,20 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
   return (
     <div className="flex-1 flex flex-col min-h-0 select-none bg-base-surface">
       {/* 1. Host Picker Toolbar */}
-      <div className="p-2.5 border-b border-base-border bg-base-surface flex items-center justify-between gap-1.5 shrink-0">
+      <div className="p-2 border-b border-base-border bg-base-surface flex items-center justify-between gap-1.5 shrink-0">
         <div className="flex-1 min-w-0">
-          <select
+          <Dropdown
+            options={hostOptions}
             value={selectedHostId}
-            onChange={(e) => handleSelectHost(e.target.value)}
-            className="w-full bg-black/10 dark:bg-black/30 border border-base-border rounded-lg px-2 py-1 text-xs text-gray-900 dark:text-gray-100 font-semibold focus:outline-hidden focus:border-accent cursor-pointer truncate"
-          >
-            {hosts.map((h) => (
-              <option key={h.id} value={h.id} className="bg-gray-900 text-gray-100">
-                {h.name || h.host} ({h.user || 'root'}@{h.host}:{h.port || 22})
-              </option>
-            ))}
-          </select>
+            onChange={(val) => {
+              if (val) handleSelectHost(String(val));
+            }}
+            placeholder={settings.language === 'ru' ? 'Выберите SSH хост...' : 'Select SSH host...'}
+            searchable={hostOptions.length > 5}
+            searchPlaceholder={settings.language === 'ru' ? 'Поиск хоста...' : 'Search host...'}
+            size="sm"
+            className="w-full text-xs"
+          />
         </div>
 
         <div className="flex items-center space-x-1 shrink-0">
