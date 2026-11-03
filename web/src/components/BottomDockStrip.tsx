@@ -25,6 +25,7 @@ import { api } from '../services/api';
 import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
 import { sshHostService } from '../services/sshHosts';
+import { SysInfoBar } from './sysinfo/SysInfoBar';
 
 const XTerminal = lazy(() => import('./terminal/XTerminal'));
 
@@ -609,10 +610,14 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
           </button>
         </div>
 
-        {/* Right: File Status & Hotkey Hint */}
-        <div className="flex items-center space-x-3 text-[11px] text-[#8b949e] font-mono shrink-0 pl-2">
+        {/* Right: SysInfo & File Status & Hotkey Hint */}
+        <div className="flex items-center space-x-2.5 sm:space-x-3 text-[11px] text-[#8b949e] font-mono shrink-0 pl-2">
+          {/* SysInfo Hardware Telemetry (CPU / RAM / Disks / Uptime) */}
+          <SysInfoBar language={language} accentColor={accentColor} />
+
           {currentFile && (
             <>
+              <span className="hidden sm:inline text-gray-600">|</span>
               <span>
                 Ln {cursorPos.line}, Col {cursorPos.col}
               </span>

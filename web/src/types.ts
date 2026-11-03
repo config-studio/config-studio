@@ -436,3 +436,33 @@ export interface SFTPRequest {
   isDir?: boolean;
   newPath?: string;
 }
+
+export interface MemoryInfo {
+  totalBytes: number;
+  availableBytes: number;
+  usedBytes: number;
+  usedPercent: number;
+}
+
+export interface DiskInfo {
+  mountPoint: string;
+  totalBytes: number;
+  availableBytes: number;
+  usedBytes: number;
+  usedPercent: number;
+}
+
+export interface SystemMetrics {
+  hostname: string;
+  os: string;
+  arch: string;
+  numCpu: number;
+  cpuPercent: number;
+  uptimeSec: number;
+  loadAvg: [number, number, number];
+  memory: MemoryInfo;
+  disks: DiskInfo[];
+  collectedAt: string;
+  version: string;
+}
+

@@ -1,5 +1,6 @@
 import { api, setRemoteEndpoint } from './api';
 import { sshHostService } from './sshHosts';
+import { sysinfoService, formatBytes, formatUptime } from './sysinfo';
 import { telemetry } from './telemetry';
 import {
   PluginItem,
@@ -537,6 +538,15 @@ class PluginLoader {
         toast: (message: string, type?: 'info' | 'success' | 'error' | 'warning', title?: string) => {
           this.notificationHandler(message, type as any);
         },
+      },
+      sysinfo: {
+        get: () => sysinfoService.getState().metrics,
+        getState: () => sysinfoService.getState(),
+        refresh: () => sysinfoService.refresh(),
+        setActiveNode: (id: string, name: string) => sysinfoService.setActiveNode(id, name),
+        subscribe: (cb: (state: any) => void) => sysinfoService.subscribe(cb),
+        formatBytes: formatBytes,
+        formatUptime: formatUptime,
       },
       telemetry: {
         captureError: (err: Error, context?: Record<string, any>) => telemetry.captureError(err, context),

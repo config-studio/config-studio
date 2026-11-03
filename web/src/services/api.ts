@@ -24,6 +24,7 @@ import {
   SSHKeyPair,
   SFTPFileInfo,
   SFTPRequest,
+  SystemMetrics,
 } from '../types';
 import { telemetry } from './telemetry';
 
@@ -53,6 +54,11 @@ export function setRemoteEndpoint(endpoint: string | null, token: string = '') {
     remoteEndpoint = null;
     remoteToken = null;
   }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('cs:remote-endpoint-changed', { detail: { endpoint, token } })
+    );
+  }
 }
 
 export function getRemoteEndpoint() {
@@ -61,8 +67,8 @@ export function getRemoteEndpoint() {
 
 function shouldRouteToRemote(url: string): boolean {
   if (!remoteEndpoint) return false;
-  // ONLY File System operations (files, trees, content) are proxied to the remote agent
-  return url.startsWith('/api/fs/');
+  // Proxy File System operations and SysInfo metrics to the remote agent
+  return url.startsWith('/api/fs/') || url.startsWith('/api/sysinfo');
 }
 
 async function webFetch(url: string, options: RequestInit = {}): Promise<Response> {
@@ -108,6 +114,16 @@ export const api = {
   async getAuthStatus(): Promise<{ authRequired: boolean; authenticated: boolean; user: string }> {
     const res = await webFetch('/api/auth/status');
     if (!res.ok) return { authRequired: false, authenticated: true, user: 'guest' };
+    return res.json();
+  },
+
+  async getSysInfo(server?: string): Promise<SystemMetrics> {
+    const qs = server && server !== 'local' && server !== 'localhost' ? `?server=${encodeURIComponent(server)}` : '';
+    const res = await webFetch(`/api/sysinfo${qs}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to fetch system metrics (HTTP ${res.status})`);
+    }
     return res.json();
   },
 
