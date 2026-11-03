@@ -14,7 +14,12 @@
     "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@config-studio/ui": ["src/components/ui/index.ts"],
+      "@config-studio/ui/*": ["src/components/ui/*"]
+    }
   },
   "include": ["src"]
 }

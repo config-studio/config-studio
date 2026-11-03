@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useRef, useEffect, useMemo, Suspense, lazy } from 'react';
 import {
   Terminal,
   FileText,
@@ -26,6 +26,7 @@ import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
 import { sshHostService } from '../services/sshHosts';
 import { SysInfoBar } from './sysinfo/SysInfoBar';
+import { Dropdown, DropdownOption } from '@config-studio/ui';
 
 const XTerminal = lazy(() => import('./terminal/XTerminal'));
 
@@ -80,6 +81,18 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
     if (last && list.some((h) => h.id === last)) return last;
     return list[0]?.id || '';
   });
+
+  const hostOptions = useMemo<DropdownOption[]>(() => {
+    return sshHosts.map((h) => ({
+      value: h.id,
+      label: h.name || h.host,
+      subtitle: `${h.user}@${h.host}:${h.port || 22}`,
+      badge: h.authType === 'password' ? 'pass' : h.authType === 'vault' ? 'vault' : 'key',
+      badgeColor: 'blue',
+      icon: <Server size={12} />,
+      statusDot: 'online',
+    }));
+  }, [sshHosts]);
 
   const mountContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -224,22 +237,19 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
               {/* Host Selector for Terminal */}
               {activePanelId === 'terminal' && sshHosts.length > 0 && (
-                <div className="flex items-center space-x-1.5 ml-2">
-                  <span className="text-gray-400 text-[11px] hidden sm:inline">Хост:</span>
-                  <select
+                <div className="flex items-center space-x-1.5 ml-2 w-48 sm:w-56">
+                  <Dropdown
+                    options={hostOptions}
                     value={selectedHostId}
-                    onChange={(e) => {
-                      setSelectedHostId(e.target.value);
-                      sshHostService.setLastActiveHostId(e.target.value);
+                    onChange={(val) => {
+                      if (val) {
+                        setSelectedHostId(val);
+                        sshHostService.setLastActiveHostId(val);
+                      }
                     }}
-                    className="px-2 py-0.5 bg-[#0d1117] border border-gray-700 rounded text-[11px] text-white focus:outline-none focus:border-accent"
-                  >
-                    {sshHosts.map((h) => (
-                      <option key={h.id} value={h.id}>
-                        {h.name || h.host} ({h.user}@{h.host}:{h.port || 22})
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Выберите хост..."
+                    accentColor={accentColor}
+                  />
                 </div>
               )}
 

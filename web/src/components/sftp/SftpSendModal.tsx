@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Server,
@@ -14,6 +14,7 @@ import {
 import { SSHHost, SFTPFileInfo } from '../../types';
 import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
+import { Dropdown, DropdownOption } from '@config-studio/ui';
 
 interface SftpSendModalProps {
   filePath: string;
@@ -46,6 +47,18 @@ export const SftpSendModal: React.FC<SftpSendModalProps> = ({
   // Directory picker state
   const [pickerEntries, setPickerEntries] = useState<SFTPFileInfo[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
+
+  const hostOptions = useMemo<DropdownOption[]>(() => {
+    return hosts.map((h) => ({
+      value: h.id,
+      label: h.name || h.host,
+      subtitle: `${h.user}@${h.host}:${h.port || 22}`,
+      badge: h.authType === 'password' ? 'pass' : h.authType === 'vault' ? 'vault' : 'key',
+      badgeColor: 'blue',
+      icon: <Server size={14} />,
+      statusDot: 'online',
+    }));
+  }, [hosts]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -225,17 +238,12 @@ export const SftpSendModal: React.FC<SftpSendModalProps> = ({
               )}
             </label>
             {hosts.length > 0 ? (
-              <select
+              <Dropdown
+                options={hostOptions}
                 value={selectedHostId}
-                onChange={(e) => handleHostChange(e.target.value)}
-                className="w-full px-3 py-2 bg-[#0d1117] border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-accent"
-              >
-                {hosts.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name || h.host} ({h.user}@{h.host}:{h.port || 22})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleHostChange(val)}
+                placeholder="Выберите SSH хост..."
+              />
             ) : (
               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-300">
                 Добавьте SSH хост в разделе Настройки → SSH & Хосты для отправки файлов.

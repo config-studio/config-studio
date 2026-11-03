@@ -761,6 +761,6 @@ const PluginHeaderItemMount: React.FC<{ item: HeaderItemDef }> = ({ item }) => {
     }
   }, [item]);
 
-  return <div ref={mountRef} className="flex items-center" />;
+  return <div id={`cs-header-item-${item.id}`} data-plugin-id={item.pluginId} ref={mountRef} className="flex items-center" />;
 };
 

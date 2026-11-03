@@ -2,6 +2,7 @@ import { api, setRemoteEndpoint } from './api';
 import { sshHostService } from './sshHosts';
 import { sysinfoService, formatBytes, formatUptime } from './sysinfo';
 import { telemetry } from './telemetry';
+import { mountDropdown } from '../components/ui/vanillaDropdown';
 import {
   PluginItem,
   OpenFile,
@@ -537,6 +538,9 @@ class PluginLoader {
       ui: {
         toast: (message: string, type?: 'info' | 'success' | 'error' | 'warning', title?: string) => {
           this.notificationHandler(message, type as any);
+        },
+        renderDropdown: (container: HTMLElement, config: any) => {
+          return mountDropdown(container, config);
         },
       },
       sysinfo: {

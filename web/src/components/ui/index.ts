@@ -5,6 +5,8 @@ export * from './Toggle';
 export * from './Input';
 export * from './Textarea';
 export * from './Select';
+export * from './Dropdown';
+export * from './vanillaDropdown';
 export * from './Badge';
 export * from './Tabs';
 export * from './Card';
