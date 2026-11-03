@@ -46,6 +46,11 @@
   - [ ] Удаленная проверка синтаксиса `nginx -t` перед сохранением или SFTP-отправкой.
   - [ ] Включение/выключение сайтов `sites-available` ➔ `sites-enabled` в 1 клик.
   - [ ] Монитор срока годности SSL/TLS сертификатов.
+- [ ] **config-studio-traefik**:
+  - [ ] Интеллектуальный AST Outline: дерево роутеров (`routers`), мидлварей (`middlewares`) и сервисов (`services`) с подсветкой правил `Host(...)` и быстрым переходом.
+  - [ ] Каталог рецептов (Blueprints): статический `traefik.yml` (Let's Encrypt ACME, HTTPS-редирект, Dashboard) и динамический `dynamic.yml` (Reverse Proxy с WebSocket, BasicAuth, RateLimit).
+  - [ ] Traefik Doctor & Rule Linter: валидация синтаксиса выражений правил (совместимость Traefik v2 и v3) и проверка отсутствия "висячих" роутеров без сервиса.
+  - [ ] Кнопки Action Toolbar: 1-Click валидация синтаксиса, быстрый переход в панель Traefik Dashboard и каталог рецептов.
 - [ ] **config-studio-systemd**:
   - [ ] Генератор Unit-файлов (Service, Timer, Mount) с изоляцией памяти и автоперезапуском.
   - [ ] Проверка валидности через `systemd-analyze verify`.
