@@ -28,10 +28,10 @@ export interface ModalProps {
 }
 
 const sizeClasses: Record<ModalSize, string> = {
-  sm: 'max-w-md w-full',
-  md: 'max-w-xl w-full',
-  lg: 'max-w-3xl w-full',
-  xl: 'max-w-4xl w-full',
+  sm: 'max-w-[400px] w-full',
+  md: 'max-w-[540px] w-full',
+  lg: 'max-w-[720px] w-full',
+  xl: 'max-w-[900px] w-full',
   fullscreen: 'w-full h-full max-w-none rounded-none',
 };
 
