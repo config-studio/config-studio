@@ -146,13 +146,18 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     const handleOpenSftpHost = () => {
       setSidebarTab('sftp');
     };
+    const handleRemoteChanged = () => {
+      onRefresh();
+    };
     window.addEventListener('cs:switch-sidebar-tab', handleSwitchSidebarTab);
     window.addEventListener('cs:open-sftp-host', handleOpenSftpHost);
+    window.addEventListener('cs:remote-endpoint-changed', handleRemoteChanged);
     return () => {
       window.removeEventListener('cs:switch-sidebar-tab', handleSwitchSidebarTab);
       window.removeEventListener('cs:open-sftp-host', handleOpenSftpHost);
+      window.removeEventListener('cs:remote-endpoint-changed', handleRemoteChanged);
     };
-  }, []);
+  }, [onRefresh]);
 
   const toggleRootCollapse = (rootId: string, e: React.MouseEvent) => {
     e.stopPropagation();

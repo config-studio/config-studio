@@ -459,6 +459,24 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('cs:open-ssh-terminal', handleOpenSSHTerminal);
   }, []);
 
+  // Listen for remote endpoint changes (switching between Localhost and Fleet Agents)
+  useEffect(() => {
+    const handleRemoteEndpointChanged = async (e: any) => {
+      const { endpoint } = e.detail || {};
+      if (endpoint) {
+        // Switched to Remote Agent: load remote files
+        setWorkspaces([]);
+        setItemsByRoot({});
+        await loadDir('');
+      } else {
+        // Switched to Localhost: reload local workspaces
+        await loadWorkspaces();
+      }
+    };
+    window.addEventListener('cs:remote-endpoint-changed', handleRemoteEndpointChanged);
+    return () => window.removeEventListener('cs:remote-endpoint-changed', handleRemoteEndpointChanged);
+  }, []);
+
   // Sync <head> title and favicon
   useEffect(() => {
     const filePart = currentFile ? currentFile.name : currentDir ? currentDir : 'Workspace';

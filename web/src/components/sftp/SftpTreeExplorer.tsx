@@ -83,6 +83,14 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
       let targetHost = currentHosts.find(
         (h) => h.id === detail.id || (h.host === detail.host && h.user === (detail.user || 'root'))
       );
+      if (!targetHost && detail.host) {
+        sshHostService.save(detail);
+        const updated = sshHostService.list();
+        setHosts(updated);
+        targetHost = updated.find(
+          (h) => h.id === detail.id || (h.host === detail.host && h.user === (detail.user || 'root'))
+        );
+      }
       if (targetHost) {
         setSelectedHostId(targetHost.id);
         sshHostService.setLastActiveHostId(targetHost.id);
