@@ -300,15 +300,10 @@ export const Dropdown: React.FC<DropdownProps> = ({
                   />
                 )}
                 {selectedOption.icon && <span className="shrink-0 text-gray-400">{selectedOption.icon}</span>}
-                <div className="truncate flex items-center space-x-2">
+                <div className="truncate flex items-center space-x-1.5 min-w-0 flex-1">
                   <span className="truncate text-white font-medium">{selectedOption.label}</span>
-                  {selectedOption.subtitle && (
-                    <span className="text-[10px] text-[#8b949e] font-mono truncate hidden sm:inline">
-                      ({selectedOption.subtitle})
-                    </span>
-                  )}
                   {selectedOption.badge && (
-                    <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${getBadgeClass(selectedOption.badgeColor)}`}>
+                    <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded shrink-0 ${getBadgeClass(selectedOption.badgeColor)}`}>
                       {selectedOption.badge}
                     </span>
                   )}
@@ -340,7 +335,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
       {/* Floating Dropdown Menu */}
       {isOpen && (
         <div
-          className={`absolute left-0 right-0 z-50 bg-[#161b22] border border-[#30363d] rounded-xl shadow-2xl overflow-hidden text-xs animate-in fade-in zoom-in-95 duration-100 flex flex-col ${
+          className={`absolute left-0 min-w-full z-50 bg-[#161b22] border border-[#30363d] rounded-xl shadow-2xl overflow-hidden text-xs animate-in fade-in zoom-in-95 duration-100 flex flex-col ${
             openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
           } ${menuClassName}`}
           style={{ maxHeight: '280px' }}

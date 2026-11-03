@@ -364,9 +364,10 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 select-none bg-base-surface">
-      {/* 1. Host Picker Toolbar */}
-      <div className="p-2 border-b border-base-border bg-base-surface flex items-center justify-between gap-1.5 shrink-0">
-        <div className="flex-1 min-w-0">
+      {/* 1. Host Picker Toolbar (Dropdown on top, Action buttons centered below) */}
+      <div className="p-2 border-b border-base-border bg-base-surface flex flex-col gap-2 shrink-0">
+        {/* Full-width Host Dropdown */}
+        <div className="w-full min-w-0">
           <Dropdown
             options={hostOptions}
             value={selectedHostId}
@@ -378,46 +379,50 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
             searchPlaceholder={settings.language === 'ru' ? 'Поиск хоста...' : 'Search host...'}
             size="sm"
             className="w-full text-xs"
+            menuClassName="w-full min-w-[240px]"
           />
         </div>
 
-        <div className="flex items-center space-x-1 shrink-0">
-          {/* Quick Terminal Action */}
-          {activeHost && onOpenTerminal && (
+        {/* Action Buttons Toolbar below */}
+        <div className="flex items-center justify-center">
+          <div className="inline-flex items-center justify-center p-0.5 bg-black/10 dark:bg-black/30 border border-base-border/70 rounded-xl space-x-1">
+            {/* Quick Terminal Action */}
+            {activeHost && onOpenTerminal && (
+              <button
+                type="button"
+                onClick={() => onOpenTerminal(activeHost)}
+                className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center"
+                title="Открыть SSH терминал"
+              >
+                <Terminal className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {/* Refresh Directory */}
             <button
               type="button"
-              onClick={() => onOpenTerminal(activeHost)}
-              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-accent dark:text-gray-400 dark:hover:text-accent transition"
-              title="Открыть SSH терминал внизу"
+              onClick={() => loadDirectory(currentPath)}
+              disabled={isLoading}
+              className={`p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center ${
+                isLoading ? 'animate-spin text-accent' : ''
+              }`}
+              title="Обновить каталог"
             >
-              <Terminal className="w-3.5 h-3.5" />
+              <RefreshCw className="w-3.5 h-3.5" />
             </button>
-          )}
 
-          {/* Refresh Directory */}
-          <button
-            type="button"
-            onClick={() => loadDirectory(currentPath)}
-            disabled={isLoading}
-            className={`p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition ${
-              isLoading ? 'animate-spin text-accent' : ''
-            }`}
-            title="Обновить каталог"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Manage Hosts in Settings */}
-          {onOpenSettingsSsh && (
-            <button
-              type="button"
-              onClick={onOpenSettingsSsh}
-              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition"
-              title="Управление SSH хостами"
-            >
-              <SettingsIcon className="w-3.5 h-3.5" />
-            </button>
-          )}
+            {/* Manage Hosts in Settings */}
+            {onOpenSettingsSsh && (
+              <button
+                type="button"
+                onClick={onOpenSettingsSsh}
+                className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center"
+                title="Настройки SSH хостов"
+              >
+                <SettingsIcon className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
