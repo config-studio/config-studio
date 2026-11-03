@@ -64,11 +64,25 @@ foreach ($dest in $DistDirs) {
     if (Test-Path $dest) {
         try {
             Copy-Item -Path (Join-Path $BinDir "config-studio-windows-amd64.exe") -Destination $dest -Force -ErrorAction Stop
+            Copy-Item -Path (Join-Path $BinDir "config-studio-windows-amd64.exe") -Destination (Join-Path $dest "config-studio.exe") -Force -ErrorAction Stop
             Copy-Item -Path (Join-Path $BinDir "config-studio-ru-windows-amd64.exe") -Destination $dest -Force -ErrorAction Stop
             Copy-Item -Path (Join-Path $BinDir "config-studio-en-windows-amd64.exe") -Destination $dest -Force -ErrorAction Stop
             Copy-Item -Path (Join-Path $BinDir "cspkg.exe") -Destination $dest -Force -ErrorAction Stop
             Copy-Item -Path (Join-Path $BinDir "config-studio-agent.exe") -Destination $dest -Force -ErrorAction Stop
             Copy-Item -Path (Join-Path $RootDir "start.bat") -Destination $dest -Force -ErrorAction SilentlyContinue
+
+            # Deploy latest extension packages (.cspkg)
+            $destPlugins = Join-Path $dest "data\plugins"
+            if (-not (Test-Path $destPlugins)) {
+                New-Item -ItemType Directory -Path $destPlugins -Force | Out-Null
+            }
+            $pluginsPkgDir = "C:\Users\iBella\.gemini\antigravity\scratch\config-studio-plugins\packages"
+            if (Test-Path $pluginsPkgDir) {
+                Copy-Item -Path (Join-Path $pluginsPkgDir "servers.cspkg") -Destination (Join-Path $destPlugins "servers.cspkg") -Force -ErrorAction SilentlyContinue
+                Copy-Item -Path (Join-Path $pluginsPkgDir "remote-agent.cspkg") -Destination (Join-Path $destPlugins "remote-agent.cspkg") -Force -ErrorAction SilentlyContinue
+                Copy-Item -Path (Join-Path $pluginsPkgDir "servers.cspkg") -Destination (Join-Path $dest "servers.cspkg") -Force -ErrorAction SilentlyContinue
+                Copy-Item -Path (Join-Path $pluginsPkgDir "remote-agent.cspkg") -Destination (Join-Path $dest "remote-agent.cspkg") -Force -ErrorAction SilentlyContinue
+            }
             Write-Host "[OK] Deployed binaries to: $dest" -ForegroundColor Green
         } catch {
             Write-Host "[WARN] Could not deploy to $dest (file is in use): $($_.Exception.Message)" -ForegroundColor Yellow

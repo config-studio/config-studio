@@ -61,38 +61,38 @@ export const SysInfoBar: React.FC<SysInfoBarProps> = ({
         ) : metrics ? (
           <>
             {/* CPU */}
-            <div className={`flex items-center space-x-1 ${getBadgeColor(metrics.cpuPercent)}`}>
+            <div className={`flex items-center space-x-1 ${getBadgeColor(metrics.cpuPercent ?? 0)}`}>
               <Cpu size={11} className="shrink-0 text-blue-400" />
-              <span>{metrics.cpuPercent.toFixed(0)}%</span>
+              <span>{(metrics.cpuPercent ?? 0).toFixed(0)}%</span>
             </div>
 
             {/* RAM */}
             <div
-              className={`flex items-center space-x-1 ${getBadgeColor(metrics.memory.usedPercent)}`}
-              title={`RAM: ${formatBytes(metrics.memory.usedBytes)} / ${formatBytes(metrics.memory.totalBytes)}`}
+              className={`flex items-center space-x-1 ${getBadgeColor(metrics.memory?.usedPercent ?? 0)}`}
+              title={`RAM: ${formatBytes(metrics.memory?.usedBytes ?? 0)} / ${formatBytes(metrics.memory?.totalBytes ?? 0)}`}
             >
               <Layers size={11} className="shrink-0 text-purple-400" />
-              <span>{metrics.memory.usedPercent.toFixed(0)}%</span>
+              <span>{(metrics.memory?.usedPercent ?? 0).toFixed(0)}%</span>
             </div>
 
             {/* Disk */}
             {primaryDisk && (
               <div
-                className={`hidden md:flex items-center space-x-1 ${getBadgeColor(primaryDisk.usedPercent)}`}
-                title={`Disk ${primaryDisk.mountPoint}: ${formatBytes(primaryDisk.availableBytes)} free`}
+                className={`hidden md:flex items-center space-x-1 ${getBadgeColor(primaryDisk.usedPercent ?? 0)}`}
+                title={`Disk ${primaryDisk.mountPoint || ''}: ${formatBytes(primaryDisk.availableBytes ?? 0)} free`}
               >
                 <HardDrive size={11} className="shrink-0 text-cyan-400" />
-                <span>{formatBytes(primaryDisk.availableBytes)}</span>
+                <span>{formatBytes(primaryDisk.availableBytes ?? 0)}</span>
               </div>
             )}
 
             {/* Uptime */}
             <div
               className="hidden lg:flex items-center space-x-1 text-[#8b949e] hover:text-white"
-              title={`Uptime: ${metrics.uptimeSec}s`}
+              title={`Uptime: ${metrics.uptimeSec ?? 0}s`}
             >
               <Clock size={11} className="shrink-0 text-emerald-400" />
-              <span>{formatUptime(metrics.uptimeSec)}</span>
+              <span>{formatUptime(metrics.uptimeSec ?? 0)}</span>
             </div>
           </>
         ) : (

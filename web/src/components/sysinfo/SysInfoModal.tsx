@@ -118,20 +118,20 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
                       <Cpu size={14} className="text-blue-400" />
                       <span>{t.sysinfoCpu || 'ЦП (CPU)'}</span>
                     </span>
-                    <span className={`font-mono font-bold ${getTextColor(metrics.cpuPercent)}`}>
-                      {metrics.cpuPercent.toFixed(1)}%
+                    <span className={`font-mono font-bold ${getTextColor(metrics.cpuPercent ?? 0)}`}>
+                      {(metrics.cpuPercent ?? 0).toFixed(1)}%
                     </span>
                   </div>
                   {/* Progress bar */}
                   <div className="h-1.5 w-full bg-[#21262d] rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${getBarColor(metrics.cpuPercent)}`}
-                      style={{ width: `${Math.min(100, Math.max(0, metrics.cpuPercent))}%` }}
+                      className={`h-full rounded-full transition-all duration-500 ${getBarColor(metrics.cpuPercent ?? 0)}`}
+                      style={{ width: `${Math.min(100, Math.max(0, metrics.cpuPercent ?? 0))}%` }}
                     />
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-[#8b949e] font-mono pt-0.5">
                     <span>Load Avg (1m, 5m, 15m):</span>
-                    <span className="text-gray-300">{metrics.loadAvg.map((l) => l.toFixed(2)).join(', ')}</span>
+                    <span className="text-gray-300">{(metrics.loadAvg || []).map((l) => (l ?? 0).toFixed(2)).join(', ') || 'N/A'}</span>
                   </div>
                 </div>
 
@@ -142,20 +142,20 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
                       <Layers size={14} className="text-purple-400" />
                       <span>{t.sysinfoRam || 'ОЗУ (RAM)'}</span>
                     </span>
-                    <span className={`font-mono font-bold ${getTextColor(metrics.memory.usedPercent)}`}>
-                      {metrics.memory.usedPercent.toFixed(1)}%
+                    <span className={`font-mono font-bold ${getTextColor(metrics.memory?.usedPercent ?? 0)}`}>
+                      {(metrics.memory?.usedPercent ?? 0).toFixed(1)}%
                     </span>
                   </div>
                   {/* Progress bar */}
                   <div className="h-1.5 w-full bg-[#21262d] rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${getBarColor(metrics.memory.usedPercent)}`}
-                      style={{ width: `${Math.min(100, Math.max(0, metrics.memory.usedPercent))}%` }}
+                      className={`h-full rounded-full transition-all duration-500 ${getBarColor(metrics.memory?.usedPercent ?? 0)}`}
+                      style={{ width: `${Math.min(100, Math.max(0, metrics.memory?.usedPercent ?? 0))}%` }}
                     />
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-[#8b949e] font-mono pt-0.5">
-                    <span>{formatBytes(metrics.memory.usedBytes)} / {formatBytes(metrics.memory.totalBytes)}</span>
-                    <span className="text-emerald-400">{formatBytes(metrics.memory.availableBytes)} {t.sysinfoFree || 'free'}</span>
+                    <span>{formatBytes(metrics.memory?.usedBytes ?? 0)} / {formatBytes(metrics.memory?.totalBytes ?? 0)}</span>
+                    <span className="text-emerald-400">{formatBytes(metrics.memory?.availableBytes ?? 0)} {t.sysinfoFree || 'free'}</span>
                   </div>
                 </div>
               </div>
@@ -180,26 +180,26 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
                     <span>{t.sysinfoDisk || 'Дисковые накопители'}</span>
                   </span>
                   <span className="text-[11px] font-mono text-[#8b949e]">
-                    {metrics.disks.length} {metrics.disks.length === 1 ? 'mount' : 'mounts'}
+                    {(metrics.disks || []).length} {(metrics.disks || []).length === 1 ? 'mount' : 'mounts'}
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  {metrics.disks.map((d, idx) => (
+                  {(metrics.disks || []).map((d, idx) => (
                     <div
                       key={d.mountPoint || idx}
                       className="p-3 rounded-lg bg-[#0d1117]/80 border border-[#30363d] space-y-1.5"
                     >
                       <div className="flex items-center justify-between text-xs font-mono">
                         <span className="font-bold text-gray-200">{d.mountPoint}</span>
-                        <span className={`font-semibold ${getTextColor(d.usedPercent)}`}>
-                          {d.usedPercent.toFixed(1)}%
+                        <span className={`font-semibold ${getTextColor(d.usedPercent ?? 0)}`}>
+                          {(d.usedPercent ?? 0).toFixed(1)}%
                         </span>
                       </div>
                       <div className="h-1.5 w-full bg-[#21262d] rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${getBarColor(d.usedPercent)}`}
-                          style={{ width: `${Math.min(100, Math.max(0, d.usedPercent))}%` }}
+                          className={`h-full rounded-full transition-all duration-500 ${getBarColor(d.usedPercent ?? 0)}`}
+                          style={{ width: `${Math.min(100, Math.max(0, d.usedPercent ?? 0))}%` }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-[11px] text-[#8b949e] font-mono">
