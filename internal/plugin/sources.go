@@ -100,24 +100,24 @@ var defaultFallbackCatalogJSON = []byte(`[
     }
   },
   {
-    "id": "remote-agent",
-    "name": "Remote Server Agent v2.1",
-    "version": "2.1.1",
-    "description": "Управление парком удаленных серверов (VPS, хосты), 1-Click Adopt сопряжение, двухсоставная TOTP авторизация и переключение между ними из шапки редактора",
+    "id": "servers",
+    "name": "Servers & Fleet Manager",
+    "version": "1.2.1",
+    "description": "Централизованное управление серверами, servers.yaml, нативный SSH/SFTP, встроенный агент, отправка файлов и автообнаружение LAN",
     "author": "Config Studio Team",
-    "downloadUrl": "https://raw.githubusercontent.com/config-studio/config-studio-plugins/main/packages/remote-agent.cspkg",
+    "downloadUrl": "https://raw.githubusercontent.com/config-studio/config-studio-plugins/main/packages/servers-1.2.1.cspkg",
     "sourceId": "official",
     "official": true,
     "icon": "🖥️",
-    "tags": ["Multi-Server", "VPS", "Agent", "Remote", "Security", "TOTP"],
+    "tags": ["Fleet", "Servers", "SSH", "SFTP", "Agent"],
     "locales": {
       "ru": {
-        "name": "Удаленный агент серверов v2.0",
-        "description": "Управление парком удаленных серверов, безопасная TOTP авторизация и мгновенное переключение между ними из шапки редактора"
+        "name": "Флот серверов & Инвентарь",
+        "description": "Управление парком серверов, servers.yaml, SSH/SFTP, встроенный агент и отправка файлов"
       },
       "en": {
-        "name": "Remote Server Agent v2.0",
-        "description": "Manage fleet of remote servers, secure two-tier TOTP authorization and instant switching directly from the header"
+        "name": "Servers & Fleet Manager",
+        "description": "Centralized server inventory, servers.yaml, native SSH/SFTP and agent integration in a unified switcher"
       }
     }
   },

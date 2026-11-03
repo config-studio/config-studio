@@ -57,20 +57,26 @@
   - Полностью статический исполняемый файл (`CGO_ENABLED=0`).
   - Фронтенд встроен внутрь бинарника (`go:embed`).
   - Автоматическая установка в качестве службы Linux (`-install` / `-uninstall`) с автоопределением **systemd** и **OpenRC**.
-- **Модульная система плагинов (Plugin System):**
-  - **Изменение интерфейса**: добавление кастомных кнопок в тулбар, элементов в шапку и сплит-панелей (split screen).
-  - **Гибридная установка (3 способа)**:
-    1. Drag-and-drop `.zip` архива через графический интерфейс (вкладка «Плагины» в настройках).
-    2. Установка по ссылке (URL архива или ссылка на репозиторий GitHub).
-    3. Прямое копирование папки в каталог `data/plugins/<имя_плагина>/`.
-  - **Безопасное выполнение команд на хосте**:
-    - Безусловная блокировка деструктивных команд (`rm -rf /`, `mkfs`, форматирование дисков, выключение сервера).
-    - Всплывающее окно подтверждения выполнения системных команд.
-    - Переключатель «Режим повышенных привилегий («Я знаю, что делаю»)» для доверенного окружения.
-  - **Каталог официальных плагинов (1-клик установка)**:
-    - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)**: Живой предпросмотр HTML/PHP в сплит-панели с эмуляцией мобильных устройств, сниппетами Monaco и запуском встроенного веб-сервера (`php -S`).
-    - 🖥️ **[config-studio-remote-agent](https://github.com/config-studio/config-studio-remote-agent)**: Переключатель серверов в шапке для редактирования файлов на нескольких серверах из единого интерфейса.
-  - 📖 **[Документация и SDK по созданию плагинов](https://github.com/config-studio/config-studio-plugin-docs)**: Полное пошаговое руководство, спецификация `plugin.json`, TypeScript типизация, справочник JavaScript API и готовые шаблоны.
+- **Нативный SSH и SFTP в ядре (Core SSH/SFTP v2.0+):**
+  - Интерактивный терминал xterm.js в нижней док-панели (`BottomDockStrip`) с поддержкой множественных сессий и переподключения.
+  - Двухвкладочный сайдбар проводника: мгновенное переключение между «Рабочими областями» и «SFTP».
+  - Прямое редактирование удаленных файлов серверов в Monaco Editor с автосохранением на сервер (`Ctrl+S`).
+- **Time Machine (Визуальное версионирование и откат в 2 клика):**
+  - Автоматические персистентные снимки при каждом сохранении файла.
+  - Monaco DiffEditor для side-by-side сравнения текущей версии с историей (`Alt+H`) и откат в 2 клика.
+- **Мульти-рабочие области ядра (Multi-Root Workspaces & `workspaces.yaml`):**
+  - Подключение нескольких папок и дисков в единое дерево проводника с защитой выхода за границы (`SafePath`).
+- **Аппаратная телеметрия ядра (SysInfo):**
+  - Индикатор `SysInfoBar` в строке состояния (нагрузка CPU %, физическая RAM, свободное место на диске, аптайм).
+  - Детальное модальное окно диагностики `SysInfoModal` и автоматический шеринг метрик с удаленными узлами флота.
+- **Модульная система плагинов и бинарный формат .cspkg (Plugin System v2.1):**
+  - **Бинарный MRS-контейнер `.cspkg`**: сверхбыстрое чтение пакетов на лету прямо из памяти с проверкой SHA-256.
+  - **Гибридная установка**: Drag-and-drop пакетов `.cspkg`/`.zip` в окно, установка по URL или из каталога в 1 клик.
+  - **Безопасная шина сервисов и хранилище Core Vault**: обмен сервисами (`services.getOptional`) и защита секретов в OS Keychain.
+  - **Официальные расширения экосистемы**:
+    - 🖥️ **[config-studio-servers](https://github.com/config-studio/config-studio-servers)**: «Серверы и Флот» — централизованный инвентарь `servers.yaml`, универсальный переключатель в шапке, 1-Click установка демона, сопряжение в локальной сети (LAN Discovery) и безопасное управление ключами через Core Vault.
+    - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)**: Живой предпросмотр HTML/PHP с симуляцией вкладки Chrome, сервер :8085, AST-структура и автодополнение Monaco.
+  - 🧩 **[Официальный каталог плагинов](https://config-studio.github.io/config-studio-plugins/)** и **[Интерактивная витрина дизайн-системы @config-studio/ui](https://config-studio.github.io/config-studio-plugins/ui.html)**.
 
 ---
 
@@ -196,20 +202,26 @@ Shipped as a **single standalone portable binary** for **Linux** and **Windows**
   - Statically compiled standalone binary (`CGO_ENABLED=0`).
   - Web UI assets embedded directly into the Go binary (`go:embed`).
   - Built-in service installer (`-install` / `-uninstall`) with auto-detection for **systemd** and **OpenRC**.
-- **Modular Plugin System:**
-  - **UI Extensibility**: add custom toolbar actions, header dropdowns, and split-screen preview panels.
-  - **Hybrid Installation (3-in-1)**:
-    1. Drag-and-drop `.zip` upload in Settings modal (Plugins tab).
-    2. Install from URL (direct `.zip` link or GitHub repository `https://github.com/user/plugin`).
-    3. Direct placement: copy plugin folder into `data/plugins/<id>/` (auto-detected).
-  - **Host Command Execution & Security**:
-    - Unconditional blacklist blocking destructive operations (`rm -rf /`, `mkfs`, raw disk writes, shutdown/reboot).
-    - Interactive confirmation modal for risky commands.
-    - "I know what I'm doing" mode to run host processes without prompts.
-  - **Official Plugins Catalog (1-click install)**:
-    - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)**: Live split-screen HTML/PHP preview, responsive viewport simulation, Monaco snippets, and live web server runner (`php -S`).
-    - 🖥️ **[config-studio-remote-agent](https://github.com/config-studio/config-studio-remote-agent)**: Header server switcher to connect to remote Config Studio instances and edit files across machines from a single UI.
-  - 📖 **[Plugin Development Documentation & SDK](https://github.com/config-studio/config-studio-plugin-docs)**: Full developer guide, `plugin.json` manifest schema, TypeScript definitions, JavaScript API reference, and ready-to-use starter templates.
+- **Native Core SSH & SFTP (Core v2.0+):**
+  - Interactive xterm.js terminal in persistent bottom dock (`BottomDockStrip`) with multi-session support and auto-reconnect.
+  - Dual-tab file sidebar: seamless switching between "Workspaces" and remote "SFTP" servers.
+  - Direct remote editing in Monaco Editor with automatic remote saves on `Ctrl+S`.
+- **Time Machine (Visual History & 2-Click Rollback):**
+  - Persistent automatic snapshots created upon every file save.
+  - Monaco DiffEditor for side-by-side delta inspection (`Alt+H`) with single-click revision rollback.
+- **Multi-Root Workspaces (`workspaces.yaml`):**
+  - Mount multiple local/remote directory roots into a unified tree explorer with boundary-safe path enforcement (`SafePath`).
+- **Hardware Telemetry & Node Monitoring (Core SysInfo):**
+  - Dynamic `SysInfoBar` status bar widget showing CPU load %, physical RAM, disk usage, and system uptime.
+  - Comprehensive `SysInfoModal` diagnostics modal with live telemetry sharing from remote fleet nodes.
+- **Modular Plugin System & .cspkg Binary Packages (Plugin System v2.1):**
+  - **Binary MRS Containers (`.cspkg`)**: Ultra-fast in-memory package loading verified by cryptographic SHA-256 checksums.
+  - **Hybrid Installation**: Drag-and-drop `.cspkg`/`.zip` packages, install via direct URL, or browse the official registry.
+  - **Secure Services Bus & Core Vault**: RPC service sharing (`services.getOptional`) and secure OS Keychain secret storage.
+  - **Official Ecosystem Plugins**:
+    - 🖥️ **[config-studio-servers](https://github.com/config-studio/config-studio-servers)**: "Servers & Fleet Manager" — centralized `servers.yaml` inventory, universal header switcher, 1-Click daemon auto-onboarding, LAN agent discovery, and Zero-Secret Vault security.
+    - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)**: Live HTML/PHP preview with Chrome tab simulation, embedded :8085 web server, AST structure outline, and Monaco completions.
+  - 🧩 **[Official Plugin Registry](https://config-studio.github.io/config-studio-plugins/)** and **[Design System Showcase (@config-studio/ui)](https://config-studio.github.io/config-studio-plugins/ui.html)**.
 
 ---
 

@@ -79,9 +79,7 @@ foreach ($dest in $DistDirs) {
             $pluginsPkgDir = "C:\Users\iBella\.gemini\antigravity\scratch\config-studio-plugins\packages"
             if (Test-Path $pluginsPkgDir) {
                 Copy-Item -Path (Join-Path $pluginsPkgDir "servers.cspkg") -Destination (Join-Path $destPlugins "servers.cspkg") -Force -ErrorAction SilentlyContinue
-                Copy-Item -Path (Join-Path $pluginsPkgDir "remote-agent.cspkg") -Destination (Join-Path $destPlugins "remote-agent.cspkg") -Force -ErrorAction SilentlyContinue
                 Copy-Item -Path (Join-Path $pluginsPkgDir "servers.cspkg") -Destination (Join-Path $dest "servers.cspkg") -Force -ErrorAction SilentlyContinue
-                Copy-Item -Path (Join-Path $pluginsPkgDir "remote-agent.cspkg") -Destination (Join-Path $dest "remote-agent.cspkg") -Force -ErrorAction SilentlyContinue
             }
             Write-Host "[OK] Deployed binaries to: $dest" -ForegroundColor Green
         } catch {
