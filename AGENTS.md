@@ -45,3 +45,10 @@
 1. Перед изменением или удалением любой функции/метода ОБЯЗАТЕЛЬНО вызвать MCP-инструмент `impact` для оценки blast radius.
 2. Если риск `HIGH` или `CRITICAL` — описать пользователю затронутые зависимости и согласовать стратегию.
 3. Перед созданием коммита вызвать MCP-инструмент `detect_changes(scope="staged")`.
+
+<!-- doubled-graph:phase:start -->
+## doubled-graph phase
+phase: migration
+updated: 2026-11-07
+<!-- reason: Existing codebase onboarding -->
+<!-- doubled-graph:phase:end -->

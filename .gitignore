@@ -22,3 +22,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# doubled-graph
+.doubled-graph/logs/
+.doubled-graph/cache/
