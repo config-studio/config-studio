@@ -13,19 +13,11 @@
 
 ## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint)
 
-### 🎯 config-studio-traefik (Целевой плагин Traefik v1.0.0)
-Разработка официального расширения для управления конфигурациями Traefik Proxy с упором на многофайловую структуру каталога правил (`/etc/traefik/rules/`):
-- [ ] **Архитектура каталога правил (Directory Provider `rules/*.yml`)**:
-  - [ ] Разделение и индексация мидлварей (`mw-*.yml`) и сервисов (`ser-*.yml`).
-  - [ ] Кросс-файловый IntelliSense: автодополнение названий мидлварей с суффиксом `@file`.
-  - [ ] Переход к определению (Go to Definition) через метод ядра `openFile(path, { line, col, highlight: true })`.
-  - [ ] Кросс-файловая валидация: поиск битых ссылок на мидлвари и конфликтов дубликатов `Host(...)`.
-  - [ ] Сводная матрица сервисов (Rules Directory Matrix): табличный обзор доменов, портов бэкендов, мидлварей и TLS.
-  - [ ] Мастер создания сервиса (New Service Wizard): 1-Click генерация `ser-<name>.yml`.
-- [ ] **Интеллектуальный AST Outline**: дерево роутеров, мидлварей и сервисов с подсветкой правил `Host(...)`.
-- [ ] **Каталог рецептов (Blueprints)**: статический `traefik.yml` и динамический `dynamic.yml`.
-- [ ] **Traefik Doctor & Rule Linter**: проверка синтаксиса и совместимости v2/v3.
-- [ ] **Action Toolbar**: кнопки быстрой валидации и перехода в Traefik Dashboard.
+### 🎯 config-studio-traefik (Спринт Traefik v1.1.0)
+Дальнейшее развитие официального расширения Traefik:
+- [ ] **Каталог рецептов (Blueprints)**: статический `traefik.yml` (Let's Encrypt ACME, HTTPS-редирект, Dashboard) и динамический `dynamic.yml` (WebSocket, BasicAuth, RateLimit).
+- [ ] **Traefik Doctor & Rule Linter (Headless Remote)**: удаленная проверка конфигурации на сервере через SSH Exec.
+- [ ] **Action Toolbar**: кнопки быстрого вызова Матрицы правил, открытия Web UI Traefik Dashboard и валидации.
 
 ---
 
@@ -35,7 +27,6 @@
 
 ### 1. Навигация и кросс-файловый поиск (Editor Navigation & Cross-File Discovery)
 *Необходимо для: `config-studio-traefik` (Go to Definition), `config-studio-glance` ($include), линтеров и инспекторов.*
-- [ ] Расширенное позиционирование: `openFile(path, { line, column, highlight })` в Monaco Editor и Plugin SDK.
 - [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
 - [ ] Глобальный реестр горячих клавиш: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий из любого открытого документа.
 
@@ -79,7 +70,6 @@
     - Fleet CLI: выполнение сервисных команд (`systemctl restart`, `docker compose pull`) на группе узлов со сводным терминальным выводом в нижнем доке.
 
 ### 🎯 ЦЕЛЕВЫЕ СТЕКОВЫЕ ПЛАГИНЫ (Targeted Stack Plugins: Doctor + Blueprints Inside)
-Функции удаленной валидации конфигов («Doctor»: `docker compose config`, `nginx -t`, `sshd -t`) и готовые рецепты («Blueprints») интегрируются непосредственно в соответствующие целевые плагины стека для максимальной эргономики:
 - [ ] **config-studio-docker**:
   - [ ] Типовые поля настройки и конструктор Compose-файлов.
   - [ ] Встроенные шаблоны (PostgreSQL + Redis + App, Traefik, Backup).
@@ -93,478 +83,91 @@
   - [ ] Удаленная проверка синтаксиса `nginx -t` перед сохранением или SFTP-отправкой.
   - [ ] Включение/выключение сайтов `sites-available` ➔ `sites-enabled` в 1 клик.
   - [ ] Монитор срока годности SSL/TLS сертификатов.
-- [ ] **config-studio-traefik**:
-  - [ ] Интеллектуальный AST Outline: дерево роутеров (`routers`), мидлварей (`middlewares`) и сервисов (`services`) с подсветкой правил `Host(...)` и быстрым переходом.
-  - [ ] Каталог рецептов (Blueprints): статический `traefik.yml` (Let's Encrypt ACME, HTTPS-редирект, Dashboard) и динамический `dynamic.yml` (Reverse Proxy с WebSocket, BasicAuth, RateLimit).
-  - [ ] **Архитектура каталога правил (Directory Provider `rules/*.yml`):**
-    - Кросс-файловый IntelliSense: автодополнение названий мидлварей из файлов `mw-*.yml` при редактировании сервисов `ser-*.yml` (с поддержкой суффикса `@file`).
-    - Кросс-файловая валидация: поиск битых ссылок на несуществующие мидлвари и детекция конфликтов дубликатов `Host(...)` между разными файлами правил.
-    - Быстрый переход к определению (Go to Definition): переход к строке объявления мидлвари в файле `mw-*.yml` по клику на её имя в роутере `ser-*.yml`.
-    - Сводная матрица сервисов (Rules Directory Matrix): табличный обзор всех файлов правил каталога с указанием доменов, портов бэкендов, назначенных мидлварей и статуса TLS.
-    - 1-Click мастер создания сервиса (New Service Wizard): быстрое добавление файла `ser-<name>.yml` с выбором адреса бэкенда и чекбоксами существующих в папке мидлварей.
-  - [ ] Traefik Doctor & Rule Linter: валидация синтаксиса выражений правил (совместимость Traefik v2 и v3) и проверка отсутствия "висячих" роутеров без сервиса.
-  - [ ] Кнопки Action Toolbar: 1-Click валидация синтаксиса, быстрый переход в панель Traefik Dashboard и каталог рецептов.
+- [ ] **config-studio-wireguard**:
+  - [ ] Визуальный генератор конфигураций `wg0.conf` и клиентских пиров.
+  - [ ] Встроенный генератор ключевых пар WireGuard (Curve25519) и QR-кодов.
+  - [ ] Индикатор активного рукопожатия (Handshake) и переданного трафика.
+- [ ] **config-studio-singbox**:
+  - [ ] Интеллектуальный парсер и визуальный редактор JSON/JSON5 структуры.
+  - [ ] Конструктор входящих (`inbounds`) и исходящих (`outbounds`) узлов.
+  - [ ] Визуальный роутинг правил (`route.rules`).
 - [ ] **config-studio-glance**:
-  - [ ] 1-Click Baremetal Binary Updater: проверка GitHub Releases (`glanceapp/glance`), скачивание скомпилированного Go-бинарника под Linux amd64/arm64, атомарная замена в `/opt/glance/` и перезапуск `systemctl restart glance` за 2 секунды (без Node.js, компиляции и риска OOM).
-  - [ ] Каталог Community Widgets (`glanceapp/community-widgets`):
-    - Встроенная витрина официальных и комьюнити виджетов (Proxmox, Immich, Nextcloud, AdGuard, Uptime Kuma, Jellyfin) с поиском и категориями.
-    - Установка в 1 клик: загрузка YAML виджета в `widgets/<name>.yml`, автоматическое добавление директивы `- $include: widgets/<name>.yml` в `glance.yml` и ввод секретов из Core Vault.
-  - [ ] Поддержка директивы `$include` (Multi-File Architecture):
-    - Переход к определению (Go to Definition): клик по `- $include: widgets/file.yml` открывает подключаемый файл в редакторе.
-    - Линтер валидации: проверка существования включаемых файлов и корректности отступов.
-    - Рефакторинг в 1 клик: «Вынести виджет в отдельный файл $include».
-  - [ ] Универсальный генератор закладок в любом документе (Any-Document Bookmark Generator):
-    - Создание закладки из любого открытого конфига (Compose, Nginx, Traefik `ser-*.yml`, YAML, Markdown): автодетекция портов, ссылок и доменов -> пункт контекстного меню и тулбара «🔖 Добавить закладку в Glance».
-    - Быстрый хоткей (`Alt+B`) с автоопределением названия, выбором группы и вставкой в секцию `- type: bookmarks` в `glance.yml`.
-    - Пакетный генератор закладок (Batch Importer) из текстовых списков URL или открытых файлов.
-  - [ ] 1-Click синхронизация с Traefik: автоматический импорт сервисов из каталога `/etc/traefik/rules/ser-*.yml` в группы закладок `glance.yml`.
-  - [ ] AST Outline структура `glance.yml` (страницы, колонки, виджеты и инклюды) и живой Split-Screen предпросмотр дашборда (:8080) с автообновлением при сохранении (`Ctrl+S`).
-- [ ] **config-studio-systemd**:
-  - [ ] Генератор Unit-файлов (Service, Timer, Mount) с изоляцией памяти и автоперезапуском.
-  - [ ] Проверка валидности через `systemd-analyze verify`.
-  - [ ] Автодетекция службы по открытому конфигу (nginx, postgres, redis).
-  - [ ] Кнопки тулбара: Reload, Restart, Status и превью `journalctl` в нижнем доке.
-- [ ] **config-studio-journal**: Просмотр и стриминг `/var/log/*` и `journalctl -f` с фильтрами в нижний док.
-- [ ] **config-studio-crontab**: Визуальный редактор cron и таймеров с переводом расписания на понятный язык.
-
-### 🔧 ФАЗА 2B: Инструменты разработки и проводника (Dev & File Tools)
-- [ ] **config-studio-explorer-plus**:
-  - [ ] Буфер обмена (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`), дублирование файлов в 1 клик.
-  - [ ] Быстрые бэкапы `.bak` перед правками и полноценное контекстное меню по правому клику.
-  - [ ] Множественный выбор файлов (Multi-select).
-- [ ] **config-studio-makefile**: Автопарсинг целей Makefile, сплит-кнопка запуска и стриминг сборки в нижний док.
-- [ ] **config-studio-mcp & Code Mode Engine**:
-  - [ ] Сервер Model Context Protocol для подключения AI-ассистентов (Claude, Cursor, Antigravity).
-  - [ ] Read-only режим инструментов по умолчанию.
-  - [ ] Human-in-the-loop модальный диалог подтверждения для любых деструктивных действий (write, shell, deploy).
-  - [ ] **Архитектура Code Mode (Local Sandbox на базе Goja в ядре)** *(Backlog / Идея на будущее)*:
-    - Встроенная в ядро эфемерная песочница JavaScript/TypeScript на чистом Go (`github.com/dop251/goja`).
-    - Zero-Overhead в покое: 0 байт heap в памяти, пока нет вызовов; создается on-demand и уничтожается за < 1 мс сборщиком мусора Go (GC).
-    - Единственный мета-инструмент для LLM (`execute_script(code)`): локальная фильтрация данных и пакетная оркестрация в 1 сетевой шаг вместо десятков последовательных вызовов MCP.
-    - Безопасный фасад ядра `cs.*`: строго изолированный доступ к инвентарю серверов (`cs.servers`), SSH-командам (`cs.ssh`), файловой системе (`cs.fs`) и хранилищу секретов (`cs.vault`) с жестким таймаутом исполнения (10 сек) и лимитом стека.
-    - Возможность использования для пользовательских макросов автоматизации в UI (Script Book / Automations).
-
-### 🖥️ ФАЗА 3: Настольное клиентское приложение (Desktop GUI)
-- [ ] Сравнительное тестирование и выбор движка (Wails vs Tauri vs Electron) на реальном прототипе.
-- [ ] Упаковка в нативный `.exe` / `.AppImage` / `.dmg` с защищенным локальным хранилищем ключей.
-- [ ] Переключатель режимов: подключение к Headless-агентам и Web-агентам.
+  - [ ] Поддержка многофайловой структуры `$include` (главный конфиг + подкаталоги).
+  - [ ] Двухпанельный Split-View с живым предпросмотром дашборда на встроенном веб-сервере Glance.
 
 ---
 
-## 📦 АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
+## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details>
-<summary><b>✅ Сводный список выпущенных версий (v1.0.0 — v2.2.0-dev)</b></summary>
+<summary><b>🌐 Детали релиза v2.2-dev: config-studio-traefik v1.0.0 & Core Editor Navigation</b></summary>
 
-| Версия | Название / Ключевой фокус | Статус |
-|---|---|:---:|
-| **v2.2.0-dev** | Core Editor Navigation: позиционирование `openFile(path, {line, col, highlight})`, pulse flash animation | Завершена |
-| **v2.1.0** | Servers & Fleet v1.2, Ядро SysInfo, Custom Dropdowns @config-studio/ui, Динамический каталог | Завершена |
-| **v2.0.0** | Стабильный релиз 2.0: Core SSH/SFTP, Time Machine, Мульти-рабочие области (`workspaces.yaml`), Zero-Emoji Lucide SVG | Завершена |
-| **remote-agent v2.2** | Bi-directional Transfer, Adopt, HTTP Subnet Sweep, Scoped-токены, Zero-Emoji Lucide SVG | Завершена |
-| **config-studio-ssh** | Функционал полностью перенесен в нативное ядро v2.0 (PTY, SFTP, UniSSH Vault); плагин выведен из эксплуатации | Интегрирован в Core |
-| **v2.0.0-beta** | Версия 2.0 Beta: Мобильный UI, PWA, Soft Dependencies и пакетная установка | Завершена |
-| **v1.9.9** | Mobile Layout & PWA: 100% унификация интерфейса (@config-studio/ui), адаптивность и PWA | Завершена |
-| **v1.9.8** | Unified Observability: структурированная телеметрия, 1-Click отчёт для ИИ в ErrorBoundary | Завершена |
-| **v1.9.7** | Design System & UI Kit: единая библиотека `@config-studio/ui`, Zero-Jitter модалки, тосты, Gzip | Завершена |
-| **v1.9.6** | Modular Settings: модульная декомпозиция SettingsModal, двухпанельные настройки плагинов | Завершена |
-| **v1.9.5** | Binary Packages `.cspkg`: MRS-контейнеры плагинов, CLI-компилятор `cmd/cspkg` | Завершена |
-| **v1.9.0** | Core Secrets Store: системный OS Keychain / Vault (AES-256-GCM), Privileged Mode (15м) | Завершена |
-| **v1.8.0** | Plugin i18n & Language Packs: автономная локализация плагинов и языковые пакеты ядра | Завершена |
-| **v1.7.0** | Plugin Dependencies & Services: SemVer граф, защита от каскадных удалений, RPC-мост | Завершена |
-| **v1.6.0** | Context Menu Provider: расширяемое контекстное меню проводника файлов | Завершена |
-| **v1.5.0** | Bottom Dock Strip: постоянная нижняя статусная панель с ресайзом (`Ctrl+~`) | Завершена |
-| **v1.4.0** | Action Toolbar: сплит-кнопка запуска в 1 клик, шорткат `F5`, Zero-Clutter | Завершена |
-| **v1.3.0** | Profile Portability & Sources: переносимость профилей без секретов, каталог источников | Завершена |
-| **v1.2.0** | Core Structure Guard: двойная AST-валидация синтаксиса, Pre-Save Guard, Force Save | Завершена |
-| **v1.1.3** | Settings Modal & UI Refinement: адаптивный размер окон, скачивание логов | Завершена |
-| **v1.1.2** | Core Security & Consent Dialog: аудит-лог `audit.jsonl`, разрешения плагинов | Завершена |
-| **v1.1.1** | UI Hotfix: контрастное оформление переключателей плагинов | Завершена |
-| **v1.1.0** | Чистое ядро редактора, гибридная установка плагинов (Каталог, URL, ZIP, папка) | Завершена |
+- [x] **Core Editor Navigation API**:
+  - Расширен метод `openFile(path, { line, column, highlight })` в Monaco Editor и Plugin SDK.
+  - Реализован плавный jump-to-line с импульсной анимацией подсветки строки (`.cs-line-highlight-flash`) как для уже открытых вкладок, так и для лениво монтируемых файлов.
+  - Обновлены официальные определения типов в `config-studio-plugin-docs/types/config-studio.d.ts`.
+- [x] **config-studio-traefik v1.0.0**:
+  - **Multi-File Directory Provider (`/etc/traefik/rules/`)**: распознавание раздельных файлов правил `mw-*.yml` (Middlewares) и `ser-*.yml` (Сервисы и Маршрутизаторы).
+  - **Кросс-файловый IntelliSense**: автодополнение имен мидлварей из файлов `mw-*.yml` в Monaco Editor с суффиксом `@file`, документацией и типами.
+  - **Go to Definition**: переход к строке объявления мидлвари (`F12` / клик) с подсветкой строки.
+  - **Матрица правил (Rules Matrix)**: табличный обзор доменов (`Host(...)`), EntryPoints, TLS-резолверов, бэкендов, мидлварей и ошибок.
+  - **Linter целостности ссылок**: автоматическое обнаружение битых ссылок (`UNRESOLVED_MIDDLEWARE`, `UNRESOLVED_SERVICE`) и коллизий (`DUPLICATE_HOST`).
+  - **Мастер нового сервиса (New Service Wizard)**: генерация `ser-<name>.yml` с выбором существующих мидлварей и живым YAML-превью.
+  - **Иерархический YAML Outline**: секции 🌐 Маршрутизаторы, ⚙️ Сервисы, 🛡️ Middlewares.
+  - **Упаковка и дистрибуция**: собран и опубликован пакет `traefik-1.0.0.cspkg` (22 KB, 4 файла), зарегистрирован в официальном каталоге `registry.json`.
 
 </details>
 
 <details>
-<summary><b>🎯 Детали релиза v2.2.0-dev: Точечная навигация в редакторе (Core Editor Navigation)</b></summary>
+<summary><b>🚀 Детали релиза v2.1.0: Аппаратная телеметрия и системный монитор</b></summary>
 
-- [x] **Точечный переход к строке и символу (`openFile` с опциями)**:
-  - Расширение метода ядра `openFile(path, options?: { line?: number; column?: number; highlight?: boolean })`:
-    - Если файл уже открыт во вкладке: мгновенное переключение на вкладку + скролл и фокусировка курсора (`revealPositionInCenter` + `setPosition`).
-    - Если файл открывается впервые: загрузка контента + добавление вкладки + скролл к строке после монтирования модели в DOM.
-    - Временная подсветка целевой строки (line decoration flash `.cs-line-highlight-flash`) с мягким затуханием (1.6s).
-  - Проброс `options` через фасад `pluginLoader.ts` в глобальный объект `window.ConfigStudio.openFile`.
-  - Обновление официальных определений TypeScript в `config-studio-plugin-docs/types/config-studio.d.ts`.
-  - Полная обратная совместимость `handleJumpToLine` с существующими компонентами (`StructureOutline`, `BottomDockStrip`).
-</details>
-
-<details>
-<summary><b>🖧 Детали релиза v2.1.0: Единый плагин Флота (Servers), Ядро SysInfo, Custom Dropdowns и Каталог плагинов</b></summary>
-
-- [x] **1. Инвентарь серверов (`servers.yaml`) & Universal Fleet Switcher (`config-studio-servers`)**:
-  - Инвентарь серверов строго в формате YAML (`servers.yaml`) с безопасным хранилищем Zero-Secret через Core Vault.
-  - Тегирование узлов (`prod`, `staging`, `web`, `nginx`), канареечный признак (CANARY), цветовая индикация и фильтрация в 1 клик.
-  - Монитор доступности: проверка связи и задержки (ping ms) через Core REST API `/api/servers/ping/{id}`.
-  - Универсальный переключатель серверов в шапке (Universal Fleet Switcher) с гибридными кнопками действий: `[ ⚡ Агент ]` (чтение/запись через HTTP API с TOTP), `[ 📁 SFTP ]` (файловая система через SFTP ядра) и `[ >_ Шелл ]` (интерактивный SSH PTY терминал в нижнем доке).
-- [x] **2. 1-Click установка демона (Optional Auto-Onboarding)**:
-  - Автоматическое определение архитектуры (`linux/amd64`, `linux/arm64`) и системы инициализации (`systemctl`/`rc-service`) через SSH.
-  - Выбор кастомного порта агента (1-65535, по умолчанию 8085).
-  - Загрузка бинарника по SFTP, генерация `agent.yaml` и сохранение Master/TOTP секретов в Core Vault.
-  - Автонастройка и запуск службы (`systemd` / `OpenRC` / `nohup`).
-  - Health check опрос и мгновенный перевод узла в гибридный режим (3 кнопки).
-- [x] **3. Полное слияние `config-studio-remote-agent` в `config-studio-servers` (Единый плагин)**:
-  - Интеграция функционала удаленного агента внутрь `servers` (по аналогии с поглощением `config-studio-ssh` в ядро).
-  - Единый источник правды: полный отказ от локального кэша `remote-agent` в пользу `servers.yaml` (`/api/servers`).
-  - Удаление старого рудиментарного переключателя `[ Localhost v ]` из шапки.
-  - Перенос диалога «Отправить файл на узел» (Deploy file to server) с поддержкой всех серверов из `servers.yaml`.
-  - Управление Scoped-токенами и системными метриками агента внутри панели сервера.
-  - Архивация и скрытие (`private`) устаревших репозиториев `remote-agent` и `ssh`, вывод из эксплуатации отдельного пакета `remote-agent.cspkg`.
-- [x] **4. Улучшения UI и кастомные выпадающие списки (`@config-studio/ui`)**:
-  - Человекочитаемые имена секретов: вывод `Title [ID]` (`Agent Credentials (debian) [agent:debian]`, `main [id_1793523301528]`) вместо сырых хэшей/ID.
-  - Фирменный дизайн выпадающих списков: замена дефолтных браузерных `<select>` на кастомные темные Dropdown-компоненты с иконками, бейджами типов и плавными анимациями для SFTP, SSH и Core Vault.
-  - Оптимизация расположения в сайдбаре SFTP Explorer: выпадающий список вынесен на отдельную строку на 100% ширины, кнопки действий вынесены по центру под него.
-  - Синхронизация канонических размеров модальных окон `@config-studio/ui` (`sm: 400px`, `md: 540px`, `lg: 720px`, `xl: 900px`, `fullscreen`, `fixed`) во всех плагинах флота.
-  - Автоматический разворот вверх (`openUpward`) при нехватке места в нижней части окна.
-- [x] **5. Нативная аппаратная телеметрия ядра (`internal/sysinfo`)**:
-  - Точный сбор метрик CPU load/%, физической RAM, дисковых разделов и аптайма на Windows (`GlobalMemoryStatusEx`, `GetSystemTimes`, `GetTickCount64`, `GetDiskFreeSpaceExW`), Linux (`/proc/meminfo`, `/proc/loadavg`, `/proc/stat`, `/proc/uptime`, `syscall.Statfs`) и macOS/BSD.
-  - Core REST API (`/api/sysinfo`, `/api/servers/{id}/sysinfo`): единая точка телеметрии для Localhost и узлов флота с прозрачным HTTP-проксированием и резолвом токенов из Core Vault.
-  - Индикатор нагрузки в строке состояния (`SysInfoBar`): компактные бейджи CPU, RAM, Disk и Uptime с динамической цветовой индикацией порогов нагрузки в нижнем доке.
-  - Детальное окно диагностики узла (`SysInfoModal`): полный расклад по ядрам, накопителям, используемой/свободной памяти и аптайму с кнопкой ручного обновления.
-  - Автоматический шеринг информации с агентов: мгновенное переключение контекста при выборе удаленного узла через шину `cs:remote-endpoint-changed` и экспорт `window.ConfigStudio.sysinfo`.
-- [x] **6. Устранение замечаний и багов Fleet Backlog**:
-  - Устранена ошибка окна «Отправить на агент»: перенос в `servers` с чтением актуального `servers.yaml`.
-  - Удален дублирующий переключатель слева в шапке.
-- [x] **7. Каталог плагинов и витрина дизайн-системы (`config-studio-plugins`)**:
-  - Динамический реестр плагинов на GitHub Pages (`index.html`) с загрузкой из `registry.json`, живым поиском, фильтрацией по чипам категорий и мультиязычностью (RU/EN/DE).
-  - Прямое скачивание `.cspkg` и копирование ссылки для быстрой установки в Config Studio (`Настройки → Плагины → Установить по URL`).
-  - Интерактивная витрина дизайн-системы `@config-studio/ui` (`ui.html`): живое тестирование всех 5 размеров модалок, селекторов Dropdown, смены темы (Emerald, Sky, Purple, Amber, Rose), кнопок, тумблеров и тостов.
-  - Завершение архивации: репозитории `config-studio-remote-agent` и `config-studio-ssh` переведены в статус Archived и Private.
-- [x] **8. Инструменты разработки (Dev Tools)**:
-  - `config-studio-terminal`: полноценная консоль xterm.js нативно интегрирована в нижний док ядра (локальный shell и SSH сессии с динамической загрузкой).
-  - `config-studio-web-devkit v1.3.2`: выпущен официальный релиз (Live Preview с симуляцией Chrome, встроенный сервер :8085, AST-структура, автодополнение Monaco).
+- [x] **Нативный сборщик метрик ядра (Hardware Telemetry Collector)**:
+  - Мониторинг CPU (ядра, загрузка %), RAM (total, used, free), дисковых разделов и аптайма.
+  - REST API `GET /api/sysinfo` и агентский эндпоинт с поддержкой кросс-серверного проксирования.
+  - Плагинное API `window.ConfigStudio.sysinfo`.
+- [x] **Интерфейс системного монитора в `config-studio-servers` v1.2.0**:
+  - Вкладка «Система» в карточке каждого узла флота.
+  - Анимированные мини-индикаторы нагрузки в хедере и карточках флота.
 
 </details>
 
 <details>
-<summary><b>🚀 Детали релиза v2.0.0: Стабильный релиз, Core SSH/SFTP, Time Machine, Multi-Root Workspaces и SVG-дизайн</b></summary>
-
-- [x] **1. Комплексный аудит по принципам `/ub-mode`**:
-  - [x] Удаление неиспользуемого прототипа `PluginBottomPanel.tsx`.
-  - [x] Удаление устаревшего хелпера `min` в пользу встроенного Go 1.21+.
-  - [x] Создание `internal/config/config_test.go` (персистентность, санитизация паролей, MIME).
-  - [x] Создание `internal/fs/fs_test.go` (Boundary Discipline: пресечение выхода за пределы рабочей директории и защиты от Windows drive breakout).
-  - [x] Строгая типизация `PluginCommandResult` и очистка `api.ts`.
-  - [x] 100% покрытие пакетов `internal/*` юнит-тестами.
-- [x] **2. Нативный SSH и SFTP в ядре (Core UI)**:
-  - [x] Подключение `xterm` и `@xterm/addon-fit` в `web/package.json` с динамической ленивой загрузкой (`React.lazy` — нулевое потребление памяти до открытия).
-  - [x] Нативный терминал `XTerminal.tsx` в нижней док-панели `BottomDockStrip` (мультисессии, переподключение, выбор хостов).
-  - [x] Нативное контекстное меню проводника «📁 Отправить по SFTP» (`SftpSendModal.tsx`), не зависящее от внешних плагинов.
-  - [x] Нативное управление SSH-хостами и ключами в окне настроек (`SettingsModal -> SSH & Хосты`) с сохранением в Core Vault.
-- [x] **3. Time Machine: Визуальное версионирование и откат в 2 клика (Core UX)**:
-  - [x] Автоматическое сохранение персистентных снимков каждого сохранения в `revisionHistoryService` (хранение в `localStorage`, авто-лимит).
-  - [x] Встроенный Monaco `DiffEditor`: мгновенное side-by-side сравнение «Снимок из истории» vs «Текущий файл».
-  - [x] Верхняя панель Time Machine с временным степпером, датами, дельтами строк (`+N / -M`) и горячей клавишей `Alt+H`.
-  - [x] Кнопка отката «Откатить к этой версии» в 1 клик прямо из редактора (правило 2 кликов вместо 5 кликов в свойствах).
-  - [x] Очистка `FilePropertiesModal.tsx`: удален наивный кастомный diff, добавлена прямая быстрая ссылка в Time Machine редактора.
-- [x] **4. Выпуск стабильного релиза v2.0.0**:
-  - [x] Обновление версий с `2.0.0-beta` на `2.0.0` в `cmd/server/main.go`, `cmd/agent/main.go`, `web/package.json`, `SettingsModal.tsx`, документации.
-  - [x] Финальная компиляция и дистрибуция релизных бинарников в `bin/` и на рабочий стол (`test`, `clash`).
-- [x] **5. Нативный SFTP-проводник серверов в сайдбаре (Вариант 3 — Core Explorer Tabs)**:
-  - [x] Двухвкладочный сайдбар: «Рабочая область» (локальные папки и агенты) / «SFTP» (серверы и удаленные каталоги).
-  - [x] Проваливание по удаленным каталогам сервера, навигация (`/`, `~`, `..`), прямой ввод пути.
-  - [x] Открытие удаленного файла в Monaco Editor в 1 клик с бейджем `[SFTP: host]` и автосохранением на сервер по `Ctrl+S` с версионированием в Time Machine.
-  - [x] Удаленное создание файлов/папок, переименование, удаление, скачивание на ПК и прямая загрузка локальных файлов.
-- [x] **6. Унификация иконографики интерфейса (Unified SVG Icon System & Zero-Emoji UX)**:
-  - [x] Полный отказ от разнородных системных Unicode-смайликов во всех компонентах интерфейса для исключения платформенных различий.
-  - [x] Стандартизация на базе единого векторного набора **Lucide SVG** (единая толщина линий `stroke-width`, визуальный вес и масштабирование).
-  - [x] Интеграция качественных монохромных SVG-иконок для стека и форматов конфигураций (`BrandIcons.tsx` и `FileFormatIcon.tsx`: Docker, Nginx, Caddy, Systemd, PostgreSQL/Redis, JSON/YAML/TOML).
-  - [x] Полноэкранный мобильный поиск файлов с выпадающим окном результатов и быстрым фильтром.
-- [x] **7. Мульти-рабочие области ядра (Multi-Root Workspaces & `workspaces.yaml`)**:
-  - [x] Бэкенд ядра `internal/fs/workspace.go`: модель `WorkspaceRoot`, менеджер `workspaces.yaml`, защита `SafePath`, `read_only: true`, hot-reload и REST API (`/api/workspaces`).
-  - [x] Интерфейс Multi-Root проводника в `FileExplorer.tsx`: секции папок, контекстное меню корней, модальное окно `AddWorkspaceModal.tsx`, составные пути `rootId:relPath`.
-
-</details>
-
-<details>
-<summary><b>🛠️ Детали: Комплексная модернизация плагинов под Core & UI v2.0</b></summary>
-
-- [x] **1. Адаптация UI под единую дизайн-систему `@config-studio/ui` и Mobile/PWA**:
-  - [x] Перевести модальные окна, сплит-панели и элементы управления существующих плагинов на компоненты `@config-studio/ui` (`Modal`, `Card`, `Button`, `Input`, `Select`, `Toggle`, `Badge`, `ScrollArea`, `Toast`).
-  - [x] Обеспечить полную поддержку мобильного режима: Touch-first взаимодействие, учёт Safe Areas (отступы челок и жестов), поддержка мобильной док-панели и виртуальной клавиатуры без ломания разметки.
-- [x] **2. Интеграция нового функционала и API ядра v2.0 (Core Engine v2.0)**:
-  - [x] **Необязательные зависимости (`optionalDependencies`)**: внедрение мягких зависимостей в манифесты `plugin.json` для предложения рекомендуемых расширений (линтеры, форматеры, темы) с пакетной установкой в 1 клик в окне согласия без блокировки удаления.
-  - [x] **Безопасная шина сервисов (`services.getOptional`)**: перевод межплагинных вызовов на `await services.getOptional(name, consumerId)` с graceful degradation (корректный fallback при отсутствии необязательного плагина).
-  - [x] **Хранилище секретов ядра (OS Keychain / AES-256 Vault)**: интеграция с `window.ConfigStudio.secrets` для безопасной работы с ключами и токенами без их утечки в экспортируемые профили (реализовано и протестировано в `remote-agent v2.0.1`).
-  - [x] **Наблюдаемость и телеметрия**: проброс контекстных ошибок в Core ErrorBoundary для автоматической генерации 1-Click AI Diagnostic Report и экспорт `window.ConfigStudio.telemetry`.
-  - [x] **Бинарный релиз `.cspkg`**: сборка и публикация плагинов в высокопроизводительном бинарном формате `.cspkg` с обновлением GitHub Actions workflow.
-- [x] **3. Исправление известных дефектов в плагинах**:
-  - [x] **`config-studio-web-devkit`**: кнопка *Live Preview* в панели инструментов ограничена только веб-файлами (`.html`, `.htm`, `.php`, `.xhtml`, `.phtml`, `.svg`, `.vue`).
-  - [x] **`config-studio-remote-agent`**: поддержка peer-to-peer передачи файлов между любыми экземплярами (Localhost <-> Remote Agent), устранены ошибки `escapeHtml` и падения при отсутствии других агентов.
-
-</details>
-
-<details>
-<summary><b>🖧 Детали: Официальные плагины v2.0 (SSH UniSSH, Remote Agent v2.2, Subnet Sweep & Adopt)</b></summary>
-
-- [x] **config-studio-ssh (SSH/SFTP Терминал и управление серверами — полностью перенесен в ядро v2.0)**:
-  - *Статус*: Весь функционал (Web SSH PTY, SFTP проводник, E2EE Core Vault, ProxyJump) перенесен непосредственно в нативное ядро редактора; отдельный плагин отправлен на пенсию (Retired).
-  - [x] **Identity & Key Vault (концепция UniSSH)**: разделение профилей хостов и учетных данных. SSH-ключи (ed25519/rsa с passphrase) и пароли хранятся централизованно в зашифрованном хранилище ядра Core Vault (`ScopeShared`), хосты лишь ссылаются на `Identity ID`.
-  - [x] **Поддержка Bastion / Jump Host (`ProxyJump`)**: прозрачное сквозное подключение к серверам в закрытых подсетях и за NAT через промежуточный узел-шлюз.
-  - [x] **Интерактивный Web SSH терминал (PTY)**: полнофункциональный терминал на базе `xterm.js` + WebSocket + `golang.org/x/crypto/ssh`, поддержка ресайза окон (`window-change`), разделения потоков `stdout`/`stderr`, автопереподключения (Auto-Reconnect) и Shell Integration (OSC 133).
-  - [x] **SFTP-проводник файлов**: удаленная навигация по директориям, редактирование конфигов "на лету" прямо в редакторе Config Studio, параллельная загрузка и скачивание файлов.
-- [x] **config-studio-remote-agent v2.0 — v2.2 (Автономный демон, двухсоставная TOTP-безопасность и Zero-Emoji)**:
-  - [x] **Автономный легковесный демон `config-studio-agent`** (~7.9 МБ static Go бинарник без CGO, поддержка Alpine/Debian OpenRC/systemd и Windows).
-  - [x] **Двухсоставная модель авторизации (RFC 6238 TOTP)**:
-    - `RO (Read-Only)`: постоянный Master Key для чтения, структуры каталогов и метрик.
-    - `RW (Read-Write)`: динамическая TOTP-элевация (30-секундное окно, вычисление через WebCrypto API в браузере, защита от повторных атак Replay Cache с Nonce).
-  - [x] **Изолированные токены мониторинга (`/api/tokens`)**: выпуск Scoped-токенов с топиками (`metrics`, `health`, `sysinfo`) без раскрытия мастер-ключа.
-  - [x] **Встроенный Prometheus / OpenMetrics Exporter** (`/metrics`, `/api/metrics`, `/api/sysinfo`).
-  - [x] **Сетевой шлюз ядра Config Studio (`/api/remote-proxy/`)**: прозрачное проксирование трафика сервер-сервер, обход браузерных ограничений Mixed Content (HTTPS -> HTTP) и CORS/PNA.
-  - [x] **Изоляция рабочих областей (Multi-Root Workspace Isolation)**:
-    - Привязка корней к серверу (`Server: "local"` vs `http://host:port`).
-    - Сохранение чистых POSIX-путей без искажения дисками Windows.
-    - Автоматический резолвинг относительных путей рабочих областей на стороне прокси ядра.
-  - [x] **Интерфейс плагина `remote-agent` v2.2.0**:
-    - Интерактивный переключатель в шапке со статусами (RW, RO, OFFLINE) и пингом.
-    - Модальное окно добавления/редактирования агента с кнопкой «Проверить связь».
-    - Модальное окно управления Scoped токенами мониторинга.
-    - **Интеграция с Core Vault (`window.ConfigStudio.secrets` / OS Keychain / AES-256 Vault)**: безопасное хранение TOTP-секретов и ключей с гарантией 100% Zero-Secret.
-    - Автоматическая бесшовная миграция существующих ключей из `localStorage` в Core Vault при первом старте.
-    - 100% Lucide SVG иконки без системных эмодзи.
-  - [x] **Сетевое автообнаружение и принятие узлов (Broadcast Discovery & Adopt)**:
-    - [x] **HTTP Subnet Sweep**: параллельный опрос диапазона IP-адресов подсети (через универсальный шлюз `/api/remote-proxy/health`) с мгновенным сбором статусов (`hostname`, `version`, `adopted: false`).
-    - [x] **Процесс «Adopt»**: защищенный эндпоинт `POST /api/adopt` в демоне, 1-Click рукопожатие в плагине с сохранением в Core Vault.
-  - [x] **Двунаправленная передача между узлами (Bi-directional File Transfer)**:
-    - Возможность отправки файлов и директорий как с локального хоста на удаленный агент, так и обратно с агента на локальный хост с навигацией по папкам.
-
-</details>
-
-<details>
-<summary><b>🚀 Детали релиза v2.0.0-beta: Мобильный UI, PWA и необязательные зависимости (Soft Dependencies)</b></summary>
-
-- [x] **1. Архитектура необязательных зависимостей плагинов (`optionalDependencies`)**:
-  - [x] Поле манифеста `optionalDependencies: Record<string, string>`.
-  - [x] Ядро Go: снятие блокировок при отключении/удалении (Bypass Cascade Protection). Зависимый плагин работает в автономном режиме.
-  - [x] Consent Dialog: интерактивные чекбоксы для пакетной установки рекомендуемых расширений из каталога в 1 клик.
-  - [x] Шина сервисов: метод `window.ConfigStudio.services.getOptional(name, consumerId)` возвращает `null` без выброса ошибок.
-- [x] **2. Полная унификация интерфейса на базе `@config-studio/ui`**:
-  - [x] Все диалоги и экраны (`LoginScreen`, `SettingsModal`, `PreSaveGuardModal`, `PluginConsentModal`, `CommandConfirmModal`, `FilePropertiesModal`, `ProfileImportModal`) переведены на дизайн-систему.
-  - [x] Полное устранение скачков верстки (Zero-Jitter Guarantee) и кастомных несогласованных стилей.
-- [x] **3. Мобильный тач-лейаут и сенсорный редактор**:
-  - [x] Адаптивные выдвижные шторки (Slide-over drawer) для проводника файлов и структуры документа AST (с контрастной ASCII-иконкой дерева).
-  - [x] Сенсорный Developer Accessory Bar над нижней панелью с быстрыми символами (`Tab`, `:`, `"`, `'`, `{`, `}`, `[`, `]`, `=`, `-`, `/`, `#`).
-  - [x] Поддержка динамической высоты `100dvh` с безопасными отступами Safe Area.
-- [x] **4. Полноценная поддержка PWA (Progressive Web App)**:
-  - [x] Манифест PWA (`manifest.webmanifest`, `manifest.json`), сервисный воркер с App Shell кэшированием.
-  - [x] Встроенная поддержка HTTPS / TLS (`--tls`) с автогенерацией самоподписанного сертификата на 10 лет.
-  - [x] Нативная установка в Chrome, Firefox, Safari как автономного приложения.
-
-</details>
-
-<details>
-<summary><b>📱 Детали релиза v1.9.9: Полная унификация интерфейса (@config-studio/ui), мобильная адаптивность и PWA</b></summary>
-
-- [x] **1. Тотальная миграция всех оставшихся экранов и диалогов ядра на `@config-studio/ui`**:
-  - [x] **`PreSaveGuardModal`**: миграция на `Modal` + `ScrollArea` + `Button` + `Badge` (устранение хардкода цветов и кастомных скроллбаров).
-  - [x] **`PluginConsentModal`**: миграция на `Modal` + `ScrollArea` + `Button` + `Badge` (полная унификация карточек разрешений и кнопок).
-  - [x] **`CommandConfirmModal`**: миграция на `Modal` (`sm`) + `Button` + `Badge`.
-  - [x] **`FilePropertiesModal`**: миграция на `Modal` + `ScrollArea` + `Tabs` + `Button` + `Badge`.
-  - [x] **`ProfileImportModal`**: миграция на `Modal` + `ScrollArea` + `Button` + `Toggle` + `Badge`.
-  - [x] **Вкладки `SettingsModal` (`tabs/`)**: замена нативных `<input>`, `<select>`, `<button>` на `Input`, `Select`, `Toggle`, `Button`, `Card` и `ScrollArea` во всех вкладках (`GeneralTab`, `SecurityTab`, `SecretsTab`, `PluginsTab`, `PluginSettingsTab`, `ProfileTab`, `AuditTab`).
-  - [x] **`LoginScreen`**: оформление экрана входа на базе компонентов `Card`, `Input`, `Button`, `Badge`.
-- [x] **2. Мобильная адаптивность (Responsive & Touch-First Layout)**:
-  - [x] **Шапка (`Header`) на мобильных экранах (`< 768px`)**:
-    - Кнопка-гамбургер (`Menu`) для вызова шторки проводника файлов.
-    - Иконка `TreeAsciiIcon` (Вариант 3 ASCII-дерево) для вызова структуры документа AST.
-    - Адаптивное сворачивание быстрых действий (сохранение, запуск, настройки) без вылезания за пределы экрана (`MoreVertical` [⋮]).
-    - Полноэкранный компактный поиск файлов по клику на лупу.
-  - [x] **Выдвижная шторка проводника файлов (Off-Canvas File Drawer)**:
-    - На узких экранах `FileExplorer` открывается как плавный slide-over оверлей с подложкой (backdrop), не сдавливая редактор.
-    - Увеличенные области касания (Touch Targets ≥ 44px) для удобного управления пальцами и автозакрытие при выборе файла.
-  - [x] **Структура документа (`StructureOutline`)**:
-    - Автоматическое скрытие на мобильных экранах (`hidden lg:flex`), открытие по кнопке `TreeAsciiIcon` из шапки в виде шторки справа.
-    - Быстрый поиск по дереву, кликабельные ноды с мгновенным прыжком к строке кода и автозакрытием шторки.
-  - [x] **Мобильный редактор и клавиатурный бар (`Editor.tsx`)**:
-    - Скрываемая тонкая выезжающая панель быстрых тегов (`# Теги`) для навигации без загромождения экрана.
-    - Сенсорный **Developer Accessory Bar** над нижней панелью с клавишами `Tab`, `:`, `"`, `'`, `{`, `}`, `[`, `]`, `=`, `-`, `/`, `#` для комфортного редактирования конфигов на смартфоне.
-    - Оптимизация Monaco Editor под тач: скрытие миникарты на мобильных экранах для 100% ширины кода, компактная нумерация строк.
-    - Устранение вытеснения элементов за границы экрана: `100dvh` и `flex-1 min-h-0` вместо жесткого `h-full`.
-  - [x] **Адаптивные модальные окна**:
-    - На экранах телефонов (`< sm`) модалки раскрываются на полный экран (`fullscreen`/`bottom-sheet`) с соблюдением Safe Area (`env(safe-area-inset-top)` / `env(safe-area-inset-bottom)`).
-- [x] **3. Полноценная поддержка PWA (Progressive Web App)**:
-  - [x] **Манифест `manifest.webmanifest` и `manifest.json`**:
-    - `id: "/"`, `display: "standalone"`, `start_url: "/"`.
-    - Иконки PWA всех необходимых размеров (192x192, 512x512, maskable 512x512).
-    - Категории `developer`, `productivity`, `utilities`.
-  - [x] **Мета-теги для мобильных браузеров в `index.html`**:
-    - `viewport-fit=cover`, `maximum-scale=1.0, user-scalable=no`.
-    - `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style` (`black-translucent`).
-    - `apple-touch-icon`, динамический `theme-color`.
-  - [x] **Сервис-воркер (`sw.js`)**:
-    - Кэширование оболочки приложения (App Shell) для мгновенного холодного старта.
-    - Сетевая стратегия: Network-First для `/api/*`, Stale-While-Revalidate для ассетов.
-    - Заголовок `Service-Worker-Allowed: /`.
-  - [x] **Встроенная поддержка HTTPS / TLS**:
-    - Флаги `--tls`, `--tls-cert`, `--tls-key` в `cmd/server/main.go`.
-    - Автоматическая генерация валидного самоподписанного ECDSA сертификата на 10 лет с LAN IP адресами.
-    - Обновленный `start.bat` с автоматическим запуском HTTPS и автодетекцией локального IP.
-    - Интеграция с Traefik обратным прокси и Cloudflare SSL.
-
-</details>
-
-<details>
-<summary><b>🎨 Детали релиза v1.9.7: Единая дизайн-система и UI Kit (@config-studio/ui)</b></summary>
-
-- [x] **Базовые компоненты дизайн-системы (`web/src/components/ui/`)**:
-  - [x] **`Modal` (`Dialog`)**:
-    - Фиксированные эталонные размеры: `sm` (400px), `md` (540px), `lg` (720px), `xl` (900px), `fullscreen`.
-    - Фиксированная стабильная геометрия: шапка (`Modal.Header`) и подвал (`Modal.Footer`) жестко зафиксированы, тело (`Modal.Body`) имеет стабильную предсказуемую высоту (`h-[82vh] min-h-[580px] max-h-[820px]`).
-    - **Zero-Jitter Guarantee**: полное устранение скачков высоты и ширины при смене вкладок или динамической загрузке списков.
-    - Встроенная плавная анимация открытия/закрытия, закрытие по `Escape` и клику на подложку (backdrop).
-  - [x] **`ScrollArea`**:
-    - Универсальный скролл-контейнер с режимами: `vertical`, `horizontal`, `both`.
-    - Фирменный ультратонкий ползунок (5px, закругленный `pill`, прозрачный трек).
-    - Плавная подсветка акцентным цветом темы при наведении (`var(--color-accent)`).
-    - Полноценная поддержка плавной горизонтальной прокрутки колесиком мыши без зажатия `Shift` (для широких таблиц, логов, длинных путей).
-    - Защита от перекрытия содержимого (Zero-Overlap) за счет корректных внутренних отступов.
-  - [x] **`Button` & `ButtonGroup`**:
-    - Варианты: `primary` (динамический акцентный цвет темы), `secondary`, `outline`, `ghost`, `danger`.
-    - Размеры: `sm` (28px), `md` (36px), `lg` (42px).
-    - Встроенный спиннер загрузки (`loading`), поддержка левых/правых иконок, отключенное состояние (`disabled`).
-  - [x] **`Toggle` (Switch)**:
-    - Элегантный переключатель вкл/выкл на замену стандартным браузерным checkbox.
-    - Плавная CSS-анимация смещения ползунка, заливка активным акцентным цветом темы.
-  - [x] **`Input`, `Textarea`, `Select` (Dropdown)**:
-    - Единый радиус скругления (`rounded-xl`), стандартизированные рамки (`border-base-border`) и фон (`bg-base-surface`).
-    - Реакция на фокус (`focus:border-accent`), индикаторы ошибок валидации.
-    - Единая высота текстовых полей и выпадающих списков.
-  - [x] **`Badge` & `Pill`**:
-    - Унифицированные статусные плашки: варианты `success`, `warning`, `error`, `info`, `accent`, `neutral`.
-    - Размеры: `sm` (для списков/таблиц) и `md`.
-  - [x] **`Tabs`**:
-    - Унифицированная навигационная полоса вкладок со стабильным отображением, горизонтальным скроллом и активным индикатором акцентного цвета темы.
-  - [x] **`Card`**:
-    - Базовый строительный блок для настроек, списков серверов и карточек расширений (`bg-base-surface`, `border-base-border`).
-  - [x] **`Toast` (`ToastContainer`, `useToast`, `showGlobalToast`)**:
-    - Всплывающие уведомления в углу экрана: варианты `success`, `error`, `warning`, `info`.
-    - Плавная анимация появления, автоскрытие через 3.5 секунды, пауза при наведении курсора.
-    - Замена `console.log` в `window.ConfigStudio.showNotification` на нативные тосты.
-    - Интеграция с ключевыми событиями ядра: сохранение файлов, настройки, ошибки, плагины.
-- [x] **Миграция модальных окон ядра на новую библиотеку**:
-  - [x] Перевод окна настроек `SettingsModal.tsx` на `Modal` (`height="fixed"`) + `ScrollArea` + `Tabs` (монолитная фиксация высоты `h-[82vh]` без скачков между вкладками).
-  - [x] Синхронизация высоты `PluginSettingsTab` (перевод на адаптивный `h-full flex-1`).
-- [x] **Экспорт UI Kit в SDK плагинов**:
-  - [x] Регистрация хелперов уведомлений в глобальном пространстве: `window.ConfigStudio.ui.toast`.
-- [x] **Оптимизация сети и сборки (Gzip Middleware & Vite Chunks)**:
-  - [x] **Gzip-компрессия на Go-сервере (`internal/server/gzip.go`)**: прозрачное сжатие встроенного веб-бандла и API-ответов стандартным пакетом Go `compress/gzip` (сокращение объема трафика с ~600 КБ до ~160 КБ, ускорение первого открытия страницы на ~70%).
-  - [x] **Code-Splitting в `vite.config.ts`**: разделение через `manualChunks` на независимые чанки (`vendor-monaco`, `vendor-react`, `vendor-parsers`), устранившее предупреждения сборки и ускоряющее кэширование браузера.
-
-</details>
-
-<details>
-<summary><b>⚙️ Детали релиза v1.9.6: Модульная архитектура настроек и персонализация плагинов</b></summary>
-
-- [x] **Модульная декомпозиция SettingsModal**:
-  - Полный рефакторинг монолитного `SettingsModal.tsx` (~3200 строк) в легковесную оболочку (~270 строк) и независимые компоненты вкладок в `web/src/components/settings/tabs/`:
-    - `GeneralTab.tsx` — персонализация темы (палитра базовых и акцентных цветов, иконка, светлая/темная тема, язык, dock mode).
-    - `SecurityTab.tsx` — Direct Login, мастер-пароль, REST API токен, маски Structure Guard.
-    - `SecretsTab.tsx` — хранилище OS Keychain / Vault, Privileged Mode (15 минут), управление учетными данными.
-    - `PluginsTab.tsx` — каталог расширений, переключатели, consent dialog, зависимости.
-    - `PluginSettingsTab.tsx` — двухпанельная система настроек плагинов.
-    - `ProfileTab.tsx` — экспорт/импорт профилей и управление источниками каталогов.
-    - `AuditTab.tsx` — единый структурированный аудит-лог с фильтрами по категориям и AI diagnostic bundle.
-  - Сохранение 100% обратной совместимости через реэкспорт из `web/src/components/SettingsModal.tsx`.
-- [x] **Двухпанельная вкладка настроек плагинов (Master-Detail Layout)**:
-  - Левая колонка: стопка установленных плагинов со скроллом, поиском по имени/описанию, бейджами версий и авторов.
-  - **Динамическая подсветка темы**: активный выбранный плагин строго подсвечивается текущим акцентным цветом темы пользователя (`settings.theme.accentColor`).
-  - Правая панель: карточка настроек выбранного плагина:
-    - Поддержка кастомных рендереров плагинов (`registerPluginSettings`).
-    - Автоматическая динамическая форма на основе декларативной схемы `settings` в манифесте `plugin.json` (`boolean`, `string`, `number`, `select`).
-    - Информативное состояние для плагинов без настраиваемых параметров (версия, автор, описание, выданные разрешения).
-- [x] **Изолированное бэкенд-хранилище `data/plugin-settings/`**:
-  - Каждое расширение хранит конфигурацию в отдельном файле `data/plugin-settings/<plugin-id>.json`.
-  - Эндпоинты: `GET /api/plugins/{id}/settings`, `POST /api/plugins/{id}/settings`.
-  - Аудит-логирование изменений настроек плагинов (`plugin.settings.save`).
-- [x] **Сквозная поддержка профилей (Zero-Secret Portability)**:
-  - Автоматический сбор всех конфигураций плагинов при экспорте профиля (`GET /api/profile/export`).
-  - Восстановление индивидуальных настроек плагинов при импорте профиля (`POST /api/profile/import`).
-- [x] **Публичное JS API в `window.ConfigStudio`**:
-  - `registerPluginSettings(pluginId, renderer)`, `getPluginSettings(pluginId)`, `savePluginSettings(pluginId, settings)`.
-- [x] **Фирменный ультратонкий скроллбар (как в «Быстром переходе»)**:
-  - Ширина 5px, форма pill (`border-radius: 9999px`), прозрачный трек и подсветка акцентным цветом при наведении.
-
-</details>
-
-<details>
-<summary><b>📊 Детали релиза v1.9.8: Единая структурированная телеметрия и диагностика для ИИ</b></summary>
+<summary><b>📊 Детали релиза v2.0.0: Единая система аудита и телеметрии</b></summary>
 
 - [x] **Единый структурированный поток `audit.jsonl` (Unified Observability Stream)**:
-  - Единый файл журнала без дробления на разрозненные файлы логов. Все события (действия пользователя, внутренние операции бэкенда, ошибки интерфейса, сетевые сбои, события плагинов) пишутся строго в `audit.jsonl`.
+  - Единый файл журнала без дробления на разрозненные файлы логов.
   - Категоризация: `user`, `system`, `error`, `network`, `plugin`.
-  - Обогащение полей: `source` (`frontend`, `backend`, `plugin`), `sourceId`, `category`.
-  - Потоковая фильтрация в API: `GET /api/audit/logs?category=...&source=...`.
-  - Эндпоинт пакетного приема событий клиента: `POST /api/audit/ingest`.
 - [x] **Служба телеметрии на клиенте (`telemetry.ts`)**:
   - In-memory кольцевой буфер последних 50 событий.
-  - Глобальный перехват `window.onerror` и `window.onunhandledrejection`.
-  - Перехват сетевых HTTP ошибок (4xx, 5xx, сбои связи) в `webFetch` с защитой от рекурсии.
-  - 100% Zero-Secret Sanitizer: автоматическая санитизация паролей, токенов, ключей и куки перед записью.
+  - Перехват сетевых HTTP ошибок и 100% Zero-Secret санитизация.
 - [x] **Диагностический отчёт для ИИ и крэш-репорт в 1 клик**:
   - `ErrorBoundary.tsx`: кнопка **«📋 Скопировать диагностический отчёт для ИИ»** и **«💾 Crash Report»**.
-  - Вкладка «Вывод» нижнего дока и вкладка «Аудит» настроек: интерактивные фильтры по категориям и кнопка копирования контекста для ИИ.
 
 </details>
 
 <details>
 <summary><b>📦 Детали релиза v1.9.5: Бинарный формат библиотеки плагинов (.cspkg)</b></summary>
 
-- [x] **Бинарный контейнер по аналогии с MRS (Mihomo / Clash.Meta)**:
-  - Компиляция текстовых файлов (`plugin.json`, `main.js`, `locales/*.json`, ассеты) в единый компактный бинарный файл с расширением `.cspkg`.
-  - Нулевые внешние зависимости: строго стандартная библиотека Go (`encoding/binary`, `archive/zip`, `crypto/sha256`).
-  - Сигнатура Magic Bytes `CSPK\x01`, 32-байтный SHA-256 хеш содержимого, потоковое чтение на лету прямо из памяти (`cspkg.ReadFile`).
-  - Zero-Disk / In-Memory монтирование: считывание плагина в память ядра без распаковки во временные папки на диске.
-  - Сохранение режима разработки (Dev Mode): поддержка распакованных папок и ZIP-архивов для hot-reload.
-  - Автономная CLI-утилита `cmd/cspkg` (`pack`, `inspect`, `unpack`, `validate`) под Windows, Linux и macOS.
-- [x] **Синхронизация документации плагинов ([config-studio-plugin-docs](https://github.com/config-studio/config-studio-plugin-docs))**:
-  - Обновление спецификации манифеста `plugin.json` (права `permissions`, зависимости `dependencies` с SemVer).
-  - Спецификация бинарного формата `.cspkg`, публикация готовых бинарников компилятора в Release v1.0.0.
+- [x] **Бинарный контейнер по аналогии с MRS**:
+  - Компиляция в единый компактный бинарный файл с расширением `.cspkg`.
+  - Zero-Disk / In-Memory монтирование.
+  - CLI-утилита `cmd/cspkg` (`pack`, `inspect`, `unpack`, `validate`).
+- [x] **Синхронизация документации плагинов (`config-studio-plugin-docs`)**:
+  - Спецификация манифеста `plugin.json` и формата `.cspkg`.
 
 </details>
 
 <details>
 <summary><b>🛡️ Детали Фазы 1: Базовый фундамент ядра редактора (1.0 — 1.9)</b></summary>
 
-- [x] **1.0 Core Security & Audit Trail**:
-  - Встроенный журнал аудита (Core Audit Log).
-  - Манифест разрешений (Capabilities: `fs`, `shell`, `secrets`, `remote`) и экран согласия (Consent Dialog).
-  - Безопасное хранилище секретов (OS Keychain / Credential Manager в ядре по умолчанию, зашифрованный AES-256-GCM Vault, Privileged Mode, Shared fleet secrets, 100% Zero-Secret).
-  - Защищенный RPC/Proxy мост межплагинных сервисов.
-- [x] **1.1 Core Config Guard & Pre-Save Guard**:
-  - Гибридная валидация: клиентская для обычных файлов vs двойная (Клиент + Go AST ядро) для чувствительных.
-  - Детекция чувствительных сервисов (docker-compose, nginx, systemd + маски в настройках + UI-бейджик 🛡️).
-  - Строгая синтаксическая валидация отступов и скобок (YAML, TOML, JSON, INI, ENV).
-  - Pre-save Guard: разделение на Syntax Error vs Warning, модалка с отдельной кнопкой «Force Save».
-- [x] **1.2 Core Templates & Dictionaries (Lean Core Architecture)**:
-  - Базовые шаблоны и словари вынесены в специализированные плагины (`docker`, `nginx`, `web-devkit`) во избежание раздувания ядра.
-- [x] **1.3 Portability & Sources**:
-  - Файл доверенных источников `plugins/sources.json`.
-  - Экспорт/импорт профиля в 1 клик (`config-studio-profile.json` без секретов).
-  - Разделение каталога на `official` и `community` в `sources.json` и кэше.
-- [x] **1.4 1-Click Action Toolbar API**:
-  - Split Action Button `[ ▶ Run: build | ▾ ]` в ядре.
-  - Строгая контекстная фильтрация кнопок плагинов по `fileMatches` (Zero-Clutter).
-  - Горячие клавиши для запуска без мыши (`F5`).
-- [x] **1.5 Visible Bottom Dock Strip**:
-  - Постоянная нижняя полоса с явными вкладками (`[ 🔍 Проблемы ]`, `[ 📋 Вывод ]`, `[ 🐳 Плагины ]`).
-  - Открытие и сворачивание в 1 клик, сплиттер ресайза высоты и шорткат `Ctrl+~` / `Ctrl+J`.
-- [x] **1.6 Context Menu Provider**:
-  - Встроенные системные действия ядра (открыть, копировать путь, создать файл/папку, переименовать, удалить).
-  - Точка расширения `window.ConfigStudio.registerContextMenu` для плагинов (`fileMatches`, группы, шорткаты).
-- [x] **1.7 Plugin Dependencies & Inter-Plugin Services**:
-  - Автоматическая проверка и установка зависимостей из манифеста `dependencies`.
-  - Защита от каскадного удаления (Cascade Protection) и топологический порядок загрузки (DAG).
-  - Защищенная шина межплагинных сервисов через RPC/Proxy ядро (`window.ConfigStudio.services`).
-- [x] **1.8 Plugin i18n & UI Language Packs**:
-  - Автономная локализация плагинов (`locales/*.json` и `locales` в `plugin.json`).
-  - Плагины полной локализации интерфейса (UI Language Packs: `localization.json`).
+- [x] **1.0 Core Security & Audit Trail**: журнал аудита, манифест разрешений, Keychain/Vault.
+- [x] **1.1 Core Config Guard & Pre-Save Guard**: гибридная валидация, Pre-Save Guard.
+- [x] **1.2 Core Templates & Dictionaries**: вынос шаблонов в плагины.
+- [x] **1.3 Portability & Sources**: `sources.json`, экспорт профиля.
+- [x] **1.4 1-Click Action Toolbar API**: кнопки быстрых действий с шорткатами.
+- [x] **1.5 Visible Bottom Dock Strip**: нижняя полоса вкладок `Ctrl+~`.
+- [x] **1.6 Context Menu Provider**: расширяемое контекстное меню.
+- [x] **1.7 Plugin Dependencies & Inter-Plugin Services**: топологический порядок загрузки и DAG.
+- [x] **1.8 Plugin i18n & UI Language Packs**: языковые пакеты и локализация.
 
 </details>
