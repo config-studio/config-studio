@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "build:ru": "tsc && vite build --mode ru",
     "build:en": "tsc && vite build --mode en",
+    "build:debug": "tsc && vite build --mode debug",
     "preview": "vite preview"
   },
   "dependencies": {
