@@ -110,6 +110,8 @@ export const App: React.FC = () => {
   currentFileRef.current = currentFile;
   const currentDirRef = useRef(currentDir);
   currentDirRef.current = currentDir;
+  const workspacesRef = useRef(workspaces);
+  workspacesRef.current = workspaces;
 
   // Check initial authentication and load settings
   useEffect(() => {
@@ -134,7 +136,7 @@ export const App: React.FC = () => {
         });
       },
       openFile: async (path: string, options?: OpenFileOptions) => {
-        const root = currentFile?.root || '';
+        const root = currentFileRef.current?.root || workspacesRef.current?.[0]?.id || '';
         await openFile(path, root, options);
       },
       createFile: async (path: string, content: string = '') => {
@@ -303,11 +305,14 @@ export const App: React.FC = () => {
     // Check if filePath is compound "root:path"
     if (!root && filePath.includes(':')) {
       const idx = filePath.indexOf(':');
-      root = filePath.substring(0, idx);
-      cleanPath = filePath.substring(idx + 1);
+      const prefix = filePath.substring(0, idx);
+      if (prefix.length > 1) {
+        root = prefix;
+        cleanPath = filePath.substring(idx + 1);
+      }
     }
     if (!root || root === 'default') {
-      root = currentFile?.root || workspaces[0]?.id || '';
+      root = currentFileRef.current?.root || workspacesRef.current?.[0]?.id || '';
     }
 
     const targetKey = root ? `${root}:${cleanPath}` : cleanPath;

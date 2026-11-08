@@ -250,7 +250,7 @@ export const api = {
   async getTree(path: string = '', root: string = ''): Promise<{ root?: string; path: string; items: FileItem[] }> {
     const params = new URLSearchParams();
     if (path) params.set('path', path);
-    if (root) params.set('root', root);
+    if (root && root !== 'default') params.set('root', root);
     const res = await webFetch(`/api/fs/tree?${params}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -288,7 +288,7 @@ export const api = {
 
   async getFile(path: string, root: string = ''): Promise<{ root?: string; path: string; fullRelPath?: string; name: string; content: string; readOnly?: boolean }> {
     const params = new URLSearchParams({ path });
-    if (root) params.set('root', root);
+    if (root && root !== 'default') params.set('root', root);
     const res = await webFetch(`/api/fs/file?${params}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -307,7 +307,7 @@ export const api = {
 
   async getFileInfo(path: string, root: string = ''): Promise<FileInfo> {
     const params = new URLSearchParams({ path });
-    if (root) params.set('root', root);
+    if (root && root !== 'default') params.set('root', root);
     const res = await webFetch(`/api/fs/info?${params}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -404,13 +404,13 @@ export const api = {
 
   getDownloadUrl(path: string, root: string = ''): string {
     const params = new URLSearchParams({ path });
-    if (root) params.set('root', root);
+    if (root && root !== 'default') params.set('root', root);
     return `/api/fs/download?${params}`;
   },
 
   async searchFiles(query: string = '', root: string = ''): Promise<FileItem[]> {
     const params = new URLSearchParams({ q: query });
-    if (root) params.set('root', root);
+    if (root && root !== 'default') params.set('root', root);
     const res = await webFetch(`/api/fs/search?${params}`);
     if (!res.ok) return [];
     const data = await res.json().catch(() => ({}));
