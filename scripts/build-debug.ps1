@@ -8,10 +8,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Split-Path -Parent $ScriptDir
 $WebDir = Join-Path $RootDir "web"
 $BinDir = Join-Path $RootDir "bin"
-$DistDirs = @(
-    "C:\Users\iBella\Desktop\clash",
-    "C:\Users\iBella\Desktop\test"
-)
+$TargetTestDir = "C:\Users\iBella\Desktop\test"
 
 if (-not (Test-Path $BinDir)) {
     New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
@@ -44,15 +41,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "[OK] Successfully compiled: $debugExe" -ForegroundColor Green
 
-# 3. Deploy to Desktop Test Locations
+# 3. Deploy ONLY config-studio-debug.exe to Desktop/test (no extra files dumped)
 if (-not $NoDeploy) {
-    Write-Host "`n[3/3] Deploying config-studio-debug.exe to test environments..." -ForegroundColor Yellow
-    foreach ($dest in $DistDirs) {
-        if (Test-Path $dest) {
-            $destFile = Join-Path $dest "config-studio-debug.exe"
-            Copy-Item -Path $debugExe -Destination $destFile -Force
-            Write-Host "  -> Deployed to $destFile" -ForegroundColor Cyan
-        }
+    if (Test-Path $TargetTestDir) {
+        $destFile = Join-Path $TargetTestDir "config-studio-debug.exe"
+        Copy-Item -Path $debugExe -Destination $destFile -Force
+        Write-Host "`n[3/3] Deployed to $destFile" -ForegroundColor Cyan
     }
 }
 
@@ -62,5 +56,4 @@ Set-Location $WebDir
 cmd /c "npm run build:ru"
 
 Write-Host "`n[OK] Config Studio Debug Edition is ready!" -ForegroundColor Green
-Write-Host "  Run: node scripts/debug-server.js to start receiving live telemetry on port 9998" -ForegroundColor Green
-Write-Host "  Launch: config-studio-debug.exe in Desktop/clash or Desktop/test" -ForegroundColor Green
+Write-Host "  Launch: start.bat in Desktop/test (runs in Debug Mode without TLS)" -ForegroundColor Green

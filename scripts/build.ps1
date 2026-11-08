@@ -9,7 +9,6 @@ $RootDir = Split-Path -Parent $ScriptDir
 $WebDir = Join-Path $RootDir "web"
 $BinDir = Join-Path $RootDir "bin"
 $DistDirs = @(
-    "C:\Users\iBella\Desktop\clash",
     "C:\Users\iBella\Desktop\test"
 )
 
