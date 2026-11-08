@@ -22,15 +22,10 @@ export async function checkDebugServerHealth(): Promise<boolean> {
 }
 
 export function sendDebugEvent(evt: DebugEvent) {
-  // Try sending via fetch with keepalive for instant zero-latency delivery
   try {
     const payload = JSON.stringify(evt);
-    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-      const blob = new Blob([payload], { type: 'application/json' });
-      const ok = navigator.sendBeacon(DEBUG_SERVER_URL, blob);
-      if (ok) return;
-    }
 
+    // Use direct fetch with keepalive and cors mode for reliable real-time transmission
     fetch(DEBUG_SERVER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -38,7 +33,7 @@ export function sendDebugEvent(evt: DebugEvent) {
       keepalive: true,
       mode: 'cors',
     }).catch(() => {
-      // Silently ignore network failures if debug server is not listening
+      // Non-blocking: Silently ignore if debug server is not listening
     });
   } catch {
     // Non-blocking
