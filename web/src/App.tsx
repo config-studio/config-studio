@@ -16,7 +16,7 @@ import { api, getRemoteEndpoint, PreSaveGuardError } from './services/api';
 import { pluginManager, PluginSystemState } from './services/pluginLoader';
 import { showGlobalToast } from './components/ui';
 import { revisionHistoryService } from './services/revisionHistory';
-import { Settings, FileItem, OpenFile, FileRevision, GuardIssue, GuardValidationResult, WorkspaceRoot, SSHHost } from './types';
+import { Settings, FileItem, OpenFile, OpenFileOptions, FileRevision, GuardIssue, GuardValidationResult, WorkspaceRoot, SSHHost } from './types';
 import { parseContentToOutline } from './utils/astParser';
 import { translations, Language, DEFAULT_LANGUAGE } from './utils/i18n';
 import { adjustBrightness, getLuminance } from './utils/color';
@@ -133,8 +133,8 @@ export const App: React.FC = () => {
           setPendingConfirm({ command, resolve });
         });
       },
-      openFile: async (path: string) => {
-        await openFile(path);
+      openFile: async (path: string, options?: OpenFileOptions) => {
+        await openFile(path, undefined, options);
       },
       createFile: async (path: string, content: string = '') => {
         await api.createItem(path, false);
@@ -295,7 +295,7 @@ export const App: React.FC = () => {
   };
 
   // Open file into multi-tab system
-  const openFile = async (filePath: string, rootId?: string) => {
+  const openFile = async (filePath: string, rootId?: string, options?: OpenFileOptions) => {
     let root = rootId || '';
     let cleanPath = filePath;
 
@@ -315,6 +315,11 @@ export const App: React.FC = () => {
     );
     if (existing) {
       setActiveTabKey(getTabKey(existing));
+      if (options?.line) {
+        setTimeout(() => {
+          handleJumpToLine(options.line!, options.column || 1, true, options.highlight);
+        }, 50);
+      }
       return;
     }
 
@@ -338,6 +343,11 @@ export const App: React.FC = () => {
       };
       setTabs((prev) => [...prev, newTab]);
       setActiveTabKey(fullRelPath);
+      if (options?.line) {
+        setTimeout(() => {
+          handleJumpToLine(options.line!, options.column || 1, true, options.highlight);
+        }, 120);
+      }
     } catch (err: any) {
       alert(`Error reading file: ${err.message}`);
     }
@@ -725,12 +735,48 @@ export const App: React.FC = () => {
     document.body.removeChild(a);
   };
 
-  const handleJumpToLine = (line: number, shouldFocus: boolean = true) => {
+  const handleJumpToLine = (
+    line: number,
+    colOrFocus?: number | boolean,
+    shouldFocus: boolean = true,
+    highlight: boolean = false
+  ) => {
+    let col = 1;
+    let focus = shouldFocus;
+    if (typeof colOrFocus === 'number') {
+      col = colOrFocus;
+    } else if (typeof colOrFocus === 'boolean') {
+      focus = colOrFocus;
+    }
+
     if (editorRef.current) {
       editorRef.current.revealLineInCenter(line);
-      if (shouldFocus) {
-        editorRef.current.setPosition({ lineNumber: line, column: 1 });
+      if (focus) {
+        editorRef.current.setPosition({ lineNumber: line, column: col });
         editorRef.current.focus();
+      }
+      if (highlight) {
+        try {
+          const monacoObj = (window as any).monaco;
+          if (monacoObj && monacoObj.Range) {
+            const decorations = editorRef.current.deltaDecorations([], [
+              {
+                range: new monacoObj.Range(line, 1, line, 1),
+                options: {
+                  isWholeLine: true,
+                  className: 'cs-line-highlight-flash',
+                },
+              },
+            ]);
+            setTimeout(() => {
+              if (editorRef.current) {
+                editorRef.current.deltaDecorations(decorations, []);
+              }
+            }, 1600);
+          }
+        } catch (_) {
+          // ignore decorative animation error
+        }
       }
     }
   };
@@ -1003,7 +1049,7 @@ export const App: React.FC = () => {
                 setActiveBottomDockId('problems');
               }
             }}
-            onJumpToLine={(line, col) => handleJumpToLine(line, true)}
+            onJumpToLine={(line, col) => handleJumpToLine(line, col || 1, true, true)}
             accentColor={settings.accentColor}
           />
         </div>

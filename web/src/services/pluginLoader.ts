@@ -6,6 +6,7 @@ import { mountDropdown } from '../components/ui/vanillaDropdown';
 import {
   PluginItem,
   OpenFile,
+  OpenFileOptions,
   ToolbarButtonDef,
   SplitPanelDef,
   HeaderItemDef,
@@ -85,7 +86,7 @@ class PluginLoader {
     return this.pluginSettingsPanels.get(pluginId);
   }
 
-  private openFileHandler: (path: string) => Promise<void> = async () => {};
+  private openFileHandler: (path: string, options?: OpenFileOptions) => Promise<void> = async () => {};
   private createFileHandler: (path: string, content?: string) => Promise<void> = async () => {};
   private refreshFilesHandler: () => Promise<void> = async () => {};
   private openCustomTabHandler: (tab: any) => Promise<void> = async () => {};
@@ -242,8 +243,8 @@ class PluginLoader {
         }
       },
 
-      openFile: async (path: string) => {
-        await this.openFileHandler(path);
+      openFile: async (path: string, options?: OpenFileOptions) => {
+        await this.openFileHandler(path, options);
       },
       createFile: async (path: string, content?: string) => {
         await this.createFileHandler(path, content);
@@ -582,7 +583,7 @@ class PluginLoader {
     setActiveContent: (content: string) => void;
     showNotification: (msg: string, type?: 'info' | 'success' | 'error') => void;
     confirmCommand: (command: string) => Promise<boolean>;
-    openFile?: (path: string) => Promise<void>;
+    openFile?: (path: string, options?: OpenFileOptions) => Promise<void>;
     createFile?: (path: string, content?: string) => Promise<void>;
     refreshFiles?: () => Promise<void>;
     openCustomTab?: (tab: any) => Promise<void>;

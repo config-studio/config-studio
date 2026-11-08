@@ -190,6 +190,12 @@ export interface FileRevision {
   linesDelta: number;
 }
 
+export interface OpenFileOptions {
+  line?: number;
+  column?: number;
+  highlight?: boolean;
+}
+
 export interface OpenFile {
   path: string;
   root?: string;

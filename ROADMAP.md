@@ -13,11 +13,58 @@
 
 ## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint)
 
-### 🖧 ФАЗА 2: Официальные плагины и расширения экосистемы (Phase 2 Plugins)
-Переход к реализации официальных плагинов для системного администрирования, управления флотом серверов и инструментов разработчика на базе стабильного и унифицированного ядра Config Studio с поддержкой Multi-Root Workspaces.
+### 🎯 config-studio-traefik (Целевой плагин Traefik v1.0.0)
+Разработка официального расширения для управления конфигурациями Traefik Proxy с упором на многофайловую структуру каталога правил (`/etc/traefik/rules/`):
+- [ ] **Архитектура каталога правил (Directory Provider `rules/*.yml`)**:
+  - [ ] Разделение и индексация мидлварей (`mw-*.yml`) и сервисов (`ser-*.yml`).
+  - [ ] Кросс-файловый IntelliSense: автодополнение названий мидлварей с суффиксом `@file`.
+  - [ ] Переход к определению (Go to Definition) через метод ядра `openFile(path, { line, col, highlight: true })`.
+  - [ ] Кросс-файловая валидация: поиск битых ссылок на мидлвари и конфликтов дубликатов `Host(...)`.
+  - [ ] Сводная матрица сервисов (Rules Directory Matrix): табличный обзор доменов, портов бэкендов, мидлварей и TLS.
+  - [ ] Мастер создания сервиса (New Service Wizard): 1-Click генерация `ser-<name>.yml`.
+- [ ] **Интеллектуальный AST Outline**: дерево роутеров, мидлварей и сервисов с подсветкой правил `Host(...)`.
+- [ ] **Каталог рецептов (Blueprints)**: статический `traefik.yml` и динамический `dynamic.yml`.
+- [ ] **Traefik Doctor & Rule Linter**: проверка синтаксиса и совместимости v2/v3.
+- [ ] **Action Toolbar**: кнопки быстрой валидации и перехода в Traefik Dashboard.
 
-> [!NOTE]
-> Согласно главному регламенту (Core First), архитектура и прототип каждого отдельного плагина обсуждаются и утверждаются с пользователем перед написанием кода.
+---
+
+## 🏗️ ДОРОЖНАЯ КАРТА УЛУЧШЕНИЙ ЯДРА (Core Evolution Roadmap)
+
+Фундаментальные сервисы и точки расширения ядра, создаваемые по принципу *Core First* перед реализацией соответствующих плагинов:
+
+### 1. Навигация и кросс-файловый поиск (Editor Navigation & Cross-File Discovery)
+*Необходимо для: `config-studio-traefik` (Go to Definition), `config-studio-glance` ($include), линтеров и инспекторов.*
+- [ ] Расширенное позиционирование: `openFile(path, { line, column, highlight })` в Monaco Editor и Plugin SDK.
+- [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
+- [ ] Глобальный реестр горячих клавиш: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий из любого открытого документа.
+
+### 2. Неинтерактивное SSH-исполнение и Privileged Mode (Headless SSH Exec)
+*Необходимо для: `config-studio-docker` (Compose Doctor), `config-studio-nginx` (nginx -t), `config-studio-systemd` (analyze), `config-studio-glance` (Baremetal Updater).*
+- [ ] Сервис `internal/ssh.ExecuteCommand(ctx, cfg, req)` в Go-бэкенде (неинтерактивное выполнение через чистую сессию SSH с таймаутом).
+- [ ] REST API эндпоинт `POST /api/ssh/exec`: вход `{ hostId, cmd, timeoutSec, env }` -> выход `{ exitCode, stdout, stderr, durationMs }`.
+- [ ] Sudo Elevation Helper: автоматическая подстановка пароля из Core Vault для непривилегированных пользователей.
+- [ ] Модульные тесты `internal/ssh/exec_test.go` на таймауты, ошибки аутентификации и код возврата.
+
+### 3. Разделенный экран (Split-Screen Workspace Layout)
+*Необходимо для: `config-studio-glance` (Live Dashboard Preview :8080), `config-studio-web-devkit` (Chrome preview), Markdown/HTML превью.*
+- [ ] Режим двухпанельного сплита (Editor слева, Webview / Iframe справа) с перетаскиваемым разделителем в `App.tsx`.
+- [ ] Плагинное API: `window.ConfigStudio.registerSplitWebview({ id, title, url, refreshOnSave?: boolean })`.
+
+### 4. Структурированный потоковый логгер (Log Streaming Service)
+*Необходимо для: `config-studio-journal` (journalctl -f), `config-studio-docker` (compose logs -f).*
+- [ ] Потоковый канал логов на бэкенде (Server-Sent Events / WebSocket) без ANSI-мусора PTY.
+- [ ] Компонент Log Viewer в `@config-studio/ui` с поиском, паузой автоскролла и цветовой дифференциацией уровней (ERROR/WARN/INFO).
+
+### 5. Параллельный воркер-пул флота и Diff Engine
+*Необходимо для: `config-studio-servers` (Safe Rollout).*
+- [ ] Воркер-пул параллельного исполнения `fleet.ExecBatch(hostIds, cmd, concurrencyLimit)` в пакете `internal/fleet`.
+- [ ] Универсальный эндпоинт `POST /api/fs/diff` для предпросмотра различий Diff & Approve между локальным файлом и файлом на сервере.
+
+### 6. Эфемерная песочница Goja (Code Mode Sandbox)
+*Необходимо для: `config-studio-mcp & Code Mode Engine`.*
+- [ ] Встраивание `github.com/dop251/goja` в пакет `internal/sandbox` с нулевым потреблением heap в покое.
+- [ ] Безопасный фасад ядра `cs.*` (`cs.servers`, `cs.ssh`, `cs.fs`, `cs.vault`) с лимитом времени (10s) и глубины стека.
 
 ---
 
@@ -107,10 +154,11 @@
 ## 📦 АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details>
-<summary><b>✅ Сводный список выпущенных версий (v1.0.0 — v2.1.0 Stable)</b></summary>
+<summary><b>✅ Сводный список выпущенных версий (v1.0.0 — v2.2.0-dev)</b></summary>
 
 | Версия | Название / Ключевой фокус | Статус |
 |---|---|:---:|
+| **v2.2.0-dev** | Core Editor Navigation: позиционирование `openFile(path, {line, col, highlight})`, pulse flash animation | Завершена |
 | **v2.1.0** | Servers & Fleet v1.2, Ядро SysInfo, Custom Dropdowns @config-studio/ui, Динамический каталог | Завершена |
 | **v2.0.0** | Стабильный релиз 2.0: Core SSH/SFTP, Time Machine, Мульти-рабочие области (`workspaces.yaml`), Zero-Emoji Lucide SVG | Завершена |
 | **remote-agent v2.2** | Bi-directional Transfer, Adopt, HTTP Subnet Sweep, Scoped-токены, Zero-Emoji Lucide SVG | Завершена |
@@ -134,6 +182,19 @@
 | **v1.1.1** | UI Hotfix: контрастное оформление переключателей плагинов | Завершена |
 | **v1.1.0** | Чистое ядро редактора, гибридная установка плагинов (Каталог, URL, ZIP, папка) | Завершена |
 
+</details>
+
+<details>
+<summary><b>🎯 Детали релиза v2.2.0-dev: Точечная навигация в редакторе (Core Editor Navigation)</b></summary>
+
+- [x] **Точечный переход к строке и символу (`openFile` с опциями)**:
+  - Расширение метода ядра `openFile(path, options?: { line?: number; column?: number; highlight?: boolean })`:
+    - Если файл уже открыт во вкладке: мгновенное переключение на вкладку + скролл и фокусировка курсора (`revealPositionInCenter` + `setPosition`).
+    - Если файл открывается впервые: загрузка контента + добавление вкладки + скролл к строке после монтирования модели в DOM.
+    - Временная подсветка целевой строки (line decoration flash `.cs-line-highlight-flash`) с мягким затуханием (1.6s).
+  - Проброс `options` через фасад `pluginLoader.ts` в глобальный объект `window.ConfigStudio.openFile`.
+  - Обновление официальных определений TypeScript в `config-studio-plugin-docs/types/config-studio.d.ts`.
+  - Полная обратная совместимость `handleJumpToLine` с существующими компонентами (`StructureOutline`, `BottomDockStrip`).
 </details>
 
 <details>

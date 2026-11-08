@@ -143,3 +143,22 @@ html:not(.dark) .horizontal-tags-scroll::-webkit-scrollbar-thumb:hover {
 html:not(.dark) .tree-line::before {
   background-color: rgba(0, 0, 0, 0.12);
 }
+
+
+/* Monaco line flash animation for Go to Definition & error navigation */
+@keyframes csLineFlash {
+  0% {
+    background-color: rgba(0, 210, 180, 0.35);
+  }
+  60% {
+    background-color: rgba(0, 210, 180, 0.2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.cs-line-highlight-flash {
+  background-color: rgba(0, 210, 180, 0.35);
+  animation: csLineFlash 1.6s ease-out forwards;
+}
