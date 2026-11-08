@@ -134,7 +134,8 @@ export const App: React.FC = () => {
         });
       },
       openFile: async (path: string, options?: OpenFileOptions) => {
-        await openFile(path, undefined, options);
+        const root = currentFile?.root || '';
+        await openFile(path, root, options);
       },
       createFile: async (path: string, content: string = '') => {
         await api.createItem(path, false);
@@ -305,13 +306,17 @@ export const App: React.FC = () => {
       root = filePath.substring(0, idx);
       cleanPath = filePath.substring(idx + 1);
     }
-    if (!root) {
-      root = workspaces[0]?.id || 'default';
+    if (!root || root === 'default') {
+      root = currentFile?.root || workspaces[0]?.id || '';
     }
 
-    const targetKey = `${root}:${cleanPath}`;
+    const targetKey = root ? `${root}:${cleanPath}` : cleanPath;
     const existing = tabs.find(
-      (t) => getTabKey(t) === targetKey || (t.root === root && t.path === cleanPath)
+      (t) =>
+        getTabKey(t) === targetKey ||
+        (root && t.root === root && t.path === cleanPath) ||
+        t.path === cleanPath ||
+        t.fullRelPath === targetKey
     );
     if (existing) {
       setActiveTabKey(getTabKey(existing));
@@ -324,7 +329,7 @@ export const App: React.FC = () => {
     }
 
     try {
-      const fileData = await api.getFile(cleanPath, root);
+      const fileData = await api.getFile(cleanPath, root === 'default' ? '' : root);
       const fullRelPath =
         fileData.fullRelPath || targetKey;
 

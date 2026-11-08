@@ -198,3 +198,38 @@ func TestMultiRootFileSystem(t *testing.T) {
 		t.Errorf("expected at least 2 conf files across roots, got %d", len(searchResults))
 	}
 }
+
+func TestResolveRootDefaultAlias(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-workspace-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	dataDir := filepath.Join(tmpDir, "data")
+	defaultDir := filepath.Join(tmpDir, "test_files")
+
+	wm, err := NewWorkspaceManager(dataDir, defaultDir)
+	if err != nil {
+		t.Fatalf("failed to create workspace manager: %v", err)
+	}
+
+	// Rename root to custom id (like test_files)
+	wm.mu.Lock()
+	wm.roots[0].ID = "test_files"
+	wm.defaultRoot = "test_files"
+	wm.mu.Unlock()
+
+	// Should resolve "default" to "test_files"
+	root, rel, err := wm.ResolveRootAndRel("default", "rules/app.yml")
+	if err != nil {
+		t.Fatalf("failed to resolve root 'default': %v", err)
+	}
+	if root.ID != "test_files" {
+		t.Errorf("expected root 'test_files', got '%s'", root.ID)
+	}
+	if rel != "rules/app.yml" {
+		t.Errorf("expected rel 'rules/app.yml', got '%s'", rel)
+	}
+}
+

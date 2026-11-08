@@ -499,8 +499,8 @@ func (wm *WorkspaceManager) ResolveRootAndRel(rootID, relPath string) (Workspace
 
 	cleanRel := filepath.ToSlash(strings.TrimSpace(relPath))
 
-	// If rootID is not explicitly provided, check if relPath starts with "id:"
-	if rootID == "" {
+	// If rootID is not explicitly provided, or is generic "default", check if relPath starts with "id:"
+	if rootID == "" || rootID == "default" {
 		if idx := strings.Index(cleanRel, ":"); idx > 0 {
 			candidateID := cleanRel[:idx]
 			if root, ok := wm.Get(candidateID); ok {
@@ -512,6 +512,18 @@ func (wm *WorkspaceManager) ResolveRootAndRel(rootID, relPath string) (Workspace
 
 	root, ok := wm.Get(rootID)
 	if !ok {
+		// Fallback 1: try the configured defaultRoot
+		if defRoot, defOk := wm.Get(wm.DefaultRoot()); defOk {
+			return defRoot, strings.TrimPrefix(cleanRel, "/"), nil
+		}
+		// Fallback 2: first available workspace root
+		wm.mu.RLock()
+		if len(wm.roots) > 0 {
+			firstRoot := wm.roots[0]
+			wm.mu.RUnlock()
+			return firstRoot, strings.TrimPrefix(cleanRel, "/"), nil
+		}
+		wm.mu.RUnlock()
 		return WorkspaceRoot{}, "", fmt.Errorf("workspace root '%s' not found", rootID)
 	}
 
