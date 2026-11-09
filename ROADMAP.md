@@ -14,11 +14,10 @@
 
 ## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint)
 
-### 🎯 config-studio-traefik (Спринт Traefik v1.1.0)
-Дальнейшее развитие официального расширения Traefik:
-- [ ] **Каталог рецептов (Blueprints)**: статический `traefik.yml` (Let's Encrypt ACME, HTTPS-редирект, Dashboard) и динамический `dynamic.yml` (WebSocket, BasicAuth, RateLimit).
-- [ ] **Traefik Doctor & Rule Linter (Headless Remote)**: удаленная проверка конфигурации на сервере через SSH Exec.
-- [ ] **Action Toolbar**: кнопки быстрого вызова Матрицы правил, открытия Web UI Traefik Dashboard и валидации.
+### 🎯 Core & Settings Evolution (Спринт v2.3)
+- [ ] **Категоризация секретов по типам**: структурирование и фильтрация секретов в реестре «Секреты и Ключи» по типам (`Пароль`, `SSH-ключ`, `API токен`, `Сертификат`).
+- [ ] **Ревизия режима повышенных привилегий**: скрытие или удаление кнопки Privileged Mode в интерфейсе настроек безопасности.
+- [ ] **Неинтерактивное SSH-исполнение (Headless Remote SSH Exec)**: эндпоинт `POST /api/ssh/exec` в Go-бэкенде для удаленной проверки конфигураций на сервере (Traefik Doctor Remote, Docker Compose Doctor, Nginx -t).
 
 ---
 
@@ -105,6 +104,44 @@
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details open>
+<summary><b>🌐 Детали релиза config-studio-traefik v1.1.0: Blueprints, Traefik Doctor и Action Toolbar (ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
+
+- [x] **Каталог рецептов Middleware (Blueprints)**:
+  - Интегрирован прямо в модальное окно Мастера («Мастер Traefik Dynamic & Blueprints») в виде двухрежимного переключателя:
+    - **Сервис (`ser-*.yml`)**: конструктор роутера, сервиса бэкенда, EntryPoint и привязки мидлварей.
+    - **Рецепты Middleware (`mw-*.yml`)**: 7 готовых динамических рецептов лучших практик:
+      1. `Security Headers` (HSTS, SAMEORIGIN, nosniff, XSS protection, Referrer-Policy).
+      2. `Rate Limit` (защита от DDoS и брутфорса: average, burst, period).
+      3. `Basic Auth` (HTTP Basic авторизация с хешами htpasswd).
+      4. `IP AllowList` (белый список доверенных CIDR подсетей).
+      5. `Redirect Scheme` (постоянный 301 редирект HTTP -> HTTPS).
+      6. `Compress` (сжатие ответов Gzip / Deflate).
+      7. `CrowdSec Bouncer` (интеграция с CrowdSec для блокировки ботнетов).
+  - Интерактивная настройка параметров каждого рецепта и живой предпросмотр YAML в реальном времени.
+  - Мгновенное создание файла `rules/mw-<name>.yml`, автоматическая переиндексация и открытие в Monaco Editor с подсветкой.
+- [x] **Traefik Doctor & Diagnostics**:
+  - Локальный аудит целостности ссылок и коллизий: обнаружение битых связей `UNRESOLVED_MIDDLEWARE`, `UNRESOLVED_SERVICE`, `DUPLICATE_HOST` с кнопкой перехода в файл:строку.
+  - Интеграция с Traefik REST API (`/api/version`, `/api/overview`, `/api/rawdata`):
+    - Проверка версии и времени работы Traefik.
+    - Сводка активных HTTP роутеров, сервисов и мидлварей.
+    - Обнаружение ошибок рантайма Traefik (роутеры со статусом `disabled` или ошибками компиляции `err: [...]`).
+    - Сверка состояния Traefik в памяти с файлами воркспейса (обнаружение незагруженных конфигураций).
+    - Информативная обработка недоступности API с понятными подсказками по включению (`api.insecure=true`).
+- [x] **Action Toolbar & Context Menus**:
+  - Кнопка тулбара **Traefik Matrix** — быстрый вызов интерактивной матрицы правил.
+  - Кнопка тулбара **Traefik Doctor** — вызов диагностического центра в 1 клик.
+  - Кнопка тулбара **Dashboard** — переход в Web UI Traefik Dashboard в новой вкладке браузера.
+  - Контекстные меню для файлов `.yml`/`.yaml` в дереве и редакторе: Doctor, Dashboard, Wizard, Matrix.
+  - Регистрация в Inter-Plugin Service `traefik-manager` (`openDoctor`, `openDashboard`, `openWizard`, `openMatrix`).
+- [x] **Автоматизированный релиз v1.1.0**:
+  - 31 из 31 unit-тестов успешно пройдены (`npm run test:ts`).
+  - Собран бинарный пакет `traefik-1.1.0.cspkg` (37 KB).
+  - Опубликован официальный релиз на GitHub Releases через GitHub Actions workflow.
+  - Обновлен центральный каталог `config-studio-plugins/registry.json`.
+
+</details>
+
+<details>
 <summary><b>🌐 Детали релиза v2.2-dev: config-studio-traefik v1.0.0 & Core Editor Navigation (ПОЛНОСТЬЮ ПРОТЕСТИРОВАНО И ВЫПУЩЕНО)</b></summary>
 
 - [x] **Core Editor Navigation API & Workspace Synchronization**:
