@@ -16,6 +16,7 @@
 2. **Предварительное обсуждение:** Перед реализацией каждой отдельной функции обязательно обсуждать её UX/UI, структуру данных и сценарии с пользователем.
 3. **One Repo Per Plugin:** Каждый официальный плагин разрабатывается в отдельном GitHub-репозитории организации `config-studio`.
 4. **Инженерная дисциплина (/ub-mode):** *First Make it Work* (Laziness Protocol, TDD, Idempotence), *Then Make it Right* (устранение первопричин, дробление, удаление мертвого кода), *Follow Practice* (Worktree Cleanup, Keep a Log, Commit often with proof).
+5. **Обязательный релиз плагинов через GitHub Workflow (CI/CD Automated Releases):** Каждое расширение должно иметь рабочий процесс `.github/workflows/release.yml`. Релиз собирается, тестируется, упаковывается в `.cspkg` и публикуется в GitHub Releases автоматически по тегу версии (`v*`) или `workflow_dispatch`. Новые расширения создаются на базе шаблона `config-studio-plugin-template`.
 
 ---
 
