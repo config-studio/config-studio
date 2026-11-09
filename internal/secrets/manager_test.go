@@ -115,6 +115,48 @@ func TestSecretsManager(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error getting deleted secret, got nil")
 	}
+
+	// 8. Test Multiple Secret Types (Password, SSH Key, Token, Certificate, Env, Other)
+	typesToTest := []struct {
+		id    string
+		title string
+		sType SecretType
+		val   string
+	}{
+		{"sec:ssh", "Production Bastion Key", TypeSSHKey, "-----BEGIN OPENSSH PRIVATE KEY-----\nMOCK..."},
+		{"sec:token", "GitHub CI Token", TypeToken, "ghp_MockToken123456789"},
+		{"sec:cert", "Wildcard TLS Cert", TypeCertificate, "-----BEGIN CERTIFICATE-----\nMOCK..."},
+		{"sec:env", "App Secret Env", TypeEnv, "DATABASE_URL=postgres://..."},
+		{"sec:other", "Hardware Security PIN", TypeOther, "9988"},
+	}
+
+	for _, tc := range typesToTest {
+		if err := mgr.Set(SecretItem{
+			SecretMeta: SecretMeta{
+				ID:    tc.id,
+				Title: tc.title,
+				Type:  tc.sType,
+				Scope: ScopeShared,
+			},
+			Value: tc.val,
+		}); err != nil {
+			t.Fatalf("Failed to set secret %s (%s): %v", tc.id, tc.sType, err)
+		}
+
+		meta, exists := mgr.GetMeta(tc.id)
+		if !exists || meta.Type != tc.sType {
+			t.Fatalf("Expected secret %s to have type %s, got %s", tc.id, tc.sType, meta.Type)
+		}
+
+		val, err := mgr.Get(tc.id)
+		if err != nil || val != tc.val {
+			t.Fatalf("Expected secret %s value %s, got %s (err: %v)", tc.id, tc.val, val, err)
+		}
+	}
+
+	if mgr.Status(false, "").Count != len(typesToTest) {
+		t.Fatalf("Expected %d secrets in status, got %d", len(typesToTest), mgr.Status(false, "").Count)
+	}
 }
 
 func bytesContains(b, sub []byte) bool {

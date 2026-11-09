@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Key,
   Shield,
@@ -18,6 +18,10 @@ import {
   Check,
   Globe,
   Layers,
+  FileCheck,
+  Sliders,
+  Search,
+  Filter,
 } from 'lucide-react';
 import { SecretMeta, SecretsStatus, SecretType, SecretScope } from '../../../types';
 import { api } from '../../../services/api';
@@ -59,6 +63,100 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
   const [secretValue, setSecretValue] = useState('');
   const [secretEditorError, setSecretEditorError] = useState('');
   const [isSavingSecret, setIsSavingSecret] = useState(false);
+
+  // Category Filter & Search
+  const [activeCategory, setActiveCategory] = useState<'all' | SecretType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const categories = useMemo(() => [
+    { id: 'all' as const, label: t.filterAll || 'Все', icon: <Layers size={12} /> },
+    { id: 'password' as const, label: t.filterPasswords || 'Пароли', icon: <Key size={12} /> },
+    { id: 'ssh_key' as const, label: t.filterSSHKeys || 'SSH Ключи', icon: <Shield size={12} /> },
+    { id: 'token' as const, label: t.filterTokens || 'API Токены', icon: <Sparkles size={12} /> },
+    { id: 'certificate' as const, label: t.filterCertificates || 'Сертификаты', icon: <FileCheck size={12} /> },
+    { id: 'env' as const, label: t.filterEnv || 'Env / Окружение', icon: <Sliders size={12} /> },
+    { id: 'other' as const, label: t.filterOther || 'Прочее', icon: <Lock size={12} /> },
+  ], [t]);
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: secretsList.length };
+    for (const item of secretsList) {
+      map[item.type] = (map[item.type] || 0) + 1;
+    }
+    return map;
+  }, [secretsList]);
+
+  const filteredSecrets = useMemo(() => {
+    return secretsList.filter((item) => {
+      if (activeCategory !== 'all' && item.type !== activeCategory) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchTitle = item.title.toLowerCase().includes(q);
+        const matchId = item.id.toLowerCase().includes(q);
+        const matchPlugin = item.pluginId?.toLowerCase().includes(q);
+        return matchTitle || matchId || matchPlugin;
+      }
+      return true;
+    });
+  }, [secretsList, activeCategory, searchQuery]);
+
+  const getTypeMeta = (type: SecretType) => {
+    switch (type) {
+      case 'ssh_key':
+        return {
+          icon: <Shield className="w-3.5 h-3.5 text-sky-400" />,
+          label: t.secretTypeSSHKey || 'SSH Приватный ключ',
+        };
+      case 'token':
+        return {
+          icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" />,
+          label: t.secretTypeToken || 'API Токен',
+        };
+      case 'certificate':
+        return {
+          icon: <FileCheck className="w-3.5 h-3.5 text-purple-400" />,
+          label: t.secretTypeCertificate || 'Сертификат / TLS',
+        };
+      case 'env':
+        return {
+          icon: <Sliders className="w-3.5 h-3.5 text-teal-400" />,
+          label: t.secretTypeEnv || 'Переменная окружения',
+        };
+      case 'other':
+        return {
+          icon: <Lock className="w-3.5 h-3.5 text-gray-400" />,
+          label: t.secretTypeOther || 'Другое',
+        };
+      case 'password':
+      default:
+        return {
+          icon: <Key className="w-3.5 h-3.5 text-emerald-400" />,
+          label: t.secretTypePassword || 'Пароль',
+        };
+    }
+  };
+
+  const groupedSections = useMemo(() => {
+    if (activeCategory !== 'all' || searchQuery.trim()) return null;
+    const groups: { category: SecretType; label: string; icon: React.ReactNode; items: SecretMeta[] }[] = [];
+    const typeOrder: SecretType[] = ['password', 'ssh_key', 'token', 'certificate', 'env', 'other'];
+
+    for (const st of typeOrder) {
+      const items = filteredSecrets.filter((s) => s.type === st);
+      if (items.length > 0) {
+        const cat = categories.find((c) => c.id === st);
+        groups.push({
+          category: st,
+          label: cat?.label || st,
+          icon: cat?.icon,
+          items,
+        });
+      }
+    }
+    return groups;
+  }, [activeCategory, searchQuery, filteredSecrets, categories]);
 
   const loadSecrets = async () => {
     setIsLoadingSecrets(true);
@@ -218,6 +316,150 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
     }
   };
 
+  const renderSecretCard = (item: SecretMeta) => {
+    const isRevealed = revealedSecrets[item.id] !== undefined;
+    const valueStr = isRevealed ? revealedSecrets[item.id] : '••••••••••••••••••••••••';
+    const isCopied = copiedSecretId === item.id;
+    const typeMeta = getTypeMeta(item.type);
+
+    return (
+      <Card
+        key={item.id}
+        className="p-4 space-y-3 hover:border-gray-500/30 transition"
+      >
+        {/* Top row: Title + badges */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <div className="p-1.5 rounded-lg bg-black/30 border border-base-border shrink-0">
+              {typeMeta.icon}
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                {item.title}
+              </h4>
+              <p className="text-[10px] text-gray-400 font-mono truncate">
+                ID: <span className="text-gray-300">{item.id}</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-1.5 shrink-0">
+            <Badge
+              variant={item.scope === 'shared' ? 'info' : 'accent'}
+              size="sm"
+              title={
+                item.scope === 'shared'
+                  ? 'Общий секрет для серверов и хостов'
+                  : 'Секрет конкретного плагина'
+              }
+            >
+              {item.scope === 'shared' ? (
+                <span className="inline-flex items-center">
+                  <Globe className="w-2.5 h-2.5 mr-1 shrink-0" />Shared
+                </span>
+              ) : (
+                <span className="inline-flex items-center">
+                  <Layers className="w-2.5 h-2.5 mr-1 shrink-0" />
+                  {item.pluginId || 'Plugin'}
+                </span>
+              )}
+            </Badge>
+            <Badge variant="neutral" size="sm">
+              {typeMeta.label}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Middle row: Masked/Revealed secret container */}
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/30 border border-base-border font-mono text-xs">
+          <div className="flex-1 truncate pr-3 select-all">
+            {isRevealed ? (
+              <span className="text-emerald-400 font-mono text-[11px] whitespace-pre-wrap break-all">
+                {valueStr}
+              </span>
+            ) : (
+              <span className="text-gray-500 select-none tracking-widest text-[11px]">
+                {valueStr}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom row: Timestamps & Action buttons */}
+        <div className="flex items-center justify-between pt-1 border-t border-base-border/50 text-[10px] text-gray-400">
+          <div>
+            {item.updatedAt && (
+              <span>
+                {language === 'en' ? 'Updated' : 'Обновлен'}:{' '}
+                {new Date(item.updatedAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-1.5">
+            {/* Reveal / Hide */}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleToggleRevealSecret(item)}
+              disabled={revealingId === item.id}
+              icon={
+                revealingId === item.id ? (
+                  <RefreshCw size={11} className="animate-spin" />
+                ) : isRevealed ? (
+                  <EyeOff size={11} />
+                ) : (
+                  <Eye size={11} />
+                )
+              }
+              title={isRevealed ? t.hideSecret : t.revealSecret}
+            >
+              {isRevealed ? t.hideSecret : t.revealSecret}
+            </Button>
+
+            {/* Copy value */}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleCopySecretValue(item)}
+              icon={
+                isCopied ? (
+                  <Check size={11} className="text-emerald-400" />
+                ) : (
+                  <Copy size={11} />
+                )
+              }
+              title={t.copiedToClipboard}
+            >
+              {isCopied ? t.copied : 'Copy'}
+            </Button>
+
+            {/* Edit */}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleOpenEditSecret(item)}
+              icon={<Edit3 size={11} />}
+              title={language === 'en' ? 'Edit secret' : 'Редактировать секрет'}
+            />
+
+            {/* Delete */}
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => handleDeleteSecret(item)}
+              icon={<Trash2 size={11} />}
+              title={t.delete}
+            />
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <div className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
       {/* Header info banner */}
@@ -328,11 +570,12 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
 
       {/* Secrets List */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center space-x-1.5">
             <Key size={14} className="text-accent" />
             <span>{t.tabSecrets} ({secretsList.length})</span>
           </label>
+
           <Button
             variant="ghost"
             size="sm"
@@ -342,6 +585,61 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
           />
         </div>
 
+        {/* Filter Pills + Search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          {/* Categories Pill Bar */}
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/20 border border-base-border/60 overflow-x-auto custom-scrollbar">
+            {categories.map((cat) => {
+              const isSelected = activeCategory === cat.id;
+              const count = counts[cat.id] || 0;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap cursor-pointer ${
+                    isSelected
+                      ? 'bg-accent text-white shadow-sm'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="shrink-0">{cat.icon}</span>
+                  <span>{cat.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isSelected ? 'bg-black/25 text-white' : 'bg-black/30 text-gray-400'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search Input */}
+          <div className="relative min-w-[200px]">
+            <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t.searchSecretsPlaceholder || 'Поиск по названию или ID...'}
+              className="w-full bg-black/20 border border-base-border rounded-xl pl-8 pr-7 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-accent"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-xs cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* List Content */}
         {isLoadingSecrets && secretsList.length === 0 ? (
           <div className="p-8 text-center text-xs text-gray-400 border border-base-border rounded-2xl bg-black/10 flex items-center justify-center space-x-2">
             <RefreshCw size={14} className="animate-spin text-accent" />
@@ -357,157 +655,43 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
                 : 'Включите защиту паролем для добавления учетных данных.'}
             </span>
           </div>
+        ) : filteredSecrets.length === 0 ? (
+          <div className="p-8 text-center text-xs text-gray-400 border border-base-border rounded-2xl bg-black/10 flex flex-col items-center justify-center space-y-2">
+            <Filter className="w-8 h-8 text-gray-500 opacity-60 mb-1" />
+            <span className="font-medium text-gray-300">{t.noSecretsFoundFiltered}</span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setActiveCategory('all');
+                setSearchQuery('');
+              }}
+            >
+              {t.clearFilter}
+            </Button>
+          </div>
+        ) : groupedSections ? (
+          /* Grouped by categories when "Все" is selected without search filter */
+          <div className="space-y-5">
+            {groupedSections.map((group) => (
+              <div key={group.category} className="space-y-2.5">
+                <div className="flex items-center space-x-2 px-1 text-xs font-semibold text-gray-400">
+                  <span className="shrink-0">{group.icon}</span>
+                  <span>{group.label}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/20 text-gray-400 font-mono">
+                    {group.items.length}
+                  </span>
+                </div>
+                <div className="space-y-2.5">
+                  {group.items.map((item) => renderSecretCard(item))}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
+          /* Flat list for single selected category or search results */
           <div className="space-y-2.5">
-            {secretsList.map((item) => {
-              const isRevealed = revealedSecrets[item.id] !== undefined;
-              const valueStr = isRevealed ? revealedSecrets[item.id] : '••••••••••••••••••••••••';
-              const isCopied = copiedSecretId === item.id;
-
-              const typeIcon =
-                item.type === 'ssh_key' ? (
-                  <Shield className="w-3.5 h-3.5 text-sky-400" />
-                ) : item.type === 'token' ? (
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                ) : (
-                  <Key className="w-3.5 h-3.5 text-emerald-400" />
-                );
-
-              const typeLabel =
-                item.type === 'ssh_key'
-                  ? t.secretTypeSSHKey
-                  : item.type === 'token'
-                  ? t.secretTypeToken
-                  : t.secretTypePassword;
-
-              return (
-                <Card
-                  key={item.id}
-                  className="p-4 space-y-3 hover:border-gray-500/30 transition"
-                >
-                  {/* Top row: Title + badges */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center space-x-2.5 min-w-0">
-                      <div className="p-1.5 rounded-lg bg-black/30 border border-base-border shrink-0">
-                        {typeIcon}
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="text-xs font-semibold text-gray-900 dark:text-white truncate">
-                          {item.title}
-                        </h4>
-                        <p className="text-[10px] text-gray-400 font-mono truncate">
-                          ID: <span className="text-gray-300">{item.id}</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-1.5 shrink-0">
-                      <Badge
-                        variant={item.scope === 'shared' ? 'info' : 'accent'}
-                        size="sm"
-                        title={
-                          item.scope === 'shared'
-                            ? 'Общий секрет для серверов и хостов'
-                            : 'Секрет конкретного плагина'
-                        }
-                      >
-                        {item.scope === 'shared' ? <span className="inline-flex items-center"><Globe className="w-2.5 h-2.5 mr-1 shrink-0" />Shared</span> : <span className="inline-flex items-center"><Layers className="w-2.5 h-2.5 mr-1 shrink-0" />{item.pluginId || 'Plugin'}</span>}
-                      </Badge>
-                      <Badge variant="neutral" size="sm">
-                        {typeLabel}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Middle row: Masked/Revealed secret container */}
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/30 border border-base-border font-mono text-xs">
-                    <div className="flex-1 truncate pr-3 select-all">
-                      {isRevealed ? (
-                        <span className="text-emerald-400 font-mono text-[11px] whitespace-pre-wrap break-all">
-                          {valueStr}
-                        </span>
-                      ) : (
-                        <span className="text-gray-500 select-none tracking-widest text-[11px]">
-                          {valueStr}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Bottom row: Timestamps & Action buttons */}
-                  <div className="flex items-center justify-between pt-1 border-t border-base-border/50 text-[10px] text-gray-400">
-                    <div>
-                      {item.updatedAt && (
-                        <span>
-                          {language === 'en' ? 'Updated' : 'Обновлен'}:{' '}
-                          {new Date(item.updatedAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center space-x-1.5">
-                      {/* Reveal / Hide */}
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleToggleRevealSecret(item)}
-                        disabled={revealingId === item.id}
-                        icon={
-                          revealingId === item.id ? (
-                            <RefreshCw size={11} className="animate-spin" />
-                          ) : isRevealed ? (
-                            <EyeOff size={11} />
-                          ) : (
-                            <Eye size={11} />
-                          )
-                        }
-                        title={isRevealed ? t.hideSecret : t.revealSecret}
-                      >
-                        {isRevealed ? t.hideSecret : t.revealSecret}
-                      </Button>
-
-                      {/* Copy value */}
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleCopySecretValue(item)}
-                        icon={
-                          isCopied ? (
-                            <Check size={11} className="text-emerald-400" />
-                          ) : (
-                            <Copy size={11} />
-                          )
-                        }
-                        title={t.copiedToClipboard}
-                      >
-                        {isCopied ? t.copied : 'Copy'}
-                      </Button>
-
-                      {/* Edit */}
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleOpenEditSecret(item)}
-                        icon={<Edit3 size={11} />}
-                        title={language === 'en' ? 'Edit secret' : 'Редактировать секрет'}
-                      />
-
-                      {/* Delete */}
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDeleteSecret(item)}
-                        icon={<Trash2 size={11} />}
-                        title={t.delete}
-                      />
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
+            {filteredSecrets.map((item) => renderSecretCard(item))}
           </div>
         )}
       </div>
@@ -619,6 +803,9 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
                   { label: t.secretTypePassword, value: 'password' },
                   { label: t.secretTypeSSHKey, value: 'ssh_key' },
                   { label: t.secretTypeToken, value: 'token' },
+                  { label: t.secretTypeCertificate, value: 'certificate' },
+                  { label: t.secretTypeEnv, value: 'env' },
+                  { label: t.secretTypeOther, value: 'other' },
                 ]}
               />
 
@@ -634,13 +821,20 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
             </div>
 
             {/* Secret Value */}
-            {secretType === 'ssh_key' ? (
+            {secretType === 'ssh_key' || secretType === 'certificate' || secretType === 'env' ? (
               <Textarea
                 label={t.secretValueLabel}
-                rows={4}
+                rows={5}
                 value={secretValue}
                 onChange={(e) => setSecretValue(e.target.value)}
-                placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..."
+                placeholder={
+                  secretType === 'certificate'
+                    ? '-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----'
+                    : secretType === 'ssh_key'
+                    ? '-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----'
+                    : 'KEY=value\nANOTHER_KEY=value'
+                }
+                className="font-mono text-xs"
               />
             ) : (
               <Input

@@ -355,7 +355,7 @@ export interface ContextMenuItem {
   isEnabled?: (target: ContextMenuTarget) => boolean;
 }
 
-export type SecretType = 'password' | 'ssh_key' | 'token';
+export type SecretType = 'password' | 'ssh_key' | 'token' | 'certificate' | 'env' | 'other';
 export type SecretScope = 'shared' | 'plugin';
 
 export interface SecretMeta {
