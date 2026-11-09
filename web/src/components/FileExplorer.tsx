@@ -33,6 +33,7 @@ import {
   SSHHost,
 } from '../types';
 import { translations } from '../utils/i18n';
+import { SectionHeader } from '@config-studio/ui';
 import { ContextMenu } from './ContextMenu';
 import { contextMenuRegistry } from '../services/contextMenuRegistry';
 import { SftpSendModal } from './sftp/SftpSendModal';
@@ -653,38 +654,40 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       {sidebarTab === 'workspaces' ? (
         <>
           {/* Title & Toolbar */}
-          <div className="p-3 border-b border-base-border flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t.workspaces || t.fileExplorer || 'Рабочие области'}
-            </span>
-        <div className="flex items-center space-x-1">
-          {onAddWorkspace && (
-            <button
-              onClick={onAddWorkspace}
-              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-accent dark:text-gray-400 dark:hover:text-accent transition-colors"
-              title={t.addWorkspace || 'Добавить рабочую папку'}
-            >
-              <FolderPlus className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <button
-            onClick={() => onRefresh()}
-            className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
-            title={t.refresh}
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-          {onCloseMobileDrawer && (
-            <button
-              onClick={onCloseMobileDrawer}
-              className="md:hidden p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-              title="Закрыть"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      </div>
+          <div className="p-3 border-b border-base-border">
+            <SectionHeader
+              title={t.workspaces || t.fileExplorer || 'Рабочие области'}
+              rightElement={
+                <div className="flex items-center space-x-1">
+                  {onAddWorkspace && (
+                    <button
+                      onClick={onAddWorkspace}
+                      className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-accent dark:text-gray-400 dark:hover:text-accent transition-colors"
+                      title={t.addWorkspace || 'Добавить рабочую папку'}
+                    >
+                      <FolderPlus className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onRefresh()}
+                    className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+                    title={t.refresh}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                  {onCloseMobileDrawer && (
+                    <button
+                      onClick={onCloseMobileDrawer}
+                      className="md:hidden p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                      title="Закрыть"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              }
+            />
+          </div>
 
       {/* Workspaces Multi-Root Tree */}
       <div

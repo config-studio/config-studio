@@ -13,7 +13,16 @@ import { PluginItem, PluginSettingField } from '../../../types';
 import { api } from '../../../services/api';
 import { getPluginName, getPluginDescription } from '../../../utils/i18n';
 import { pluginManager } from '../../../services/pluginLoader';
-import { Card, Input, Select, Toggle, Badge } from '../../ui';
+import {
+  Card,
+  Input,
+  Select,
+  Toggle,
+  Badge,
+  SearchInput,
+  EmptyState,
+  SectionHeader,
+} from '../../ui';
 
 interface PluginSettingsTabProps {
   initialPluginId?: string | null;
@@ -138,25 +147,24 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
       <div className="w-64 border-r border-base-border flex flex-col bg-gray-50/70 dark:bg-black/25 shrink-0">
         {/* Search header */}
         <div className="p-3 border-b border-base-border">
-          <Input
+          <SearchInput
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
             placeholder={t.pluginSettingsSearch || 'Поиск плагина...'}
-            icon={<Search size={13} />}
+            className="w-full min-w-0"
           />
         </div>
 
         {/* Plugin Stack with smooth scroll */}
         <div className="p-2 space-y-1 overflow-y-auto flex-1 custom-scrollbar">
           {isLoading && plugins.length === 0 ? (
-            <div className="py-8 text-center text-xs text-gray-400 flex items-center justify-center space-x-2">
-              <RefreshCw size={13} className="animate-spin text-accent" />
-              <span>Загрузка...</span>
-            </div>
+            <EmptyState loading={true} loadingText="Загрузка..." bordered={false} className="py-8" />
           ) : filteredPlugins.length === 0 ? (
-            <div className="py-8 text-center text-xs text-gray-400 px-3">
-              {searchQuery ? 'Плагины не найдены' : t.pluginSettingsNoPlugins}
-            </div>
+            <EmptyState
+              description={searchQuery ? 'Плагины не найдены' : t.pluginSettingsNoPlugins}
+              bordered={false}
+              className="py-8"
+            />
           ) : (
             filteredPlugins.map((p) => {
               const isSelected = selectedPluginId === p.id;
@@ -226,15 +234,13 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
       {/* Right Column: Settings Content for Selected Plugin */}
       <div className="flex-1 flex flex-col overflow-y-auto bg-base-surface custom-scrollbar">
         {!selectedPlugin ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-400 space-y-2">
-            <Package size={36} className="text-gray-500 opacity-50 mb-2" />
-            <h4 className="text-sm font-semibold text-gray-300">
-              {t.pluginSettingsSelectPrompt}
-            </h4>
-            <p className="text-xs text-gray-500 max-w-sm">
-              {t.pluginSettingsDesc}
-            </p>
-          </div>
+          <EmptyState
+            icon={<Package size={36} />}
+            title={t.pluginSettingsSelectPrompt}
+            description={t.pluginSettingsDesc}
+            bordered={false}
+            className="flex-1 my-auto"
+          />
         ) : (
           <div className="p-6 space-y-6">
             {/* Header info */}
@@ -301,10 +307,10 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
             {/* Custom Plugin Settings Container (if registered by plugin script) */}
             {customRenderer && (
               <div className="space-y-2">
-                <div className="flex items-center space-x-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  <Sliders size={13} className="text-accent" />
-                  <span>Пользовательская панель параметров</span>
-                </div>
+                <SectionHeader
+                  icon={<Sliders size={13} />}
+                  title="Пользовательская панель параметров"
+                />
                 <div
                   ref={customContainerRef}
                   className="p-4 rounded-2xl bg-black/20 border border-base-border min-h-[120px]"
@@ -315,10 +321,10 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
             {/* Manifest-declared Settings Schema Form */}
             {manifestSettings.length > 0 && (
               <div className="space-y-4">
-                <div className="flex items-center space-x-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  <Sliders size={13} className="text-accent" />
-                  <span>Параметры расширения</span>
-                </div>
+                <SectionHeader
+                  icon={<Sliders size={13} />}
+                  title="Параметры расширения"
+                />
 
                 <div className="space-y-3.5">
                   {manifestSettings.map((field) => {
@@ -403,10 +409,10 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
 
             {/* Technical Specifications Card */}
             <Card className="p-4 space-y-2.5">
-              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center space-x-1.5">
-                <Layers size={13} />
-                <span>Технические метаданные</span>
-              </span>
+              <SectionHeader
+                icon={<Layers size={13} />}
+                title="Технические метаданные"
+              />
 
               <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                 <div className="p-2 rounded-lg bg-black/20 border border-base-border/50">

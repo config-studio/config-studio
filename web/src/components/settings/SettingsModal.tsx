@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { translations, getAvailableLanguages, subscribeLanguages, LanguageMeta } from '../../utils/i18n';
 import { SettingsModalProps, SettingsTab } from './types';
-import { Modal, Tabs, Button, Badge } from '../ui';
+import { Modal, Tabs, Button, Badge, ConfirmModal } from '../ui';
 import { GeneralTab } from './tabs/GeneralTab';
 import { SecurityTab } from './tabs/SecurityTab';
 import { SecretsTab } from './tabs/SecretsTab';
@@ -64,6 +64,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [pluginExecUnrestricted, setPluginExecUnrestricted] = useState(
     settings.pluginExecUnrestricted || false
   );
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableLanguages, setAvailableLanguages] = useState<LanguageMeta[]>(getAvailableLanguages());
@@ -131,7 +132,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleResetDefaults = () => {
-    if (!confirm(t.confirmResetSettings)) return;
+    setIsResetConfirmOpen(true);
+  };
+
+  const handleConfirmReset = () => {
     setTitle('Config Studio');
     setBaseColor('#161b22');
     setAccentColor('#00d2b4');
@@ -141,6 +145,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setStructureGuardEnabled(true);
     setCriticalPatterns('');
     setPluginExecUnrestricted(false);
+    setIsResetConfirmOpen(false);
   };
 
   const tabItems = [
@@ -155,11 +160,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   ];
 
   return (
-    <Modal
+    <>
+      <Modal
       isOpen={isOpen}
       onClose={onClose}
-      size="xl"
+      size="xxl"
       height="fixed"
+      allowMaximize={true}
       className="select-none"
     >
       <Modal.Header
@@ -309,5 +316,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </Modal.Footer>
       </Modal>
+
+      <ConfirmModal
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        onConfirm={handleConfirmReset}
+        title={t.resetDefaults || 'Сброс настроек'}
+        message={t.confirmResetSettings || 'Вы уверены, что хотите восстановить параметры по умолчанию?'}
+        confirmText={t.resetDefaults || 'Сбросить'}
+        variant="warning"
+      />
+    </>
   );
 };

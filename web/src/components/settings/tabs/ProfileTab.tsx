@@ -12,7 +12,7 @@ import {
 import { PluginSource, ProfilePreview } from '../../../types';
 import { api } from '../../../services/api';
 import { ProfileImportModal } from '../../ProfileImportModal';
-import { Card, Input, Button, Toggle, Badge } from '../../ui';
+import { Card, Input, Button, Toggle, Badge, ConfirmModal, EmptyState } from '../../ui';
 
 interface ProfileTabProps {
   onReloadSettings?: () => Promise<void>;
@@ -41,6 +41,10 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
   const [profilePreview, setProfilePreview] = useState<ProfilePreview | null>(null);
   const [isImportingProfile, setIsImportingProfile] = useState(false);
   const profileFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete Confirm Modal
+  const [sourceToDelete, setSourceToDelete] = useState<PluginSource | null>(null);
+  const [isDeletingSource, setIsDeletingSource] = useState(false);
 
   const loadSources = async () => {
     setIsLoadingSources(true);
@@ -99,13 +103,21 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
     }
   };
 
-  const handleDeleteSource = async (id: string) => {
-    if (!confirm('Вы уверены, что хотите удалить этот источник плагинов?')) return;
+  const handleDeleteSource = (source: PluginSource) => {
+    setSourceToDelete(source);
+  };
+
+  const handleConfirmDeleteSource = async () => {
+    if (!sourceToDelete) return;
+    setIsDeletingSource(true);
     try {
-      await api.deleteSource(id);
+      await api.deleteSource(sourceToDelete.id);
       await loadSources();
+      setSourceToDelete(null);
     } catch (err: any) {
       alert(`Ошибка удаления источника: ${err.message}`);
+    } finally {
+      setIsDeletingSource(false);
     }
   };
 
@@ -292,13 +304,18 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
         {/* Sources List */}
         <div className="space-y-2">
           {isLoadingSources ? (
-            <div className="py-8 text-center text-xs text-gray-400">
-              {t.loadingSources}
-            </div>
+            <EmptyState
+              loading={true}
+              loadingText={t.loadingSources}
+              bordered={false}
+              className="py-8"
+            />
           ) : sources.length === 0 ? (
-            <div className="py-8 text-center text-xs text-gray-400">
-              {t.noSources}
-            </div>
+            <EmptyState
+              description={t.noSources}
+              bordered={false}
+              className="py-8"
+            />
           ) : (
             sources.map((s) => (
               <Card
@@ -344,7 +361,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
                   {!s.official && (
                     <button
                       type="button"
-                      onClick={() => handleDeleteSource(s.id)}
+                      onClick={() => handleDeleteSource(s)}
                       className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
                       title={t.deleteSourceTitle}
                     >
@@ -368,6 +385,23 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
           setProfilePreview(null);
         }}
         onConfirm={handleConfirmImportProfile}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!sourceToDelete}
+        onClose={() => setSourceToDelete(null)}
+        onConfirm={handleConfirmDeleteSource}
+        title="Удаление источника плагинов"
+        message={
+          <span>
+            Вы уверены, что хотите удалить источник плагинов{' '}
+            <strong className="text-white font-semibold">«{sourceToDelete?.name}»</strong>?
+          </span>
+        }
+        confirmText="Удалить"
+        variant="danger"
+        loading={isDeletingSource}
       />
     </div>
   );

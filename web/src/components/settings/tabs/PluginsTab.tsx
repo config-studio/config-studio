@@ -21,7 +21,16 @@ import { PluginItem, CatalogItem, PendingInstall } from '../../../types';
 import { api } from '../../../services/api';
 import { getPluginName, getPluginDescription } from '../../../utils/i18n';
 import { PluginConsentModal } from '../../PluginConsentModal';
-import { Card, Input, Button, Toggle, Badge } from '../../ui';
+import {
+  Card,
+  Input,
+  Button,
+  Toggle,
+  Badge,
+  ConfirmModal,
+  EmptyState,
+  SectionHeader,
+} from '../../ui';
 
 interface PluginsTabProps {
   pluginExecUnrestricted: boolean;
@@ -51,6 +60,10 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
   const [isInstalling, setIsInstalling] = useState(false);
   const [installingCatalogId, setInstallingCatalogId] = useState<string | null>(null);
   const [installMsg, setInstallMsg] = useState<{ text: string; isError?: boolean } | null>(null);
+
+  // Delete Confirm Modal
+  const [pluginToDelete, setPluginToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingPlugin, setIsDeletingPlugin] = useState(false);
 
   // Consent Modal
   const [pendingInstall, setPendingInstall] = useState<PendingInstall | null>(null);
@@ -97,14 +110,22 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
     }
   };
 
-  const handleDeletePlugin = async (id: string, name: string) => {
-    if (!confirm(`Вы действительно хотите удалить плагин "${name}"?`)) return;
+  const handleDeletePlugin = (id: string, name: string) => {
+    setPluginToDelete({ id, name });
+  };
+
+  const handleConfirmDeletePlugin = async () => {
+    if (!pluginToDelete) return;
+    setIsDeletingPlugin(true);
     try {
-      await api.deletePlugin(id);
+      await api.deletePlugin(pluginToDelete.id);
       await loadPlugins();
       if (onReloadPlugins) await onReloadPlugins();
+      setPluginToDelete(null);
     } catch (err: any) {
       alert(`Ошибка удаления плагина: ${err.message}`);
+    } finally {
+      setIsDeletingPlugin(false);
     }
   };
 
@@ -226,28 +247,27 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
 
       {/* Installed Plugins List */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center space-x-1.5">
-            <Package size={14} className="text-accent" />
-            <span>{t.installedPlugins}</span>
-          </label>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={loadPlugins}
-            title={t.refreshPluginsList}
-            icon={<RefreshCw size={13} className={isLoadingPlugins ? 'animate-spin' : ''} />}
-          />
-        </div>
+        <SectionHeader
+          icon={<Package size={14} />}
+          title={t.installedPlugins}
+          rightElement={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadPlugins}
+              title={t.refreshPluginsList}
+              icon={<RefreshCw size={13} className={isLoadingPlugins ? 'animate-spin' : ''} />}
+            />
+          }
+          className="mb-3"
+        />
 
         {pluginsList.length === 0 ? (
-          <Card className="p-6 text-center space-y-1">
-            <Package className="w-8 h-8 text-gray-500 mx-auto mb-1 opacity-60" />
-            <div className="text-xs font-medium text-gray-300">{t.noInstalledPlugins}</div>
-            <div className="text-[11px] text-gray-500">
-              {t.installHelpNote}
-            </div>
-          </Card>
+          <EmptyState
+            icon={<Package className="w-8 h-8" />}
+            title={t.noInstalledPlugins}
+            description={t.installHelpNote}
+          />
         ) : (
           <div className="space-y-2.5">
             {pluginsList.map((p) => (
@@ -421,31 +441,28 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
 
       {/* Official & Remote Plugins Catalog */}
       <Card className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center space-x-1.5 mb-1">
-              <Sparkles size={14} className="text-accent" />
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                {t.catalogTitle}
-              </label>
-            </div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              {t.catalogSubtitle}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={loadCatalog}
-            title={t.refreshCatalogTooltip}
-            icon={<RefreshCw size={13} className={isLoadingCatalog ? 'animate-spin' : ''} />}
-          />
-        </div>
+        <SectionHeader
+          icon={<Sparkles size={14} />}
+          title={t.catalogTitle}
+          subtitle={t.catalogSubtitle}
+          rightElement={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadCatalog}
+              title={t.refreshCatalogTooltip}
+              icon={<RefreshCw size={13} className={isLoadingCatalog ? 'animate-spin' : ''} />}
+            />
+          }
+        />
 
         {catalogItems.length === 0 ? (
-          <div className="p-4 text-center text-xs text-gray-400">
-            {isLoadingCatalog ? t.catalogLoading : t.catalogEmpty}
-          </div>
+          <EmptyState
+            loading={isLoadingCatalog}
+            loadingText={t.catalogLoading}
+            title={!isLoadingCatalog ? t.catalogEmpty : undefined}
+            bordered={false}
+          />
         ) : (
           <div className="space-y-2">
             {catalogItems.map((catItem) => {
@@ -503,9 +520,10 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
 
       {/* Install New Plugin Section (Zip vs URL) */}
       <Card className="p-4 space-y-3">
-        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-          {t.installPlugin}
-        </label>
+        <SectionHeader
+          icon={<Upload size={14} />}
+          title={t.installPlugin}
+        />
 
         <div className="flex space-x-1 p-1 bg-black/20 rounded-xl border border-base-border">
           <button
@@ -615,6 +633,26 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
         isConfirming={isConfirmingInstall}
         language={language}
         catalogItems={catalogItems}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!pluginToDelete}
+        onClose={() => setPluginToDelete(null)}
+        onConfirm={handleConfirmDeletePlugin}
+        title={language === 'en' ? 'Delete Plugin' : 'Удаление плагина'}
+        message={
+          <span>
+            {language === 'en'
+              ? 'Are you sure you want to delete plugin '
+              : 'Вы действительно хотите удалить плагин '}
+            <strong className="text-white font-semibold">«{pluginToDelete?.name}»</strong>?
+          </span>
+        }
+        confirmText={t.delete || 'Удалить'}
+        cancelText={t.cancel || 'Отмена'}
+        variant="danger"
+        loading={isDeletingPlugin}
       />
     </div>
   );

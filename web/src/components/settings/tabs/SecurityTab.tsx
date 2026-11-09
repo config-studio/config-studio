@@ -7,7 +7,7 @@ import {
   Check,
   ShieldCheck,
 } from 'lucide-react';
-import { Card, Input, Button, Toggle, Badge } from '../../ui';
+import { Card, Input, Button, Toggle, Badge, SectionHeader } from '../../ui';
 
 interface SecurityTabProps {
   authEnabled: boolean;
@@ -66,19 +66,17 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
     <div className="p-6 space-y-5 overflow-y-auto flex-1 custom-scrollbar">
       {/* Direct Authentication Card */}
       <Card className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Shield className="w-4 h-4 text-accent" />
-            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-              {t.authSettings}
-            </span>
-          </div>
-          <Toggle
-            checked={authEnabled}
-            onChange={setAuthEnabled}
-            size="md"
-          />
-        </div>
+        <SectionHeader
+          icon={<Shield className="w-4 h-4" />}
+          title={t.authSettings}
+          rightElement={
+            <Toggle
+              checked={authEnabled}
+              onChange={setAuthEnabled}
+              size="md"
+            />
+          }
+        />
 
         <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
           {t.authHelp}
@@ -106,24 +104,22 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
 
       {/* REST API Access Setting Card */}
       <Card className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Cpu className="w-4 h-4 text-accent" />
-            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-              {t.enableApi}
-            </span>
-          </div>
-          <Toggle
-            checked={apiEnabled}
-            onChange={(val) => {
-              setApiEnabled(val);
-              if (val && !apiKey) {
-                generateRandomKey();
-              }
-            }}
-            size="md"
-          />
-        </div>
+        <SectionHeader
+          icon={<Cpu className="w-4 h-4" />}
+          title={t.enableApi}
+          rightElement={
+            <Toggle
+              checked={apiEnabled}
+              onChange={(val) => {
+                setApiEnabled(val);
+                if (val && !apiKey) {
+                  generateRandomKey();
+                }
+              }}
+              size="md"
+            />
+          }
+        />
 
         <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
           {t.enableApiHelp}
@@ -172,19 +168,17 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
 
       {/* Structure Guard (Deep Pre-Save Validation) Card */}
       <Card className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-              Structure Guard &amp; Pre-Save Guard
-            </span>
-          </div>
-          <Toggle
-            checked={structureGuardEnabled}
-            onChange={setStructureGuardEnabled}
-            size="md"
-          />
-        </div>
+        <SectionHeader
+          icon={<ShieldCheck className="w-4 h-4 text-emerald-400" />}
+          title="Structure Guard & Pre-Save Guard"
+          rightElement={
+            <Toggle
+              checked={structureGuardEnabled}
+              onChange={setStructureGuardEnabled}
+              size="md"
+            />
+          }
+        />
 
         <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
           {t.structureGuardDesc}

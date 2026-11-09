@@ -1,19 +1,25 @@
-import React, { useEffect, createContext, useContext } from 'react';
-import { X } from 'lucide-react';
+import React, { useEffect, useState, createContext, useContext } from 'react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { ScrollArea } from './ScrollArea';
 
-export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'fullscreen';
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'fullscreen';
 export type ModalHeight = 'auto' | 'fixed' | 'full';
 
 interface ModalContextType {
   onClose?: () => void;
   size: ModalSize;
   height: ModalHeight;
+  allowMaximize: boolean;
+  isMaximized: boolean;
+  toggleMaximize: () => void;
 }
 
 const ModalContext = createContext<ModalContextType>({
   size: 'lg',
   height: 'auto',
+  allowMaximize: false,
+  isMaximized: false,
+  toggleMaximize: () => {},
 });
 
 export interface ModalProps {
@@ -25,20 +31,32 @@ export interface ModalProps {
   children: React.ReactNode;
   closeOnBackdrop?: boolean;
   closeOnEscape?: boolean;
+  allowMaximize?: boolean;
+  defaultMaximized?: boolean;
+  onMaximizeChange?: (maximized: boolean) => void;
 }
 
+// 20% Step System with responsive minimum bounds and 100% mobile fallback
 const sizeClasses: Record<ModalSize, string> = {
-  sm: 'max-w-[400px] w-full',
-  md: 'max-w-[540px] w-full',
-  lg: 'max-w-[720px] w-full',
-  xl: 'max-w-[900px] w-full',
-  fullscreen: 'w-full h-full max-w-none rounded-none',
+  sm: 'w-[24vw] min-w-[360px] max-w-[24vw]',
+  md: 'w-[32vw] min-w-[420px] max-w-[32vw]',
+  lg: 'w-[45vw] min-w-[500px] max-w-[45vw]',
+  xl: 'w-[60vw] min-w-[620px] max-w-[60vw]',
+  xxl: 'w-[80vw] min-w-[780px] max-w-[80vw]',
+  fullscreen: 'w-full h-full max-w-none rounded-none border-none',
 };
 
 const heightClasses: Record<ModalHeight, string> = {
-  auto: 'max-h-[92vh] max-sm:h-full max-sm:max-h-none',
-  fixed: 'h-[82vh] min-h-[580px] max-h-[820px] max-sm:h-full max-sm:min-h-0 max-sm:max-h-none',
-  full: 'h-[92vh] max-sm:h-full max-sm:max-h-none',
+  auto: 'max-h-[85vh] max-sm:h-full max-sm:max-h-none',
+  fixed: 'h-[75vh] min-h-[480px] max-h-[85vh] max-sm:h-full max-sm:min-h-0 max-sm:max-h-none',
+  full: 'h-[85vh] max-sm:h-full max-sm:max-h-none',
+};
+
+// Custom height presets for larger modal sizes when height is fixed or full
+const largeHeightClasses: Partial<Record<ModalSize, string>> = {
+  xxl: 'h-[80vh] min-h-[580px] max-h-[80vh]',
+  xl: 'h-[70vh] min-h-[480px] max-h-[70vh]',
+  lg: 'h-[60vh] min-h-[400px] max-h-[60vh]',
 };
 
 export const Modal: React.FC<ModalProps> & {
@@ -54,7 +72,30 @@ export const Modal: React.FC<ModalProps> & {
   children,
   closeOnBackdrop = true,
   closeOnEscape = true,
+  allowMaximize,
+  defaultMaximized = false,
+  onMaximizeChange,
 }) => {
+  const [isMaximized, setIsMaximized] = useState(defaultMaximized);
+
+  // Default allowMaximize: enabled for xxl and xl, or when explicitly passed
+  const canMaximize = allowMaximize ?? (size === 'xxl' || size === 'xl');
+
+  const toggleMaximize = () => {
+    if (!canMaximize) return;
+    setIsMaximized((prev) => {
+      const next = !prev;
+      onMaximizeChange?.(next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsMaximized(defaultMaximized);
+    }
+  }, [isOpen, defaultMaximized]);
+
   useEffect(() => {
     if (!isOpen || !closeOnEscape || !onClose) return;
 
@@ -69,8 +110,26 @@ export const Modal: React.FC<ModalProps> & {
 
   if (!isOpen) return null;
 
+  // Compute final dimension classes based on maximize state
+  const dimensionClass = isMaximized
+    ? 'w-full h-full max-w-none max-h-none rounded-none border-none'
+    : `${sizeClasses[size]} ${
+        height !== 'auto' && largeHeightClasses[size]
+          ? largeHeightClasses[size]
+          : heightClasses[height]
+      }`;
+
   return (
-    <ModalContext.Provider value={{ onClose, size, height }}>
+    <ModalContext.Provider
+      value={{
+        onClose,
+        size,
+        height,
+        allowMaximize: canMaximize,
+        isMaximized,
+        toggleMaximize,
+      }}
+    >
       <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-200">
         {/* Backdrop click catcher */}
         {closeOnBackdrop && (
@@ -84,7 +143,7 @@ export const Modal: React.FC<ModalProps> & {
         <div
           role="dialog"
           aria-modal="true"
-          className={`bg-base-surface border border-base-border max-sm:border-none rounded-none sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 max-sm:w-full max-sm:h-full max-sm:rounded-none ${sizeClasses[size]} ${heightClasses[height]} ${className}`}
+          className={`bg-base-surface border border-base-border max-sm:border-none rounded-none sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 transition-all duration-300 ease-out max-sm:w-full max-sm:h-full max-sm:max-w-none max-sm:max-h-none max-sm:rounded-none max-sm:border-none ${dimensionClass} ${className}`}
           style={{
             paddingTop: 'env(safe-area-inset-top, 0px)',
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -145,16 +204,30 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
         </div>
       </div>
 
-      {showClose && handleClose && (
-        <button
-          type="button"
-          onClick={handleClose}
-          className="p-1.5 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0 ml-3"
-          aria-label="Close"
-        >
-          <X size={18} />
-        </button>
-      )}
+      <div className="flex items-center space-x-1.5 shrink-0 ml-3">
+        {ctx.allowMaximize && (
+          <button
+            type="button"
+            onClick={ctx.toggleMaximize}
+            className="p-1.5 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            title={ctx.isMaximized ? 'Восстановить исходный размер' : 'Развернуть на весь экран'}
+            aria-label={ctx.isMaximized ? 'Restore' : 'Maximize'}
+          >
+            {ctx.isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+        )}
+
+        {showClose && handleClose && (
+          <button
+            type="button"
+            onClick={handleClose}
+            className="p-1.5 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        )}
+      </div>
     </div>
   );
 };

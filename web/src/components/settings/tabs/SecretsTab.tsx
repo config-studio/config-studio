@@ -25,7 +25,20 @@ import {
 } from 'lucide-react';
 import { SecretMeta, SecretsStatus, SecretType, SecretScope } from '../../../types';
 import { api } from '../../../services/api';
-import { Modal, Card, Input, Textarea, Select, Button, Badge, ScrollArea } from '../../ui';
+import {
+  Modal,
+  Card,
+  Input,
+  Textarea,
+  Select,
+  Button,
+  Badge,
+  ScrollArea,
+  EmptyState,
+  SearchInput,
+  ConfirmModal,
+  SectionHeader,
+} from '../../ui';
 
 interface SecretsTabProps {
   authEnabled: boolean;
@@ -67,6 +80,10 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
   // Category Filter & Search
   const [activeCategory, setActiveCategory] = useState<'all' | SecretType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Delete Confirm Modal
+  const [secretToDelete, setSecretToDelete] = useState<SecretMeta | null>(null);
+  const [isDeletingSecret, setIsDeletingSecret] = useState(false);
 
   const categories = useMemo(() => [
     { id: 'all' as const, label: t.filterAll || 'Все', icon: <Layers size={12} /> },
@@ -275,13 +292,21 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
     }
   };
 
-  const handleDeleteSecret = async (item: SecretMeta) => {
-    if (!confirm(`Вы действительно хотите удалить секрет "${item.title}"?`)) return;
+  const handleDeleteSecret = (item: SecretMeta) => {
+    setSecretToDelete(item);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!secretToDelete) return;
+    setIsDeletingSecret(true);
     try {
-      await api.deleteSecret(item.id);
+      await api.deleteSecret(secretToDelete.id);
       await loadSecrets();
+      setSecretToDelete(null);
     } catch (err: any) {
       alert(`Ошибка удаления секрета: ${err.message}`);
+    } finally {
+      setIsDeletingSecret(false);
     }
   };
 
@@ -570,20 +595,19 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
 
       {/* Secrets List */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center space-x-1.5">
-            <Key size={14} className="text-accent" />
-            <span>{t.tabSecrets} ({secretsList.length})</span>
-          </label>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={loadSecrets}
-            title={t.refresh}
-            icon={<RefreshCw size={13} className={isLoadingSecrets ? 'animate-spin' : ''} />}
-          />
-        </div>
+        <SectionHeader
+          icon={<Key size={14} />}
+          title={`${t.tabSecrets} (${secretsList.length})`}
+          rightElement={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadSecrets}
+              title={t.refresh}
+              icon={<RefreshCw size={13} className={isLoadingSecrets ? 'animate-spin' : ''} />}
+            />
+          }
+        />
 
         {/* Filter Pills + Search */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
@@ -622,58 +646,45 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
           </ScrollArea>
 
           {/* Search Input */}
-          <div className="relative min-w-[200px]">
-            <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t.searchSecretsPlaceholder || 'Поиск по названию или ID...'}
-              className="w-full bg-black/20 border border-base-border rounded-xl pl-8 pr-7 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-accent"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-xs cursor-pointer"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={t.searchSecretsPlaceholder || 'Поиск по названию или ID...'}
+            className="w-full sm:w-auto"
+            inputClassName="bg-black/20"
+          />
         </div>
 
         {/* List Content */}
         {isLoadingSecrets && secretsList.length === 0 ? (
-          <div className="p-8 text-center text-xs text-gray-400 border border-base-border rounded-2xl bg-black/10 flex items-center justify-center space-x-2">
-            <RefreshCw size={14} className="animate-spin text-accent" />
-            <span>Loading secrets...</span>
-          </div>
+          <EmptyState loading={true} loadingText="Loading secrets..." />
         ) : secretsList.length === 0 ? (
-          <div className="p-8 text-center text-xs text-gray-400 border border-base-border rounded-2xl bg-black/10 flex flex-col items-center justify-center space-y-1.5">
-            <Key className="w-8 h-8 text-gray-500 opacity-60 mb-1" />
-            <span className="font-medium text-gray-300">{t.noSecretsFound}</span>
-            <span className="text-[11px] text-gray-500">
-              {authEnabled
+          <EmptyState
+            icon={<Key className="w-8 h-8" />}
+            title={t.noSecretsFound}
+            description={
+              authEnabled
                 ? 'Нажмите «Добавить секрет», чтобы сохранить учетные данные в хранилище.'
-                : 'Включите защиту паролем для добавления учетных данных.'}
-            </span>
-          </div>
+                : 'Включите защиту паролем для добавления учетных данных.'
+            }
+          />
         ) : filteredSecrets.length === 0 ? (
-          <div className="p-8 text-center text-xs text-gray-400 border border-base-border rounded-2xl bg-black/10 flex flex-col items-center justify-center space-y-2">
-            <Filter className="w-8 h-8 text-gray-500 opacity-60 mb-1" />
-            <span className="font-medium text-gray-300">{t.noSecretsFoundFiltered}</span>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setActiveCategory('all');
-                setSearchQuery('');
-              }}
-            >
-              {t.clearFilter}
-            </Button>
-          </div>
+          <EmptyState
+            icon={<Filter className="w-8 h-8" />}
+            title={t.noSecretsFoundFiltered}
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setActiveCategory('all');
+                  setSearchQuery('');
+                }}
+              >
+                {t.clearFilter}
+              </Button>
+            }
+          />
         ) : groupedSections ? (
           /* Grouped by categories when "Все" is selected without search filter */
           <div className="space-y-5">
@@ -878,6 +889,26 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
           </Modal.Footer>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!secretToDelete}
+        onClose={() => setSecretToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title={language === 'en' ? 'Delete Secret' : 'Удаление секрета'}
+        message={
+          <span>
+            {language === 'en'
+              ? 'Are you sure you want to delete secret '
+              : 'Вы действительно хотите удалить секрет '}
+            <strong className="text-white font-semibold">«{secretToDelete?.title}»</strong>?
+          </span>
+        }
+        confirmText={t.delete || 'Удалить'}
+        cancelText={t.cancel || 'Отмена'}
+        variant="danger"
+        loading={isDeletingSecret}
+      />
     </div>
   );
 };

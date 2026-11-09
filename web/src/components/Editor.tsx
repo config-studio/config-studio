@@ -6,7 +6,7 @@ import { translations } from '../utils/i18n';
 import { getLuminance } from '../utils/color';
 import { pluginManager } from '../services/pluginLoader';
 import { ActionToolbar } from './ActionToolbar';
-import { ScrollArea } from '@config-studio/ui';
+import { ScrollArea, EmptyState, Button } from '@config-studio/ui';
 
 interface EditorProps {
   tabs: OpenFile[];
@@ -608,24 +608,26 @@ export const Editor: React.FC<EditorProps> = ({
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none bg-base">
-            <History className="w-12 h-12 text-accent/40 mb-3" />
-            <h3 className="text-sm font-semibold text-gray-200 mb-1">
-              {settings.language === 'ru' ? 'Нет сохраненных снимков истории' : 'No revisions recorded yet'}
-            </h3>
-            <p className="text-xs text-gray-400 max-w-md mb-4">
-              {settings.language === 'ru'
+          <EmptyState
+            icon={<History className="w-12 h-12 text-accent/40" />}
+            title={settings.language === 'ru' ? 'Нет сохраненных снимков истории' : 'No revisions recorded yet'}
+            description={
+              settings.language === 'ru'
                 ? 'Time Machine автоматически создает снимки при каждом сохранении файла (Ctrl+S). Сохраните файл, чтобы начать вести историю.'
-                : 'Time Machine automatically saves snapshots whenever you save this file (Ctrl+S). Save the file to start recording history.'}
-            </p>
-            <button
-              type="button"
-              onClick={() => setTimeMachineActive(false)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-black/20 dark:bg-white/10 hover:bg-black/30 text-gray-200 border border-base-border"
-            >
-              {settings.language === 'ru' ? 'Вернуться к редактору' : 'Return to Editor'}
-            </button>
-          </div>
+                : 'Time Machine automatically saves snapshots whenever you save this file (Ctrl+S). Save the file to start recording history.'
+            }
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setTimeMachineActive(false)}
+              >
+                {settings.language === 'ru' ? 'Вернуться к редактору' : 'Return to Editor'}
+              </Button>
+            }
+            bordered={false}
+            className="flex-1 my-auto"
+          />
         )
       ) : (
         <>

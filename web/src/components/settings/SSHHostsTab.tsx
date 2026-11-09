@@ -16,6 +16,7 @@ import {
 import { SSHHost, SSHKeyPair, SecretMeta } from '../../types';
 import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
+import { ConfirmModal, EmptyState } from '../ui';
 
 interface SSHHostsTabProps {
   accentColor?: string;
@@ -48,6 +49,9 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
   const [generatedKey, setGeneratedKey] = useState<SSHKeyPair | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Delete Confirm Modal
+  const [hostToDelete, setHostToDelete] = useState<SSHHost | null>(null);
 
   useEffect(() => {
     setHosts(sshHostService.list());
@@ -101,9 +105,14 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
     setIsEditing(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Удалить данный SSH-хост?')) {
-      sshHostService.delete(id);
+  const handleDelete = (host: SSHHost) => {
+    setHostToDelete(host);
+  };
+
+  const handleConfirmDelete = () => {
+    if (hostToDelete) {
+      sshHostService.delete(hostToDelete.id);
+      setHostToDelete(null);
     }
   };
 
@@ -394,9 +403,11 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
       {/* Hosts list */}
       <div className="space-y-2">
         {hosts.length === 0 ? (
-          <div className="p-8 text-center bg-[#0d1117] rounded-xl border border-gray-800 text-gray-500 text-xs">
-            Нет настроенных SSH-хостов. Нажмите «Добавить хост» для подключения к серверам.
-          </div>
+          <EmptyState
+            icon={<Server size={32} />}
+            title="Нет настроенных SSH-хостов"
+            description="Нажмите «Добавить хост» для подключения к серверам."
+          />
         ) : (
           hosts.map((host) => {
             const isTesting = testingId === host.id;
@@ -483,7 +494,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(host.id)}
+                    onClick={() => handleDelete(host)}
                     className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition"
                     title="Удалить"
                   >
@@ -495,6 +506,24 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
           })
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!hostToDelete}
+        onClose={() => setHostToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Удаление SSH-хоста"
+        message={
+          <span>
+            Вы уверены, что хотите удалить SSH-хост{' '}
+            <strong className="text-white font-semibold">
+              «{hostToDelete?.name || hostToDelete?.host}»
+            </strong>?
+          </span>
+        }
+        confirmText="Удалить"
+        variant="danger"
+      />
     </div>
   );
 };
