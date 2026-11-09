@@ -140,12 +140,24 @@ export const App: React.FC = () => {
         await openFile(path, root, options);
       },
       createFile: async (path: string, content: string = '') => {
-        await api.createItem(path, false);
-        if (content) {
-          await api.saveFile(path, content, false);
+        let root = currentFileRef.current?.root || workspacesRef.current?.[0]?.id || '';
+        let cleanPath = path;
+        if (cleanPath.includes(':')) {
+          const idx = cleanPath.indexOf(':');
+          const prefix = cleanPath.substring(0, idx);
+          if (prefix.length > 1) {
+            root = prefix;
+            cleanPath = cleanPath.substring(idx + 1);
+          }
         }
-        await loadDir(currentDirRef.current);
-        await openFile(path);
+        cleanPath = cleanPath.replace(/^\/+/, '');
+        const requestRoot = (!root || root === 'default') ? '' : root;
+        await api.createItem(cleanPath, false, requestRoot);
+        if (content) {
+          await api.saveFile(cleanPath, content, false, false, requestRoot);
+        }
+        await loadDir(currentDirRef.current, requestRoot);
+        await openFile(cleanPath, requestRoot);
       },
       refreshFiles: async () => {
         await loadWorkspaces();
