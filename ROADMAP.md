@@ -31,7 +31,21 @@
 - [ ] Глобальный реестр горячих клавиш: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий из любого открытого документа.
 
 ### 2. Неинтерактивное SSH-исполнение и Privileged Mode (Headless SSH Exec)
-*Необходимо для: `config-studio-docker` (Compose Doctor), `config-studio-nginx` (nginx -t), `config-studio-systemd` (analyze), `config-studio-glance` (Baremetal Updater).*
+*Необходимо для: `config-studio-traefik` (Traefik Doctor), `config-studio-docker` (Compose Doctor), `config-studio-nginx` (nginx -t), `config-studio-systemd` (analyze), `config-studio-glance` (Baremetal Updater).*
+
+```text
+                       ┌────────────────────────────────────────┐
+                       │   Go-Backend Core: POST /api/ssh/exec   │
+                       │   (неинтерактивная SSH-сессия, таймауты,│
+                       │    забор ключей/паролей из Core Vault)  │
+                       └───────────────────┬────────────────────┘
+                                           │
+         ┌───────────────────┬─────────────┴───────┬───────────────────┐
+         ▼                   ▼                     ▼                   ▼
+  config-studio-traefik   config-studio-nginx   config-studio-docker   config-studio-systemd
+ (traefik healthcheck)       (nginx -t)        (compose config/ps)   (systemd-analyze verify)
+```
+
 - [ ] Сервис `internal/ssh.ExecuteCommand(ctx, cfg, req)` в Go-бэкенде (неинтерактивное выполнение через чистую сессию SSH с таймаутом).
 - [ ] REST API эндпоинт `POST /api/ssh/exec`: вход `{ hostId, cmd, timeoutSec, env }` -> выход `{ exitCode, stdout, stderr, durationMs }`.
 - [ ] Sudo Elevation Helper: автоматическая подстановка пароля из Core Vault для непривилегированных пользователей.
