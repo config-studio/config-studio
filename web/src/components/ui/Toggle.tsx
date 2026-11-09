@@ -22,9 +22,15 @@ export const Toggle: React.FC<ToggleProps> = ({
   icon,
 }) => {
   const isSm = size === 'sm';
-  const trackWidth = isSm ? 'w-8 h-4.5' : 'w-10 h-5.5';
-  const thumbSize = isSm ? 'w-3.5 h-3.5' : 'w-4.5 h-4.5';
-  const translate = isSm ? 'translate-x-3.5' : 'translate-x-4.5';
+  const trackClass = isSm ? 'w-8 h-4' : 'w-11 h-6';
+  const thumbClass = isSm ? 'w-3 h-3' : 'w-5 h-5';
+  const translateClass = isSm
+    ? checked
+      ? 'translate-x-4'
+      : 'translate-x-0.5'
+    : checked
+    ? 'translate-x-5'
+    : 'translate-x-0.5';
 
   const toggleElement = (
     <button
@@ -33,14 +39,12 @@ export const Toggle: React.FC<ToggleProps> = ({
       aria-checked={checked}
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
-      className={`relative inline-flex shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${trackWidth} ${
+      className={`relative inline-flex shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${trackClass} ${
         checked ? 'bg-accent' : 'bg-gray-300 dark:bg-white/20'
       }`}
     >
       <span
-        className={`pointer-events-none inline-block rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${thumbSize} ${
-          checked ? translate : 'translate-x-0.5'
-        }`}
+        className={`pointer-events-none inline-block rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${thumbClass} ${translateClass}`}
       />
     </button>
   );
