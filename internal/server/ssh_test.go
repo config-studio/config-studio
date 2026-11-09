@@ -111,3 +111,45 @@ func TestServerSSHTestEndpoint(t *testing.T) {
 		t.Errorf("Expected error message, got empty string")
 	}
 }
+
+func TestServerSSHExecEndpoint(t *testing.T) {
+	srv, cleanup := createTestServerWithSSH(t)
+	defer cleanup()
+
+	// 1. Invalid empty command -> 400 Bad Request
+	emptyBody, _ := json.Marshal(map[string]string{"cmd": ""})
+	reqBad := httptest.NewRequest("POST", "/api/ssh/exec?web=1", bytes.NewReader(emptyBody))
+	reqBad.Header.Set("X-ConfigStudio-Web", "1")
+	wBad := httptest.NewRecorder()
+	srv.ServeHTTP(wBad, reqBad)
+	if wBad.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400 Bad Request for empty cmd, got: %d", wBad.Code)
+	}
+
+	// 2. Local execution -> 200 OK with exitCode 0
+	execBody, _ := json.Marshal(ssh.ExecRequest{
+		HostID:     "localhost",
+		Cmd:        "echo remote-exec-test",
+		TimeoutSec: 5,
+	})
+	req := httptest.NewRequest("POST", "/api/ssh/exec?web=1", bytes.NewReader(execBody))
+	req.Header.Set("X-ConfigStudio-Web", "1")
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200 OK, got: %d (%s)", w.Code, w.Body.String())
+	}
+
+	var res ssh.ExecResult
+	if err := json.NewDecoder(w.Body).Decode(&res); err != nil {
+		t.Fatalf("Failed to decode ExecResult: %v", err)
+	}
+
+	if res.ExitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d", res.ExitCode)
+	}
+	if !strings.Contains(strings.TrimSpace(res.Stdout), "remote-exec-test") {
+		t.Errorf("Expected 'remote-exec-test' in stdout, got: %q", res.Stdout)
+	}
+}

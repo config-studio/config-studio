@@ -23,6 +23,46 @@ func (s *Server) handleSSHTest(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(res)
 }
 
+func (s *Server) handleSSHExec(w http.ResponseWriter, r *http.Request) {
+	var req ssh.ExecRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.Cmd == "" {
+		http.Error(w, "cmd cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	// Resolve Config from Fleet if HostID is provided and Config is nil
+	if req.Config == nil && req.HostID != "" && s.fleet != nil {
+		if req.HostID != "localhost" && req.HostID != "local" {
+			node, err := s.fleet.GetServer(req.HostID)
+			if err == nil && node != nil {
+				node.Normalize()
+				if node.Connection.SSH != nil && node.Connection.SSH.Enabled {
+					req.Config = &ssh.Config{
+						Host:       node.Connection.SSH.Host,
+						Port:       node.Connection.SSH.Port,
+						User:       node.Connection.SSH.User,
+						IdentityID: node.Connection.SSH.Identity,
+					}
+				}
+			}
+		}
+	}
+
+	res, err := s.ssh.ExecuteCommand(r.Context(), req.Config, &req)
+	if err != nil {
+		http.Error(w, "execution error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(res)
+}
+
 func (s *Server) handleSSHGenerateKey(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Comment string `json:"comment"`

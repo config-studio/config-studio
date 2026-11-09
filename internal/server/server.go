@@ -173,6 +173,7 @@ func (s *Server) setupRoutes() {
 	// SSH & SFTP APIs
 	mux.HandleFunc("GET /api/ssh/ws", s.handleSSHWebSocket)
 	mux.HandleFunc("POST /api/ssh/test", s.handleSSHTest)
+	mux.HandleFunc("POST /api/ssh/exec", s.handleSSHExec)
 	mux.HandleFunc("POST /api/ssh/keys/generate", s.handleSSHGenerateKey)
 	mux.HandleFunc("POST /api/ssh/sftp/list", s.handleSFTPList)
 	mux.HandleFunc("POST /api/ssh/sftp/read", s.handleSFTPRead)
