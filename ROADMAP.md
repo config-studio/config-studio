@@ -24,6 +24,37 @@
 
 Фундаментальные сервисы и точки расширения ядра, создаваемые по принципу *Core First* перед реализацией соответствующих плагинов:
 
+![4 фундаментальных улучшения Core (Go & Web)](docs/screenshots/core-evolution-architecture.png)
+
+```mermaid
+graph TD
+    Core["4 фундаментальных улучшения Core (Go & Web)"]
+    
+    C1["1. Headless SSH Exec API<br/>('POST /api/ssh/exec')"]
+    C2["2. Editor Navigation<br/>('openFile(path, {line, col})')"]
+    C3["3. Split-Screen Layout<br/>(Editor + Live Webview)"]
+    C4["4. Core Multi-Host & Diff Engine<br/>('fleet.ExecBatch')"]
+    
+    Core --> C1
+    Core --> C2
+    Core --> C3
+    Core --> C4
+    
+    C1 --> P1["Docker (Compose Doctor & Actions)"]
+    C1 --> P2["Nginx (nginx -t & reload)"]
+    C1 --> P3["Systemd (analyze & restart)"]
+    C1 --> P4["Glance (baremetal binary updater)"]
+    
+    C2 --> P5["Traefik (Go to Definition mw-* -> ser-*)"]
+    C2 --> P6["Glance (Go to $include widget)"]
+    C2 --> P7["Инспекторы и линтеры ошибок"]
+    
+    C3 --> P8["Glance (Live Dashboard Preview :8080)"]
+    C3 --> P9["Web-DevKit & Markdown Previews"]
+    
+    C4 --> P10["Servers (Safe Rollout & Fleet CLI)"]
+```
+
 ### 1. Навигация и кросс-файловый поиск (Editor Navigation & Cross-File Discovery)
 *Необходимо для: `config-studio-traefik` (Go to Definition), `config-studio-glance` ($include), линтеров и инспекторов.*
 - [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
