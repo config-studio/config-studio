@@ -148,6 +148,28 @@ graph TD
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details open>
+<summary><b>⚡ Детали релиза v2.3: Headless Remote SSH Exec API & Execution Service (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ПРОТЕСТИРОВАНО)</b></summary>
+
+- [x] **Неинтерактивный сервис исполнения (`internal/ssh/exec.go`)**:
+  - Метод `(m *ClientManager) ExecuteCommand(ctx, cfg, req)` с чистой SSH-сессией без PTY-мусора.
+  - Локальный fallback (`localhost` / `127.0.0.1`): безопасный запуск через `exec.CommandContext` (`cmd.exe /c` на Windows, `sh -c` на Linux).
+  - Удаленный SSH-запуск: автоматический забор учетных данных из Core Vault / `servers.yaml`, поддержка Jump Host.
+  - Sudo Elevation Helper: автоматическая подстановка пароля из Vault при флаге `req.Sudo`.
+  - Захват раздельных буферов `stdout`, `stderr`, кода возврата `exitCode` и замер длительности в `durationMs`.
+- [x] **REST API эндпоинт `POST /api/ssh/exec` (`internal/server/ssh.go`)**:
+  - Вход: `{ hostId, cmd, timeoutSec, env, sudo }`.
+  - Выход: `{ exitCode, stdout, stderr, durationMs }`.
+  - Автоматическая резолюция параметров узла из инвентаря флота `servers.yaml` (`fleet.GetServer(hostId)`).
+- [x] **Модульные тесты**:
+  - `internal/ssh/exec_test.go`: проверка локального вызова, ошибок с ненулевым exit code, таймаутов (`context.WithTimeout`) и удаленного mock SSH-сервера.
+  - `internal/server/ssh_test.go`: валидация входных данных (HTTP 400 при пустой команде) и сквозной HTTP-вызов (HTTP 200).
+- [x] **Развертывание**:
+  - Скомпилирован и запущен `config-studio-debug.exe` на порту 8080.
+  - Проверено живым HTTP-запросом к эндпоинту `http://localhost:8080/api/ssh/exec` (HTTP 200, exitCode 0).
+
+</details>
+
+<details>
 <summary><b>🌐 Детали релиза config-studio-traefik v1.1.0: Blueprints, Traefik Doctor и Action Toolbar (ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
 
 - [x] **Каталог рецептов Middleware (Blueprints)**:
