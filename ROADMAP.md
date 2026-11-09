@@ -17,7 +17,6 @@
 ### 🎯 Core & Settings Evolution (Спринт v2.3)
 - [ ] **Категоризация секретов по типам**: структурирование и фильтрация секретов в реестре «Секреты и Ключи» по типам (`Пароль`, `SSH-ключ`, `API токен`, `Сертификат`).
 - [ ] **Ревизия режима повышенных привилегий**: скрытие или удаление кнопки Privileged Mode в интерфейсе настроек безопасности.
-- [ ] **Неинтерактивное SSH-исполнение (Headless Remote SSH Exec)**: эндпоинт `POST /api/ssh/exec` в Go-бэкенде для удаленной проверки конфигураций на сервере (Traefik Doctor Remote, Docker Compose Doctor, Nginx -t).
 
 ---
 
@@ -46,10 +45,10 @@
  (traefik healthcheck)       (nginx -t)        (compose config/ps)   (systemd-analyze verify)
 ```
 
-- [ ] Сервис `internal/ssh.ExecuteCommand(ctx, cfg, req)` в Go-бэкенде (неинтерактивное выполнение через чистую сессию SSH с таймаутом).
-- [ ] REST API эндпоинт `POST /api/ssh/exec`: вход `{ hostId, cmd, timeoutSec, env }` -> выход `{ exitCode, stdout, stderr, durationMs }`.
-- [ ] Sudo Elevation Helper: автоматическая подстановка пароля из Core Vault для непривилегированных пользователей.
-- [ ] Модульные тесты `internal/ssh/exec_test.go` на таймауты, ошибки аутентификации и код возврата.
+- [x] Сервис `internal/ssh.ExecuteCommand(ctx, cfg, req)` в Go-бэкенде (неинтерактивное выполнение через чистую сессию SSH с таймаутом).
+- [x] REST API эндпоинт `POST /api/ssh/exec`: вход `{ hostId, cmd, timeoutSec, env }` -> выход `{ exitCode, stdout, stderr, durationMs }`.
+- [x] Sudo Elevation Helper: автоматическая подстановка пароля из Core Vault для непривилегированных пользователей.
+- [x] Модульные тесты `internal/ssh/exec_test.go` и `internal/server/ssh_test.go` на таймауты, ошибки аутентификации и код возврата.
 
 ### 3. Разделенный экран (Split-Screen Workspace Layout)
 *Необходимо для: `config-studio-glance` (Live Dashboard Preview :8080), `config-studio-web-devkit` (Chrome preview), Markdown/HTML превью.*
