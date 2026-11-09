@@ -6,6 +6,7 @@ import { translations } from '../utils/i18n';
 import { getLuminance } from '../utils/color';
 import { pluginManager } from '../services/pluginLoader';
 import { ActionToolbar } from './ActionToolbar';
+import { ScrollArea } from '@config-studio/ui';
 
 interface EditorProps {
   tabs: OpenFile[];
@@ -91,12 +92,6 @@ export const Editor: React.FC<EditorProps> = ({
     if (!editorRef.current) return;
     editorRef.current.trigger('mobile-accessory-bar', 'tab', null);
     editorRef.current.focus();
-  };
-
-  const handleTagsWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (tagsScrollRef.current && e.deltaY !== 0) {
-      tagsScrollRef.current.scrollLeft += e.deltaY;
-    }
   };
 
   const getTabKey = (tab: OpenFile) =>
@@ -334,7 +329,11 @@ export const Editor: React.FC<EditorProps> = ({
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-base">
       {/* Multi-Tab Bar & Action Toolbar */}
       <div className="h-10 bg-base-surface border-b border-base-border flex items-center justify-between px-2 select-none flex-shrink-0">
-        <div className="flex items-center space-x-1 overflow-x-auto">
+        <ScrollArea
+          orientation="horizontal"
+          className="flex-1 min-w-0"
+          contentClassName="flex items-center space-x-1 w-max"
+        >
           {tabs.map((tab) => {
             const tabKey = getTabKey(tab);
             const isActive = tabKey === activeFilePath || tab.path === activeFilePath;
@@ -412,7 +411,7 @@ export const Editor: React.FC<EditorProps> = ({
               </div>
             );
           })}
-        </div>
+        </ScrollArea>
 
         {/* Right Action Area: Guard Pill & 1-Click Action Toolbar & Mobile Tag Toggle */}
         <div className="flex items-center space-x-1.5 pl-2 shrink-0">
@@ -633,7 +632,6 @@ export const Editor: React.FC<EditorProps> = ({
           {/* Quick Jump Root Tag Cloud placed under the tabs */}
           {rootTags.length > 0 && (
             <div
-              onWheel={handleTagsWheel}
               className={`${
                 showMobileTags ? 'flex' : 'hidden md:flex'
               } min-h-[42px] bg-base-surface/90 backdrop-blur-xs border-b border-base-border items-center px-3 space-x-2 select-none flex-shrink-0 transition-all`}
@@ -642,9 +640,11 @@ export const Editor: React.FC<EditorProps> = ({
                 <Hash className="w-3.5 h-3.5 text-accent" />
                 <span className="hidden sm:inline">{t.quickJump}</span>
               </div>
-              <div
+              <ScrollArea
                 ref={tagsScrollRef}
-                className="flex-1 flex items-center space-x-1.5 overflow-x-auto py-1.5 custom-scrollbar"
+                orientation="horizontal"
+                className="flex-1 min-w-0 py-1.5"
+                contentClassName="flex items-center space-x-1.5 w-max"
               >
                 {rootTags.map((tag) => (
                   <button
@@ -659,7 +659,7 @@ export const Editor: React.FC<EditorProps> = ({
                     <span className="text-[10px] text-gray-400 font-sans">:{tag.line}</span>
                   </button>
                 ))}
-              </div>
+              </ScrollArea>
               {/* Mobile close button for tags panel */}
               <button
                 onClick={() => setShowMobileTags(false)}

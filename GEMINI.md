@@ -17,6 +17,10 @@
 3. **One Repo Per Plugin:** Каждый официальный плагин разрабатывается в отдельном GitHub-репозитории организации `config-studio`.
 4. **Инженерная дисциплина (/ub-mode):** *First Make it Work* (Laziness Protocol, TDD, Idempotence), *Then Make it Right* (устранение первопричин, дробление, удаление мертвого кода), *Follow Practice* (Worktree Cleanup, Keep a Log, Commit often with proof).
 5. **Обязательный релиз плагинов через GitHub Workflow (CI/CD Automated Releases):** Каждое расширение должно иметь рабочий процесс `.github/workflows/release.yml`. Релиз собирается, тестируется, упаковывается в `.cspkg` и публикуется в GitHub Releases автоматически по тегу версии (`v*`) или `workflow_dispatch`. Новые расширения создаются на базе шаблона `config-studio-plugin-template`.
+6. **Обязательное использование библиотеки дизайна `@config-studio/ui` (Design System First):**
+   * Все элементы пользовательского интерфейса (модальные окна `Modal`, кнопки `Button`, переключатели `Toggle`, карточки `Card`, бейджи `Badge`, поля ввода `Input`/`Textarea`, выпадающие списки `Select`/`Dropdown`, вкладки `Tabs` и области прокрутки `ScrollArea`) ДОЛЖНЫ строиться исключительно на базе библиотеки `@config-studio/ui` (каталог `web/src/components/ui`).
+   * **Категорически запрещено** создавать самописные `div` со скроллбарами (`overflow-x-auto`, `overflow-y-auto`) или дублировать стандартные контролы в обход дизайн-системы.
+   * Для любых горизонтальных и вертикальных областей прокрутки **ОБЯЗАТЕЛЬНО** используется компонент `<ScrollArea orientation="horizontal" | "vertical" | "both">`, в котором по умолчанию активирована нативная плавная прокрутка колесиком мыши (`horizontalWheel`) без паразитного скролла родительских контейнеров и страниц.
 
 ---
 

@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { SecretMeta, SecretsStatus, SecretType, SecretScope } from '../../../types';
 import { api } from '../../../services/api';
-import { Modal, Card, Input, Textarea, Select, Button, Badge } from '../../ui';
+import { Modal, Card, Input, Textarea, Select, Button, Badge, ScrollArea } from '../../ui';
 
 interface SecretsTabProps {
   authEnabled: boolean;
@@ -588,7 +588,11 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
         {/* Filter Pills + Search */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           {/* Categories Pill Bar */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/20 border border-base-border/60 overflow-x-auto custom-scrollbar">
+          <ScrollArea
+            orientation="horizontal"
+            className="rounded-xl bg-black/20 border border-base-border/60 p-1 flex-1 min-w-0"
+            contentClassName="flex items-center gap-1.5 w-max"
+          >
             {categories.map((cat) => {
               const isSelected = activeCategory === cat.id;
               const count = counts[cat.id] || 0;
@@ -615,7 +619,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
                 </button>
               );
             })}
-          </div>
+          </ScrollArea>
 
           {/* Search Input */}
           <div className="relative min-w-[200px]">

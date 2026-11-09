@@ -1,4 +1,4 @@
-import React, { forwardRef, useRef, useCallback } from 'react';
+import React, { forwardRef, useRef, useCallback, useEffect } from 'react';
 
 export interface ScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {
   orientation?: 'vertical' | 'horizontal' | 'both';
@@ -40,6 +40,37 @@ export const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(
       [ref]
     );
 
+    const shouldScrollHorizontally =
+      horizontalWheel ?? (orientation === 'horizontal');
+
+    // Native non-passive wheel event listener to allow e.preventDefault()
+    // preventing vertical parent scrolling when scrolling horizontally
+    useEffect(() => {
+      const el = localRef.current;
+      if (!el || !shouldScrollHorizontally) return;
+
+      const onNativeWheel = (e: WheelEvent) => {
+        // If user rolls the mouse wheel vertically (deltaY != 0) without native horizontal delta (deltaX == 0)
+        if (e.deltaY !== 0 && e.deltaX === 0) {
+          const maxScrollLeft = el.scrollWidth - el.clientWidth;
+          if (maxScrollLeft > 0) {
+            const canScrollLeft = e.deltaY < 0 && el.scrollLeft > 0;
+            const canScrollRight = e.deltaY > 0 && el.scrollLeft < maxScrollLeft;
+
+            if (canScrollLeft || canScrollRight) {
+              e.preventDefault();
+              el.scrollLeft += e.deltaY;
+            }
+          }
+        }
+      };
+
+      el.addEventListener('wheel', onNativeWheel, { passive: false });
+      return () => {
+        el.removeEventListener('wheel', onNativeWheel);
+      };
+    }, [shouldScrollHorizontally]);
+
     let overflowClass = 'overflow-y-auto overflow-x-hidden';
     if (orientation === 'horizontal') {
       overflowClass = 'overflow-x-auto overflow-y-hidden';
@@ -54,27 +85,11 @@ export const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(
       ...(height ? { height } : {}),
     };
 
-    const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-      onWheel?.(e);
-      if (e.defaultPrevented) return;
-
-      const shouldScrollHorizontally =
-        horizontalWheel ?? (orientation === 'horizontal');
-
-      if (shouldScrollHorizontally && localRef.current) {
-        // If user rolls the mouse wheel vertically (deltaY != 0) without horizontal delta,
-        // map it to horizontal scroll position
-        if (e.deltaY !== 0 && e.deltaX === 0) {
-          localRef.current.scrollLeft += e.deltaY;
-        }
-      }
-    };
-
     return (
       <div
         ref={setRef}
         style={customStyle}
-        onWheel={handleWheel}
+        onWheel={onWheel}
         className={`custom-scrollbar ${overflowClass} ${className}`}
         {...props}
       >

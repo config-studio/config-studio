@@ -26,7 +26,7 @@ import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
 import { sshHostService } from '../services/sshHosts';
 import { SysInfoBar } from './sysinfo/SysInfoBar';
-import { Dropdown, DropdownOption } from '@config-studio/ui';
+import { Dropdown, DropdownOption, ScrollArea } from '@config-studio/ui';
 
 const XTerminal = lazy(() => import('./terminal/XTerminal'));
 
@@ -540,7 +540,11 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
       {/* The Always-Visible Strip Bar */}
       <div className="min-h-[32px] sm:min-h-[28px] h-8 sm:h-7 px-2 bg-[#161b22] border-t border-[#30363d] flex items-center justify-between text-xs select-none shrink-0 pb-[env(safe-area-inset-bottom)]">
         {/* Left: Tab Buttons */}
-        <div className="flex items-center space-x-1 overflow-x-auto custom-scrollbar flex-1 min-w-0 pr-1">
+        <ScrollArea
+          orientation="horizontal"
+          className="flex-1 min-w-0 pr-1"
+          contentClassName="flex items-center space-x-1 w-max"
+        >
           {/* Built-in: Terminal */}
           <button
             type="button"
@@ -618,7 +622,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
               </span>
             )}
           </button>
-        </div>
+        </ScrollArea>
 
         {/* Right: SysInfo & File Status & Hotkey Hint */}
         <div className="flex items-center space-x-2.5 sm:space-x-3 text-[11px] text-[#8b949e] font-mono shrink-0 pl-2">
