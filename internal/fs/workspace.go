@@ -499,14 +499,16 @@ func (wm *WorkspaceManager) ResolveRootAndRel(rootID, relPath string) (Workspace
 
 	cleanRel := filepath.ToSlash(strings.TrimSpace(relPath))
 
-	// If rootID is not explicitly provided, or is generic "default", check if relPath starts with "id:"
-	if rootID == "" || rootID == "default" {
-		if idx := strings.Index(cleanRel, ":"); idx > 0 {
-			candidateID := cleanRel[:idx]
-			if root, ok := wm.Get(candidateID); ok {
-				return root, strings.TrimPrefix(cleanRel[idx+1:], "/"), nil
-			}
+	// Check if relPath starts with a compound workspace prefix "workspaceID:path"
+	if idx := strings.Index(cleanRel, ":"); idx > 0 {
+		candidateID := cleanRel[:idx]
+		if root, ok := wm.Get(candidateID); ok {
+			return root, strings.TrimPrefix(cleanRel[idx+1:], "/"), nil
 		}
+	}
+
+	// If rootID is not explicitly provided, or is generic "default", fallback to defaultRoot
+	if rootID == "" || rootID == "default" {
 		rootID = wm.DefaultRoot()
 	}
 
@@ -514,17 +516,30 @@ func (wm *WorkspaceManager) ResolveRootAndRel(rootID, relPath string) (Workspace
 	if !ok {
 		// Fallback 1: try the configured defaultRoot
 		if defRoot, defOk := wm.Get(wm.DefaultRoot()); defOk {
-			return defRoot, strings.TrimPrefix(cleanRel, "/"), nil
+			clean := cleanRel
+			if strings.HasPrefix(clean, defRoot.ID+":") {
+				clean = strings.TrimPrefix(clean, defRoot.ID+":")
+			}
+			return defRoot, strings.TrimPrefix(clean, "/"), nil
 		}
 		// Fallback 2: first available workspace root
 		wm.mu.RLock()
 		if len(wm.roots) > 0 {
 			firstRoot := wm.roots[0]
 			wm.mu.RUnlock()
-			return firstRoot, strings.TrimPrefix(cleanRel, "/"), nil
+			clean := cleanRel
+			if strings.HasPrefix(clean, firstRoot.ID+":") {
+				clean = strings.TrimPrefix(clean, firstRoot.ID+":")
+			}
+			return firstRoot, strings.TrimPrefix(clean, "/"), nil
 		}
 		wm.mu.RUnlock()
 		return WorkspaceRoot{}, "", fmt.Errorf("workspace root '%s' not found", rootID)
+	}
+
+	// If cleanRel starts with root.ID + ":", strip it
+	if strings.HasPrefix(cleanRel, root.ID+":") {
+		cleanRel = strings.TrimPrefix(cleanRel, root.ID+":")
 	}
 
 	return root, strings.TrimPrefix(cleanRel, "/"), nil

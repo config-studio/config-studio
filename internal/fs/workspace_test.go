@@ -231,5 +231,17 @@ func TestResolveRootDefaultAlias(t *testing.T) {
 	if rel != "rules/app.yml" {
 		t.Errorf("expected rel 'rules/app.yml', got '%s'", rel)
 	}
+
+	// Should strip prefix when compound path has root id: "test_files:rules/app.yml"
+	root2, rel2, err2 := wm.ResolveRootAndRel("test_files", "test_files:rules/app.yml")
+	if err2 != nil {
+		t.Fatalf("failed to resolve root with compound path: %v", err2)
+	}
+	if root2.ID != "test_files" {
+		t.Errorf("expected root 'test_files', got '%s'", root2.ID)
+	}
+	if rel2 != "rules/app.yml" {
+		t.Errorf("expected rel 'rules/app.yml', got '%s'", rel2)
+	}
 }
 

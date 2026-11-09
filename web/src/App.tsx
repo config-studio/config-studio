@@ -303,14 +303,17 @@ export const App: React.FC = () => {
     let cleanPath = filePath;
 
     // Check if filePath is compound "root:path"
-    if (!root && filePath.includes(':')) {
-      const idx = filePath.indexOf(':');
-      const prefix = filePath.substring(0, idx);
+    if (cleanPath.includes(':')) {
+      const idx = cleanPath.indexOf(':');
+      const prefix = cleanPath.substring(0, idx);
       if (prefix.length > 1) {
-        root = prefix;
-        cleanPath = filePath.substring(idx + 1);
+        if (!root || root === 'default') {
+          root = prefix;
+        }
+        cleanPath = cleanPath.substring(idx + 1);
       }
     }
+    cleanPath = cleanPath.replace(/^\/+/, '');
     if (!root || root === 'default') {
       root = currentFileRef.current?.root || workspacesRef.current?.[0]?.id || '';
     }
