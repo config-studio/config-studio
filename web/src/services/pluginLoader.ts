@@ -93,7 +93,11 @@ class PluginLoader {
 
   getOutlineProvider(languageOrExt: string) {
     if (!languageOrExt) return undefined;
-    return this.outlineProviders.get(languageOrExt.toLowerCase());
+    const lower = languageOrExt.toLowerCase();
+    if (lower === 'yml' || lower === 'yaml') {
+      return this.outlineProviders.get('yaml') || this.outlineProviders.get('yml');
+    }
+    return this.outlineProviders.get(lower);
   }
 
   constructor() {
@@ -238,8 +242,15 @@ class PluginLoader {
               return [];
             }
           };
-          this.outlineProviders.set(provider.language.toLowerCase(), safeParse);
+          const lang = provider.language.toLowerCase();
+          this.outlineProviders.set(lang, safeParse);
+          if (lang === 'yaml') {
+            this.outlineProviders.set('yml', safeParse);
+          } else if (lang === 'yml') {
+            this.outlineProviders.set('yaml', safeParse);
+          }
           console.log(`[PluginLoader] Registered custom outline provider for ${provider.language}`);
+          this.notify();
         }
       },
 

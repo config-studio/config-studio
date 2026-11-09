@@ -569,13 +569,21 @@ export const App: React.FC = () => {
   // Real-time AST parsing for Outline
   const { outline, parseError } = useMemo(() => {
     if (!currentFile) return { outline: [], parseError: undefined };
+    const targetPath = currentFile.fullRelPath || currentFile.path || currentFile.name;
     const { outline, error } = parseContentToOutline(
       currentFile.content,
       currentFile.language,
-      currentFile.name
+      targetPath
     );
     return { outline, parseError: error };
-  }, [currentFile?.content, currentFile?.language, currentFile?.name]);
+  }, [
+    currentFile?.content,
+    currentFile?.language,
+    currentFile?.name,
+    currentFile?.fullRelPath,
+    currentFile?.path,
+    pluginState,
+  ]);
 
   const handleContentChange = (newContent: string) => {
     if (!currentFile) return;
@@ -1092,7 +1100,7 @@ export const App: React.FC = () => {
           outline={outline}
           error={parseError}
           settings={settings}
-          onSelectLine={handleJumpToLine}
+          onSelectLine={(line) => handleJumpToLine(line, 1, true, true)}
           isMobileDrawerOpen={isMobileOutlineDrawerOpen}
           onCloseMobileDrawer={() => setIsMobileOutlineDrawerOpen(false)}
         />

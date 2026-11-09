@@ -171,7 +171,12 @@ export type OutlineNodeType =
   | 'string'
   | 'number'
   | 'boolean'
-  | 'section';
+  | 'section'
+  | 'router'
+  | 'service'
+  | 'middleware'
+  | 'function'
+  | 'class';
 
 export interface OutlineNode {
   id: string;

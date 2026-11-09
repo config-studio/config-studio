@@ -506,6 +506,26 @@ const OutlineItem: React.FC<OutlineItemProps> = ({
             Section
           </span>
         );
+      case 'router':
+      case 'function':
+        return (
+          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30">
+            Router
+          </span>
+        );
+      case 'service':
+      case 'class':
+        return (
+          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+            Service
+          </span>
+        );
+      case 'middleware':
+        return (
+          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+            Middleware
+          </span>
+        );
     }
   };
 
