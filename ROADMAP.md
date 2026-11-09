@@ -99,22 +99,25 @@
 
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
-<details>
-<summary><b>🌐 Детали релиза v2.2-dev: config-studio-traefik v1.0.0 & Core Editor Navigation</b></summary>
+<details open>
+<summary><b>🌐 Детали релиза v2.2-dev: config-studio-traefik v1.0.0 & Core Editor Navigation (ПОЛНОСТЬЮ ПРОТЕСТИРОВАНО И ВЫПУЩЕНО)</b></summary>
 
-- [x] **Core Editor Navigation API**:
+- [x] **Core Editor Navigation API & Workspace Synchronization**:
   - Расширен метод `openFile(path, { line, column, highlight })` в Monaco Editor и Plugin SDK.
-  - Реализован плавный jump-to-line с импульсной анимацией подсветки строки (`.cs-line-highlight-flash`) как для уже открытых вкладок, так и для лениво монтируемых файлов.
+  - Реализован плавный jump-to-line с импульсной анимацией подсветки строки (`.cs-line-highlight-flash`) для открытых и лениво монтируемых файлов.
+  - Устранена рассинхронизация активных воркспейсов: нормализация путей и удаление дублирующихся префиксов (`default:`, `test_test:`) в Go-бэкенде (`ResolveRootAndRel`) и `App.tsx` (`createItem`, `saveFile`, `openFile`, `loadDir`).
+  - Добавлена поддержка нормализации алиасов языка (`.yml` ↔ `.yaml`) в реестре `outlineProviders` ядра (`pluginLoader.ts`).
+  - В панель `StructureOutline.tsx` добавлены специализированные бейджи типов `Router`, `Service`, `Middleware`.
   - Обновлены официальные определения типов в `config-studio-plugin-docs/types/config-studio.d.ts`.
-- [x] **config-studio-traefik v1.0.0**:
-  - **Multi-File Directory Provider (`/etc/traefik/rules/`)**: распознавание раздельных файлов правил `mw-*.yml` (Middlewares) и `ser-*.yml` (Сервисы и Маршрутизаторы).
-  - **Кросс-файловый IntelliSense**: автодополнение имен мидлварей из файлов `mw-*.yml` в Monaco Editor с суффиксом `@file`, документацией и типами.
-  - **Go to Definition**: переход к строке объявления мидлвари (`F12` / клик) с подсветкой строки.
-  - **Матрица правил (Rules Matrix)**: табличный обзор доменов (`Host(...)`), EntryPoints, TLS-резолверов, бэкендов, мидлварей и ошибок.
-  - **Linter целостности ссылок**: автоматическое обнаружение битых ссылок (`UNRESOLVED_MIDDLEWARE`, `UNRESOLVED_SERVICE`) и коллизий (`DUPLICATE_HOST`).
-  - **Мастер нового сервиса (New Service Wizard)**: генерация `ser-<name>.yml` с выбором существующих мидлварей и живым YAML-превью.
-  - **Иерархический YAML Outline**: секции 🌐 Маршрутизаторы, ⚙️ Сервисы, 🛡️ Middlewares.
-  - **Упаковка и дистрибуция**: собран и опубликован пакет `traefik-1.0.0.cspkg` (22 KB, 4 файла), зарегистрирован в официальном каталоге `registry.json`.
+- [x] **config-studio-traefik v1.0.0 (Все 7 компонентов протестированы и подтверждены)**:
+  - **1. Multi-File Directory Provider (`/etc/traefik/rules/`)**: автоматическое сканирование и связывание графа раздельных файлов правил `mw-*.yml` (Middlewares) и `ser-*.yml` (Сервисы и Маршрутизаторы) с точной строчной привязкой.
+  - **2. Кросс-файловый IntelliSense & Monaco Autocompletion**: автодополнение доступных мидлварей и сервисов в блоках `middlewares:` и `service:`, поддержка списков `- ` без искажения пробелов, приоритет чистых объявленных имен без избыточного `@file`.
+  - **3. Go to Definition с импульсной подсветкой**: переход к строке объявления мидлвари или сервиса (`F12`, клик, контекстное меню `Traefik: Перейти к определению`) с плавной подсветкой строки `.cs-line-highlight-flash` без побочного создания пустых файлов.
+  - **4. Матрица правил (Rules Matrix View)**: интерактивная сводная таблица всех роутеров, доменов `Host(...)`, EntryPoints, TLS-резолверов, бэкендов и цепочек мидлварей с поиском, фильтрами («Все», «TLS», «Проблемы») и переходом в файл в 1 клик.
+  - **5. Linter целостности ссылок и коллизий**: обнаружение отсутствующих мидлварей (`UNRESOLVED_MIDDLEWARE`), несуществующих бэкендов (`UNRESOLVED_SERVICE`) и дублирующихся хостов (`DUPLICATE_HOST`) с отображением волнистых маркеров ошибок в редакторе Monaco.
+  - **6. Мастер создания сервисов (New Service Wizard)**: генерация `ser-<name>.yml` с интерактивным выбором существующих мидлварей без мусорных суффиксов, живым YAML-превью и мгновенным открытием в активном воркспейсе.
+  - **7. Иерархический YAML Outline**: специализированное дерево Traefik (🌐 Маршрутизаторы, ⚙️ Сервисы, 🛡️ Middlewares) с бейджами `Router`/`Service`/`Middleware`, поддержкой файлов `.yml`/`.yaml` и точной навигацией по строкам.
+  - **8. Упаковка, тестирование и дистрибуция**: 26 из 26 unit-тестов успешно пройдены (`npm run test:ts`), собран пакет `traefik-1.0.0.cspkg` (26 KB, 4 файла), пакет зарегистрирован в `config-studio-plugins/registry.json`.
 
 </details>
 
