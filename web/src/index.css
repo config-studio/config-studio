@@ -9,6 +9,34 @@
   --color-border: #30363d;
   --color-accent: #00d2b4;
   --color-accent-hover: #00b89e;
+
+  /* Typography & Theme Tokens (UI v2.0 - Light default values for WCAG AA compliance) */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+}
+
+html.dark,
+.dark {
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+}
+
+/* UI-008: Hide native number spin buttons globally across all browsers */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* TYPO-001: Ensure form controls strictly inherit the font stack */
+input, button, select, textarea {
+  font-family: inherit;
 }
 
 html, body, #root {
@@ -26,11 +54,11 @@ body {
 }
 
 html:not(.dark) body {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 html.dark body {
-  color: #e6edf3;
+  color: var(--text-primary);
 }
 
 /* Universal Sleek Scrollbar (Quick Jump & Modern UI style) */
