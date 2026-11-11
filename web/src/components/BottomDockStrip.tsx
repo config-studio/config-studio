@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 import {
   Terminal,
   FileText,
@@ -12,6 +12,7 @@ import {
   Minimize2,
   X,
   RefreshCw,
+  Trash2,
   Clock,
   Layers,
   Code,
@@ -26,9 +27,21 @@ import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
 import { sshHostService } from '../services/sshHosts';
 import { SysInfoBar } from './sysinfo/SysInfoBar';
-import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem } from '@config-studio/ui';
+import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem, ConfirmModal } from '@config-studio/ui';
+import { TerminalHostLauncher } from './terminal/TerminalHostLauncher';
+import { EditHostModal } from './terminal/EditHostModal';
+import type { XTerminalHandle } from './terminal/XTerminal';
 
 const XTerminal = lazy(() => import('./terminal/XTerminal'));
+
+export interface TerminalSession {
+  id: string;
+  hostId: string;
+  host: SSHHost;
+  title: string;
+  status: 'connecting' | 'connected' | 'disconnected' | 'error';
+  errorMessage?: string;
+}
 
 interface BottomDockStripProps {
   panels: BottomPanelDef[];
@@ -75,37 +88,109 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
   const [auditCategory, setAuditCategory] = useState<string>('');
   const [copiedAi, setCopiedAi] = useState(false);
 
-  // SSH Hosts state for Terminal Tab
+  // SSH Hosts & Multi-Session Terminal State
   const [sshHosts, setSshHosts] = useState<SSHHost[]>(() => sshHostService.list());
-  const [selectedHostId, setSelectedHostId] = useState<string>(() => {
-    const last = sshHostService.getLastActiveHostId();
-    const list = sshHostService.list();
-    if (last && list.some((h) => h.id === last)) return last;
-    return list[0]?.id || '';
-  });
-
-  const hostOptions = useMemo<DropdownOption[]>(() => {
-    return sshHosts.map((h) => ({
-      value: h.id,
-      label: h.name || h.host,
-      subtitle: `${h.user}@${h.host}:${h.port || 22}`,
-      badge: h.authType === 'password' ? 'pass' : h.authType === 'vault' ? 'vault' : 'key',
-      badgeColor: 'blue',
-      icon: <Server size={12} />,
-      statusDot: 'online',
-    }));
-  }, [sshHosts]);
+  const [sessions, setSessions] = useState<TerminalSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>('launcher');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingHost, setEditingHost] = useState<SSHHost | null>(null);
+  const [hostToDelete, setHostToDelete] = useState<SSHHost | null>(null);
+  const termRefs = useRef<Record<string, XTerminalHandle | null>>({});
 
   const mountContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     return sshHostService.subscribe((updated) => {
       setSshHosts(updated);
-      if (updated.length > 0 && !updated.some((h) => h.id === selectedHostId)) {
-        setSelectedHostId(updated[0].id);
-      }
     });
-  }, [selectedHostId]);
+  }, []);
+
+  const handleSelectHost = useCallback((host: SSHHost) => {
+    setSessions((prev) => {
+      const existingForHost = prev.filter((s) => s.hostId === host.id);
+      const title =
+        existingForHost.length > 0
+          ? `${host.name || host.host} (${existingForHost.length + 1})`
+          : (host.name || host.host);
+
+      const newSess: TerminalSession = {
+        id: 'sess-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        hostId: host.id,
+        host,
+        title,
+        status: 'connecting',
+      };
+      setActiveSessionId(newSess.id);
+      sshHostService.setLastActiveHostId(host.id);
+      return [...prev, newSess];
+    });
+  }, []);
+
+  const handleCloseSession = useCallback((sessionId: string) => {
+    setSessions((prev) => {
+      const next = prev.filter((s) => s.id !== sessionId);
+      delete termRefs.current[sessionId];
+      if (activeSessionId === sessionId) {
+        if (next.length > 0) {
+          setActiveSessionId(next[next.length - 1].id);
+        } else {
+          setActiveSessionId('launcher');
+        }
+      }
+      return next;
+    });
+  }, [activeSessionId]);
+
+  const handleReconnectActive = useCallback(() => {
+    if (activeSessionId && activeSessionId !== 'launcher') {
+      termRefs.current[activeSessionId]?.reconnect();
+    }
+  }, [activeSessionId]);
+
+  const handleClearActive = useCallback(() => {
+    if (activeSessionId && activeSessionId !== 'launcher') {
+      termRefs.current[activeSessionId]?.clear();
+    }
+  }, [activeSessionId]);
+
+  const handleSessionStatusChange = useCallback(
+    (sessionId: string, status: TerminalSession['status'], error?: string) => {
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, status, errorMessage: error } : s))
+      );
+    },
+    []
+  );
+
+  const handleSaveHost = useCallback(
+    (hostToSave: SSHHost, autoConnect: boolean = false) => {
+      sshHostService.save(hostToSave);
+      if (autoConnect) {
+        handleSelectHost(hostToSave);
+      }
+    },
+    [handleSelectHost]
+  );
+
+  const handleDeleteHost = useCallback((host: SSHHost) => {
+    setHostToDelete(host);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (hostToDelete) {
+      sshHostService.delete(hostToDelete.id);
+      setSessions((prev) => {
+        const next = prev.filter((s) => s.hostId !== hostToDelete.id);
+        if (next.length === 0) {
+          setActiveSessionId('launcher');
+        } else if (!next.some((s) => s.id === activeSessionId)) {
+          setActiveSessionId(next[next.length - 1].id);
+        }
+        return next;
+      });
+      setHostToDelete(null);
+    }
+  }, [hostToDelete, activeSessionId]);
 
   useEffect(() => {
     const handleOpenSSH = (e: any) => {
@@ -113,19 +198,45 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
       const hosts = sshHostService.list();
       setSshHosts(hosts);
       if (detail && detail.id) {
-        setSelectedHostId(detail.id);
-        sshHostService.setLastActiveHostId(detail.id);
+        const match = hosts.find((h) => h.id === detail.id);
+        if (match) handleSelectHost(match);
       } else if (detail && detail.host) {
         const match = hosts.find((h) => h.host === detail.host);
-        if (match) {
-          setSelectedHostId(match.id);
-          sshHostService.setLastActiveHostId(match.id);
-        }
+        if (match) handleSelectHost(match);
       }
     };
     window.addEventListener('cs:open-ssh-terminal', handleOpenSSH);
     return () => window.removeEventListener('cs:open-ssh-terminal', handleOpenSSH);
-  }, []);
+  }, [handleSelectHost]);
+
+  const terminalSessionTabs = useMemo<PillTabItem[]>(() => {
+    const items: PillTabItem[] = [
+      {
+        id: 'launcher',
+        label: 'Хосты',
+        icon: <Server size={12} />,
+        closable: false,
+      },
+    ];
+
+    sessions.forEach((s) => {
+      let badgeColor: PillTabItem['badgeColor'] = 'gray';
+      if (s.status === 'connected') badgeColor = 'emerald';
+      else if (s.status === 'connecting') badgeColor = 'amber';
+      else if (s.status === 'error') badgeColor = 'red';
+
+      items.push({
+        id: s.id,
+        label: s.title,
+        icon: <Terminal size={12} />,
+        badge: s.status === 'connected' ? 'online' : s.status === 'connecting' ? '...' : undefined,
+        badgeColor,
+        closable: true,
+      });
+    });
+
+    return items;
+  }, [sessions]);
 
   // Load audit events for Output tab
   const loadRecentAudit = async (category = auditCategory) => {
@@ -204,7 +315,6 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
   const criticalIssuesCount = guardResult?.issues.filter((i) => i.severity === 'critical').length || 0;
   const warningIssuesCount = guardResult?.issues.filter((i) => i.severity === 'warning').length || 0;
-  const currentHost = sshHosts.find((h) => h.id === selectedHostId) || sshHosts[0];
 
   const dockTabItems = useMemo<PillTabItem[]>(() => {
     const items: PillTabItem[] = [
@@ -274,40 +384,59 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
           {/* Panel Header & Controls */}
           <div className="h-8 px-3 border-b border-base-border bg-base-surface flex items-center justify-between text-xs text-[var(--text-muted)]">
-            <div className="flex items-center space-x-2 min-w-0">
-              <span className="font-semibold text-[var(--text-primary)] truncate">
-                {activePanelId === 'terminal' && (t.dockTerminalTitle || 'SSH / Shell Терминал')}
-                {activePanelId === 'output' && t.dockOutputTitle}
-                {activePanelId === 'problems' && t.dockProblemsTitle}
-                {panels.find((p) => p.id === activePanelId)?.title}
-              </span>
-
-              {/* Host Selector for Terminal */}
-              {activePanelId === 'terminal' && sshHosts.length > 0 && (
-                <div className="flex items-center space-x-1.5 ml-2 w-48 sm:w-56">
-                  <Dropdown
-                    options={hostOptions}
-                    value={selectedHostId}
-                    onChange={(val) => {
-                      if (val) {
-                        setSelectedHostId(val);
-                        sshHostService.setLastActiveHostId(val);
-                      }
-                    }}
-                    placeholder="Выберите хост..."
-                    accentColor={accentColor}
+            <div className="flex items-center space-x-2 min-w-0 flex-1 overflow-x-auto custom-scrollbar">
+              {activePanelId === 'terminal' ? (
+                <div className="flex items-center space-x-2 min-w-0 flex-1 pr-2">
+                  <PillTabs
+                    items={terminalSessionTabs}
+                    activeId={activeSessionId}
+                    onChange={(id) => setActiveSessionId(id)}
+                    onClose={(id) => handleCloseSession(id)}
+                    onAdd={() => setActiveSessionId('launcher')}
+                    addTooltip="Выбор хостов / Новый терминал"
+                    variant="dock"
+                    size="sm"
                   />
                 </div>
+              ) : (
+                <span className="font-semibold text-[var(--text-primary)] truncate">
+                  {activePanelId === 'output' && t.dockOutputTitle}
+                  {activePanelId === 'problems' && t.dockProblemsTitle}
+                  {panels.find((p) => p.id === activePanelId)?.title}
+                </span>
               )}
 
               {activePanelId === 'problems' && (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-red-950/40 text-red-400 border border-red-800/40">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-red-950/40 text-red-400 border border-red-800/40 shrink-0">
                   {criticalIssuesCount} {t.dockErrors}, {warningIssuesCount} {t.dockWarnings}
                 </span>
               )}
             </div>
 
             <div className="flex items-center space-x-1 shrink-0">
+              {/* Terminal session action buttons */}
+              {activePanelId === 'terminal' && activeSessionId !== 'launcher' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleReconnectActive}
+                    className="p-1 hover:text-[var(--text-primary)] hover:bg-base-surface-hover/80 rounded transition cursor-pointer"
+                    title="Переподключиться к серверу"
+                  >
+                    <RefreshCw size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearActive}
+                    className="p-1 hover:text-[var(--text-primary)] hover:bg-base-surface-hover/80 rounded transition cursor-pointer"
+                    title="Очистить терминал"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                  <span className="w-px h-3 bg-base-border mx-1" />
+                </>
+              )}
+
               {activePanelId === 'output' && (
                 <>
                   <button
@@ -362,29 +491,62 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
           {/* Panel Body Content */}
           <div className="flex-1 overflow-auto relative p-0 font-mono text-xs custom-scrollbar">
-            {/* 1. Built-in: Terminal Tab */}
+            {/* 1. Built-in: Terminal Tab with Multi-Session & Host Launcher */}
             {activePanelId === 'terminal' && (
-              <div className="h-full w-full bg-base flex flex-col overflow-hidden">
-                {currentHost ? (
-                  <Suspense
-                    fallback={
-                      <div className="p-4 text-xs text-gray-400 flex items-center justify-center h-full">
-                        <RefreshCw size={14} className="animate-spin mr-2" />
-                        <span>Загрузка встроенного терминала...</span>
-                      </div>
-                    }
+              <div className="h-full w-full bg-base flex flex-col overflow-hidden relative">
+                {/* View A: Host Launcher (Image 2 Mockup) */}
+                <div
+                  className={`h-full w-full ${
+                    activeSessionId === 'launcher' ? 'block' : 'hidden'
+                  }`}
+                >
+                  <TerminalHostLauncher
+                    hosts={sshHosts}
+                    onSelectHost={handleSelectHost}
+                    onAddHost={() => {
+                      setEditingHost(null);
+                      setIsAddModalOpen(true);
+                    }}
+                    onEditHost={(host) => {
+                      setEditingHost(host);
+                      setIsAddModalOpen(true);
+                    }}
+                    onDeleteHost={handleDeleteHost}
+                    accentColor={accentColor}
+                  />
+                </div>
+
+                {/* View B: Active Sessions (Mounted and preserved with CSS hidden/block) */}
+                {sessions.map((sess) => (
+                  <div
+                    key={sess.id}
+                    className={`h-full w-full ${
+                      activeSessionId === sess.id ? 'block' : 'hidden'
+                    }`}
                   >
-                    <XTerminal host={currentHost} accentColor={accentColor} themeMode={themeMode} />
-                  </Suspense>
-                ) : (
-                  <div className="p-8 text-center text-xs text-gray-400 flex flex-col items-center justify-center h-full space-y-3">
-                    <Server size={32} className="text-gray-600 mb-1" />
-                    <div className="font-semibold text-gray-300">Нет сохраненных SSH-хостов</div>
-                    <div className="text-[11px] text-gray-500 max-w-sm">
-                      Добавьте SSH-сервер в настройках Config Studio (раздел «SSH & Хосты»), чтобы подключиться к нему в 1 клик.
-                    </div>
+                    <Suspense
+                      fallback={
+                        <div className="p-4 text-xs text-gray-400 flex items-center justify-center h-full">
+                          <RefreshCw size={14} className="animate-spin mr-2" />
+                          <span>Подключение к {sess.host.name || sess.host.host}...</span>
+                        </div>
+                      }
+                    >
+                      <XTerminal
+                        ref={(el) => {
+                          termRefs.current[sess.id] = el;
+                        }}
+                        host={sess.host}
+                        accentColor={accentColor}
+                        themeMode={themeMode}
+                        showHeader={false}
+                        isActive={isOpen && activePanelId === 'terminal' && activeSessionId === sess.id}
+                        onStatusChange={(status, err) => handleSessionStatusChange(sess.id, status, err)}
+                        onClose={() => handleCloseSession(sess.id)}
+                      />
+                    </Suspense>
                   </div>
-                )}
+                ))}
               </div>
             )}
 
@@ -623,6 +785,36 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
           </button>
         </div>
       </div>
+
+      {/* SSH Host Creation / Editing Modal */}
+      <EditHostModal
+        isOpen={isAddModalOpen}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditingHost(null);
+        }}
+        host={editingHost}
+        onSave={handleSaveHost}
+        accentColor={accentColor}
+      />
+
+      {/* Delete Host Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!hostToDelete}
+        onClose={() => setHostToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Удалить SSH-хост"
+        message={
+          <span>
+            Вы уверены, что хотите удалить SSH-хост{' '}
+            <strong className="text-[var(--text-primary)] font-semibold">
+              «{hostToDelete?.name || hostToDelete?.host}»
+            </strong>?
+          </span>
+        }
+        confirmText="Удалить"
+        variant="danger"
+      />
     </div>
   );
 };

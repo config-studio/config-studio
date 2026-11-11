@@ -1,15 +1,25 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import 'xterm/css/xterm.css';
 import { RefreshCw, Trash2, Power, Terminal as TerminalIcon, AlertCircle } from 'lucide-react';
 import { SSHHost } from '../../types';
 
-interface XTerminalProps {
+export interface XTerminalHandle {
+  reconnect: () => void;
+  clear: () => void;
+  fit: () => void;
+  focus: () => void;
+}
+
+export interface XTerminalProps {
   host: SSHHost;
   onClose?: () => void;
   accentColor?: string;
   themeMode?: 'dark' | 'light';
+  showHeader?: boolean;
+  isActive?: boolean;
+  onStatusChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'error', error?: string) => void;
 }
 
 const isDarkEffective = (mode?: 'dark' | 'light') => {
@@ -67,12 +77,15 @@ const getTerminalTheme = (isDark: boolean, accentColor: string) => {
   };
 };
 
-export const XTerminal: React.FC<XTerminalProps> = ({
+export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
   host,
   onClose,
   accentColor = '#00d2b4',
   themeMode,
-}) => {
+  showHeader = true,
+  isActive = true,
+  onStatusChange,
+}, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -81,6 +94,12 @@ export const XTerminal: React.FC<XTerminalProps> = ({
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isDark, setIsDark] = useState(() => isDarkEffective(themeMode));
+
+  const notifyStatus = useCallback((s: 'connecting' | 'connected' | 'disconnected' | 'error', err: string = '') => {
+    setStatus(s);
+    setErrorMessage(err);
+    onStatusChange?.(s, err);
+  }, [onStatusChange]);
 
   // Live dark/light theme observer
   useEffect(() => {
@@ -121,8 +140,7 @@ export const XTerminal: React.FC<XTerminalProps> = ({
       termRef.current = null;
     }
 
-    setStatus('connecting');
-    setErrorMessage('');
+    notifyStatus('connecting', '');
 
     const currentDark = isDarkEffective(themeMode);
 
@@ -174,14 +192,13 @@ export const XTerminal: React.FC<XTerminalProps> = ({
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === 'connected') {
-            setStatus('connected');
+            notifyStatus('connected');
             term.writeln(`\x1b[32mSSH Session Connected.\x1b[0m`);
           } else if (msg.type === 'error') {
-            setStatus('error');
-            setErrorMessage(msg.message || 'Connection failed');
+            notifyStatus('error', msg.message || 'Connection failed');
             term.writeln(`\r\n\x1b[31m[SSH Error] ${msg.message}\x1b[0m\r\n`);
           } else if (msg.type === 'exit') {
-            setStatus('disconnected');
+            notifyStatus('disconnected');
             term.writeln(`\r\n\x1b[33mSession terminated.\x1b[0m\r\n`);
           }
         } catch {
@@ -194,14 +211,13 @@ export const XTerminal: React.FC<XTerminalProps> = ({
     };
 
     ws.onerror = () => {
-      setStatus('error');
-      setErrorMessage('WebSocket connection failed');
+      notifyStatus('error', 'WebSocket connection failed');
       term.writeln(`\r\n\x1b[31m[Network Error] Failed to connect to SSH gateway.\x1b[0m\r\n`);
     };
 
     ws.onclose = () => {
       if (status !== 'error') {
-        setStatus('disconnected');
+        notifyStatus('disconnected');
       }
     };
 
@@ -218,7 +234,7 @@ export const XTerminal: React.FC<XTerminalProps> = ({
         ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
       }
     });
-  }, [host, accentColor]);
+  }, [host, accentColor, themeMode, notifyStatus, status]);
 
   // Initial connect
   useEffect(() => {
@@ -241,81 +257,101 @@ export const XTerminal: React.FC<XTerminalProps> = ({
     };
   }, [connect]);
 
-  const handleClear = () => {
-    termRef.current?.clear();
-  };
+  // Refit when tab becomes active
+  useEffect(() => {
+    if (isActive) {
+      const timer = setTimeout(() => {
+        fitAddonRef.current?.fit();
+        termRef.current?.focus();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [isActive]);
 
-  const handleReconnect = () => {
+  const handleClear = useCallback(() => {
+    termRef.current?.clear();
+  }, []);
+
+  const handleReconnect = useCallback(() => {
     connect();
-  };
+  }, [connect]);
+
+  useImperativeHandle(ref, () => ({
+    reconnect: handleReconnect,
+    clear: handleClear,
+    fit: () => fitAddonRef.current?.fit(),
+    focus: () => termRef.current?.focus(),
+  }), [handleReconnect, handleClear]);
 
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-[#0d1117] text-[var(--text-primary)] select-none overflow-hidden">
-      {/* Terminal Toolbar */}
-      <div className="h-7 px-2.5 bg-base-surface border-b border-base-border flex items-center justify-between text-xs shrink-0">
-        <div className="flex items-center space-x-2">
-          <TerminalIcon size={12} style={{ color: accentColor }} />
-          <span className="font-mono font-medium text-[var(--text-primary)]">
-            {host.name || host.host}
-          </span>
-          <span className="text-[var(--text-muted)] font-mono text-[11px]">
-            ({host.user}@{host.host}:{host.port || 22})
-          </span>
+      {/* Optional Standalone Terminal Toolbar */}
+      {showHeader && (
+        <div className="h-7 px-2.5 bg-base-surface border-b border-base-border flex items-center justify-between text-xs shrink-0">
+          <div className="flex items-center space-x-2">
+            <TerminalIcon size={12} style={{ color: accentColor }} />
+            <span className="font-mono font-medium text-[var(--text-primary)]">
+              {host.name || host.host}
+            </span>
+            <span className="text-[var(--text-muted)] font-mono text-[11px]">
+              ({host.user}@{host.host}:{host.port || 22})
+            </span>
 
-          {/* Status Indicator */}
-          {status === 'connected' && (
-            <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Онлайн</span>
-            </span>
-          )}
-          {status === 'connecting' && (
-            <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-              <span>Подключение...</span>
-            </span>
-          )}
-          {status === 'disconnected' && (
-            <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-black/10 dark:bg-white/10 text-[var(--text-muted)] font-medium">
-              <Power size={10} />
-              <span>Отключено</span>
-            </span>
-          )}
-          {status === 'error' && (
-            <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 font-medium" title={errorMessage}>
-              <AlertCircle size={10} />
-              <span>Ошибка</span>
-            </span>
-          )}
-        </div>
+            {/* Status Indicator */}
+            {status === 'connected' && (
+              <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Онлайн</span>
+              </span>
+            )}
+            {status === 'connecting' && (
+              <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                <span>Подключение...</span>
+              </span>
+            )}
+            {status === 'disconnected' && (
+              <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-black/10 dark:bg-white/10 text-[var(--text-muted)] font-medium">
+                <Power size={10} />
+                <span>Отключено</span>
+              </span>
+            )}
+            {status === 'error' && (
+              <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 font-medium" title={errorMessage}>
+                <AlertCircle size={10} />
+                <span>Ошибка</span>
+              </span>
+            )}
+          </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center space-x-1">
-          <button
-            onClick={handleReconnect}
-            className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/10 dark:hover:bg-white/10 rounded transition cursor-pointer"
-            title="Переподключиться"
-          >
-            <RefreshCw size={12} />
-          </button>
-          <button
-            onClick={handleClear}
-            className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/10 dark:hover:bg-white/10 rounded transition cursor-pointer"
-            title="Очистить терминал"
-          >
-            <Trash2 size={12} />
-          </button>
-          {onClose && (
+          {/* Action Buttons */}
+          <div className="flex items-center space-x-1">
             <button
-              onClick={onClose}
-              className="p-1 text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer"
-              title="Закрыть сессию"
+              onClick={handleReconnect}
+              className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/10 dark:hover:bg-white/10 rounded transition cursor-pointer"
+              title="Переподключиться"
             >
-              <Power size={12} />
+              <RefreshCw size={12} />
             </button>
-          )}
+            <button
+              onClick={handleClear}
+              className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/10 dark:hover:bg-white/10 rounded transition cursor-pointer"
+              title="Очистить терминал"
+            >
+              <Trash2 size={12} />
+            </button>
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-1 text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer"
+                title="Закрыть сессию"
+              >
+                <Power size={12} />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Terminal Viewport */}
       <div
@@ -325,6 +361,8 @@ export const XTerminal: React.FC<XTerminalProps> = ({
       />
     </div>
   );
-};
+});
+
+XTerminal.displayName = 'XTerminal';
 
 export default XTerminal;
