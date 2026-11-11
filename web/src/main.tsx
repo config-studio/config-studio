@@ -9,9 +9,14 @@ import './index.css';
 // Initialize global structured telemetry and crash capture
 telemetry.init();
 
-// Conditionally initialize real-time debug telemetry only when VITE_DEBUG_TELEMETRY === 'true'
-// Vite will completely tree-shake and omit this entire block in normal production releases!
-if (import.meta.env.VITE_DEBUG_TELEMETRY === 'true') {
+// Initialize real-time debug telemetry when enabled at build time or runtime
+const isDebugTelemetryActive =
+  import.meta.env.VITE_DEBUG_TELEMETRY === 'true' ||
+  (typeof window !== 'undefined' &&
+    (new URLSearchParams(window.location.search).has('debug') ||
+     localStorage.getItem('cs_debug_telemetry') === 'true'));
+
+if (isDebugTelemetryActive) {
   import('./debug/debugRecorder').then((m) => m.initDebugRecorder());
 }
 

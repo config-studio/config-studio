@@ -61,6 +61,20 @@ export function initDebugRecorder() {
   // 1. Setup Live Badge in DOM
   setupDebugBadge();
 
+  // 2. Immediate Startup Telemetry Event
+  recordDebugEvent(
+    'USER_ACTION',
+    'system',
+    'APP_STARTUP: Config Studio Session Started',
+    'window',
+    {
+      url: window.location.href,
+      locale: navigator.language,
+      screen: `${window.innerWidth}x${window.innerHeight}`,
+      time: new Date().toISOString(),
+    }
+  );
+
   // 2. Intercept DOM User Clicks
   window.addEventListener(
     'click',
@@ -361,14 +375,15 @@ function hookConfigStudioGlobal() {
 }
 
 function setupDebugBadge() {
+  if (document.getElementById('cs-live-debug-badge')) return;
   const badge = document.createElement('div');
   badge.id = 'cs-live-debug-badge';
   badge.style.cssText = `
     position: fixed;
-    bottom: 26px;
+    bottom: 34px;
     right: 14px;
     z-index: 99999;
-    background: rgba(15, 23, 42, 0.9);
+    background: rgba(15, 23, 42, 0.95);
     border: 1px solid rgba(239, 68, 68, 0.5);
     border-radius: 20px;
     padding: 3px 10px;
@@ -386,21 +401,24 @@ function setupDebugBadge() {
   `;
 
   badge.innerHTML = `
-    <span style="width: 7px; height: 7px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 6px #ef4444; animation: csPulse 1.5s infinite;"></span>
-    <span>DEBUG LIVE (:9998)</span>
+    <span class="cs-debug-pulse-dot" style="width: 7px; height: 7px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 6px #ef4444; animation: csPulse 1.5s infinite;"></span>
+    <span class="cs-debug-status-text">DEBUG LIVE (:9998)</span>
     <span id="cs-live-debug-count" style="background: rgba(239, 68, 68, 0.2); padding: 1px 5px; border-radius: 10px; font-size: 10px; color: #fecaca;">0</span>
   `;
 
   // Inject keyframe animation
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes csPulse {
-      0% { opacity: 0.4; transform: scale(0.9); }
-      50% { opacity: 1; transform: scale(1.1); }
-      100% { opacity: 0.4; transform: scale(0.9); }
-    }
-  `;
-  document.head.appendChild(style);
+  if (!document.getElementById('cs-debug-pulse-style')) {
+    const style = document.createElement('style');
+    style.id = 'cs-debug-pulse-style';
+    style.textContent = `
+      @keyframes csPulse {
+        0% { opacity: 0.4; transform: scale(0.9); }
+        50% { opacity: 1; transform: scale(1.1); }
+        100% { opacity: 0.4; transform: scale(0.9); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
   document.body.appendChild(badge);
 }
 
