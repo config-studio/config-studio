@@ -220,17 +220,16 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
     ];
 
     sessions.forEach((s) => {
-      let badgeColor: PillTabItem['badgeColor'] = 'gray';
-      if (s.status === 'connected') badgeColor = 'emerald';
-      else if (s.status === 'connecting') badgeColor = 'amber';
-      else if (s.status === 'error') badgeColor = 'red';
+      let statusDot: PillTabItem['statusDot'] = 'amber';
+      if (s.status === 'connected') statusDot = 'green';
+      else if (s.status === 'connecting') statusDot = 'amber';
+      else if (s.status === 'disconnected' || s.status === 'error') statusDot = 'red';
 
       items.push({
         id: s.id,
         label: s.title,
         icon: <Terminal size={12} />,
-        badge: s.status === 'connected' ? 'online' : s.status === 'connecting' ? '...' : undefined,
-        badgeColor,
+        statusDot,
         closable: true,
       });
     });
