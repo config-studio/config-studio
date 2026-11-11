@@ -94,20 +94,22 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
         />
       </div>
 
-      {/* Language Selector Dropdown (Dropdown v2) */}
+      {/* Language Selector Dropdown (Dropdown v2 - Constrained width) */}
       {availableLanguages.length > 1 && (
-        <Dropdown
-          label={
-            <span className="flex items-center space-x-2">
-              <Globe className="w-4 h-4 text-accent" />
-              <span>{t.language}</span>
-            </span>
-          }
-          value={language}
-          onChange={(val) => setLanguage(val)}
-          options={languageOptions}
-          size="md"
-        />
+        <div className="max-w-md">
+          <Dropdown
+            label={
+              <span className="flex items-center space-x-2">
+                <Globe className="w-4 h-4 text-accent" />
+                <span>{t.language}</span>
+              </span>
+            }
+            value={language}
+            onChange={(val) => setLanguage(val)}
+            options={languageOptions}
+            size="md"
+          />
+        </div>
       )}
 
       {/* Theme Mode Switch */}

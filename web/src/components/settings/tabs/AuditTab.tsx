@@ -323,24 +323,30 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
             const isExpanded = expandedAuditId === evt.id;
             const dateStr = new Date(evt.timestamp).toLocaleString();
             const isCritical = evt.severity === 'critical';
+            const isError = isCritical || evt.severity === 'error' || evt.category === 'error';
             const isWarn = evt.severity === 'warn';
 
             const catVariant =
-              evt.category === 'error' || evt.severity === 'error'
+              evt.category === 'error'
                 ? 'error'
                 : evt.category === 'network'
                 ? 'info'
                 : evt.category === 'system'
                 ? 'neutral'
-                : 'success';
+                : evt.category === 'plugin'
+                ? 'accent'
+                : 'neutral';
 
-            const sevVariant = isCritical ? 'error' : isWarn ? 'warning' : 'info';
+            const sevVariant = isError ? 'error' : isWarn ? 'warning' : 'info';
+
+            const isDuplicateTag =
+              Boolean(evt.category && evt.severity && evt.category.toLowerCase() === evt.severity.toLowerCase());
 
             return (
               <Card
                 key={evt.id}
                 className={`p-3 transition ${
-                  isCritical
+                  isCritical || evt.severity === 'error'
                     ? 'bg-red-500/5 border-red-500/30'
                     : isWarn
                     ? 'bg-amber-500/5 border-amber-500/30'
@@ -349,10 +355,12 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                    {/* Category badge */}
-                    <Badge variant={catVariant} size="sm" className="uppercase font-bold tracking-wider">
-                      {evt.category || 'user'}
-                    </Badge>
+                    {/* Category badge (omitted when identical to severity to prevent duplicate [ERROR][ERROR]) */}
+                    {!isDuplicateTag && (
+                      <Badge variant={catVariant} size="sm" className="uppercase font-bold tracking-wider">
+                        {evt.category || 'user'}
+                      </Badge>
+                    )}
 
                     {/* Severity badge */}
                     <Badge variant={sevVariant} size="sm" className="uppercase font-bold tracking-wider">

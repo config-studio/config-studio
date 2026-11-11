@@ -18,6 +18,7 @@ import {
   Code,
   Copy,
   Check,
+  CheckCircle2,
   Server,
 } from 'lucide-react';
 import { BottomPanelDef } from '../services/pluginLoader';
@@ -27,7 +28,7 @@ import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
 import { sshHostService } from '../services/sshHosts';
 import { SysInfoBar } from './sysinfo/SysInfoBar';
-import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem, ConfirmModal } from '@config-studio/ui';
+import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem, ConfirmModal, DiagnosticsCountBadge, StatusBadge } from '@config-studio/ui';
 import { TerminalHostLauncher } from './terminal/TerminalHostLauncher';
 import { EditHostModal } from './terminal/EditHostModal';
 import type { XTerminalHandle } from './terminal/XTerminal';
@@ -406,9 +407,12 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
               )}
 
               {activePanelId === 'problems' && (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-red-950/40 text-red-400 border border-red-800/40 shrink-0">
-                  {criticalIssuesCount} {t.dockErrors}, {warningIssuesCount} {t.dockWarnings}
-                </span>
+                <DiagnosticsCountBadge
+                  errors={criticalIssuesCount}
+                  warnings={warningIssuesCount}
+                  errorsLabel={t.dockErrors}
+                  warningsLabel={t.dockWarnings}
+                />
               )}
             </div>
 
@@ -559,15 +563,15 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                       onClick={() => onJumpToLine?.(iss.line, iss.column)}
                       className={`flex items-start justify-between p-2 rounded-lg cursor-pointer transition border ${
                         iss.severity === 'critical'
-                          ? 'bg-red-950/20 border-red-900/40 hover:bg-red-900/30 text-red-200'
-                          : 'bg-amber-950/20 border-amber-900/40 hover:bg-amber-900/30 text-amber-200'
+                          ? 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/15 text-rose-800 dark:text-rose-200'
+                          : 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15 text-amber-800 dark:text-amber-200'
                       }`}
                     >
                       <div className="flex items-start space-x-2">
                         <AlertCircle
                           size={14}
                           className={`shrink-0 mt-0.5 ${
-                            iss.severity === 'critical' ? 'text-red-400' : 'text-amber-400'
+                            iss.severity === 'critical' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
                           }`}
                         />
                         <div>
@@ -587,9 +591,9 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                     </div>
                   ))
                 ) : (
-                  <div className="py-8 text-center text-gray-500 flex flex-col items-center justify-center space-y-1">
-                    <AlertCircle size={20} className="text-emerald-500/60" />
-                    <span>{t.dockNoProblems}</span>
+                  <div className="py-8 text-center text-[var(--text-muted)] flex flex-col items-center justify-center space-y-1.5">
+                    <CheckCircle2 size={22} className="text-emerald-500" />
+                    <span className="text-xs">{t.dockNoProblems}</span>
                   </div>
                 )}
               </div>

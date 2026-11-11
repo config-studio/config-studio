@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { X, Plus, Zap } from 'lucide-react';
+import { StatusDot, StatusDotType } from './StatusDot';
 
 export interface PillTabItem {
   id: string;
@@ -7,7 +8,7 @@ export interface PillTabItem {
   icon?: React.ReactNode;
   badge?: React.ReactNode;
   badgeColor?: 'accent' | 'red' | 'amber' | 'emerald' | 'gray';
-  statusDot?: 'green' | 'amber' | 'red';
+  statusDot?: StatusDotType;
   isDirty?: boolean;
   closable?: boolean;
   disabled?: boolean;
@@ -138,25 +139,8 @@ export const PillTabs: React.FC<PillTabsProps> = ({
                 </span>
               )}
 
-              {/* Status Glowing Dot (Fixed 8px size, never jumps) */}
-              {tab.statusDot && (
-                <span
-                  className={`w-2 h-2 rounded-full shrink-0 transition-all ${
-                    tab.statusDot === 'green'
-                      ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.85)]'
-                      : tab.statusDot === 'amber'
-                      ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.85)] animate-pulse'
-                      : 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.85)]'
-                  }`}
-                  title={
-                    tab.statusDot === 'green'
-                      ? 'Подключено'
-                      : tab.statusDot === 'amber'
-                      ? 'Подключение...'
-                      : 'Отключено / Ошибка'
-                  }
-                />
-              )}
+              {/* Status Dot (Fixed size, crisp ring, no blurry glow) */}
+              {tab.statusDot && <StatusDot status={tab.statusDot} size="sm" />}
 
               <span className={`truncate ${variant === 'segmented' ? 'min-w-0' : 'max-w-[160px]'}`}>{tab.label}</span>
 

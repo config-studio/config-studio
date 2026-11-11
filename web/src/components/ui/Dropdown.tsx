@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Check, Search, X } from 'lucide-react';
+import { StatusDot, StatusDotType } from './StatusDot';
 
 export type DropdownBadgeColor = 'default' | 'green' | 'blue' | 'purple' | 'amber' | 'rose';
 
@@ -12,7 +13,7 @@ export interface DropdownOption {
   badge?: string;
   badgeColor?: DropdownBadgeColor;
   disabled?: boolean;
-  statusDot?: 'online' | 'offline' | 'warning';
+  statusDot?: StatusDotType;
   latency?: string | number;
   action?: {
     icon?: React.ReactNode;
@@ -223,17 +224,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
       <div className="flex items-center justify-between w-full min-w-0">
         <div className="flex items-center space-x-2.5 min-w-0 flex-1">
           {/* Status Dot */}
-          {opt.statusDot && (
-            <span
-              className={`w-2 h-2 rounded-full shrink-0 ${
-                opt.statusDot === 'online'
-                  ? 'bg-emerald-400 shadow-sm shadow-emerald-500/50'
-                  : opt.statusDot === 'warning'
-                  ? 'bg-amber-400'
-                  : 'bg-rose-500'
-              }`}
-            />
-          )}
+          {opt.statusDot && <StatusDot status={opt.statusDot} size="sm" />}
 
           {/* Option Icon */}
           {opt.icon && <span className="shrink-0 text-[var(--text-muted)]">{opt.icon}</span>}
@@ -312,17 +303,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
               renderSelected(selectedOption)
             ) : (
               <>
-                {selectedOption.statusDot && (
-                  <span
-                    className={`w-2 h-2 rounded-full shrink-0 ${
-                      selectedOption.statusDot === 'online'
-                        ? 'bg-emerald-400 shadow-sm shadow-emerald-500/50'
-                        : selectedOption.statusDot === 'warning'
-                        ? 'bg-amber-400'
-                        : 'bg-rose-500'
-                    }`}
-                  />
-                )}
+                {selectedOption.statusDot && <StatusDot status={selectedOption.statusDot} size="sm" />}
                 {selectedOption.icon && <span className="shrink-0 text-[var(--text-muted)]">{selectedOption.icon}</span>}
                 <div className="truncate flex items-center space-x-1.5 min-w-0 flex-1">
                   <span className="truncate text-[var(--text-primary)] font-medium">{selectedOption.label}</span>
