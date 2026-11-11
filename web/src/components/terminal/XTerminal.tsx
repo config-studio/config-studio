@@ -95,15 +95,28 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isDark, setIsDark] = useState(() => isDarkEffective(themeMode));
 
+  const isDisposedRef = useRef(false);
+  const onStatusChangeRef = useRef(onStatusChange);
+  useEffect(() => {
+    onStatusChangeRef.current = onStatusChange;
+  }, [onStatusChange]);
+
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
   const notifyStatus = useCallback((s: 'connecting' | 'connected' | 'disconnected' | 'error', err: string = '') => {
     setStatus(s);
+    statusRef.current = s;
     setErrorMessage(err);
-    onStatusChange?.(s, err);
-  }, [onStatusChange]);
+    onStatusChangeRef.current?.(s, err);
+  }, []);
 
   // Safe dimension-aware fit wrapper that prevents 'dimensions of undefined' layout exceptions
   const safeFit = useCallback(() => {
     try {
+      if (isDisposedRef.current) return;
       const el = containerRef.current;
       if (!el || el.clientWidth === 0 || el.clientHeight === 0) return;
       if (!termRef.current?.element) return;
@@ -140,17 +153,25 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
   }, [themeMode, accentColor]);
 
   const connect = useCallback(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
     // Cleanup previous connection if any
+    isDisposedRef.current = false;
     if (wsRef.current) {
-      wsRef.current.close();
+      try {
+        wsRef.current.close();
+      } catch {}
       wsRef.current = null;
     }
     if (termRef.current) {
-      termRef.current.dispose();
+      try {
+        termRef.current.dispose();
+      } catch {}
       termRef.current = null;
     }
+    fitAddonRef.current = null;
+    container.innerHTML = '';
 
     notifyStatus('connecting', '');
 
@@ -167,7 +188,7 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
 
-    term.open(containerRef.current);
+    term.open(container);
     requestAnimationFrame(() => {
       safeFit();
     });
@@ -175,7 +196,7 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
     termRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    term.writeln(`\x1b[36m[Config Studio SSH]\x1b[0m Connecting to ${host.user}@${host.host}:${host.port}...`);
+    term.writeln(`\x1b[36m[Config Studio SSH]\x1b[0m Connecting to ${host.user}@${host.host}:${host.port || 22}...`);
 
     // Setup WebSocket
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -195,29 +216,42 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
         password: host.password,
         privateKey: host.privateKey,
         passphrase: host.passphrase,
-        cols: term.cols,
-        rows: term.rows,
+        cols: term.cols || 80,
+        rows: term.rows || 24,
       };
       ws.send(JSON.stringify(initPayload));
     };
 
     ws.onmessage = (event) => {
       if (typeof event.data === 'string') {
+        const text = event.data;
         try {
-          const msg = JSON.parse(event.data);
+          const msg = JSON.parse(text);
           if (msg.type === 'connected') {
             notifyStatus('connected');
             term.writeln(`\x1b[32mSSH Session Connected.\x1b[0m`);
+            return;
           } else if (msg.type === 'error') {
             notifyStatus('error', msg.message || 'Connection failed');
             term.writeln(`\r\n\x1b[31m[SSH Error] ${msg.message}\x1b[0m\r\n`);
+            return;
           } else if (msg.type === 'exit') {
             notifyStatus('disconnected');
             term.writeln(`\r\n\x1b[33mSession terminated.\x1b[0m\r\n`);
+            return;
           }
         } catch {
-          term.write(event.data);
+          // Plain text response from Go backend
         }
+
+        // Check for server-side status banners sent as plain text
+        if (text.includes('SSH Session Connected')) {
+          notifyStatus('connected');
+        } else if (text.includes('[SSH Connection Failed]') || text.includes('[SSH Error]')) {
+          notifyStatus('error', 'Connection failed');
+        }
+
+        term.write(text);
       } else {
         const u8 = new Uint8Array(event.data);
         term.write(u8);
@@ -230,7 +264,7 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
     };
 
     ws.onclose = () => {
-      if (status !== 'error') {
+      if (statusRef.current !== 'error') {
         notifyStatus('disconnected');
       }
     };
@@ -248,29 +282,40 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
         ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
       }
     });
-  }, [host, accentColor, themeMode, notifyStatus, status]);
+  }, [host.host, host.port, host.user, host.authType, host.password, host.privateKey, host.passphrase, accentColor, themeMode, notifyStatus, safeFit]);
 
-  // Initial connect & window resize handling
+  // Connect on mount or when host connection attributes change
   useEffect(() => {
     connect();
 
+    return () => {
+      isDisposedRef.current = true;
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch {}
+        wsRef.current = null;
+      }
+      if (termRef.current) {
+        try {
+          termRef.current.dispose();
+        } catch {}
+        termRef.current = null;
+      }
+      fitAddonRef.current = null;
+    };
+  }, [connect]);
+
+  // Window resize handling (isolated from connection lifecycle)
+  useEffect(() => {
     const handleResize = () => {
       if (!isActive) return;
       safeFit();
     };
 
     window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      if (termRef.current) {
-        termRef.current.dispose();
-      }
-    };
-  }, [connect, isActive, safeFit]);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isActive, safeFit]);
 
   // ResizeObserver for dynamic dock height changes and container resizing
   useEffect(() => {

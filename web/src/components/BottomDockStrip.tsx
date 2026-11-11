@@ -156,9 +156,13 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
   const handleSessionStatusChange = useCallback(
     (sessionId: string, status: TerminalSession['status'], error?: string) => {
-      setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, status, errorMessage: error } : s))
-      );
+      setSessions((prev) => {
+        const target = prev.find((s) => s.id === sessionId);
+        if (target && target.status === status && target.errorMessage === (error || '')) {
+          return prev;
+        }
+        return prev.map((s) => (s.id === sessionId ? { ...s, status, errorMessage: error || '' } : s));
+      });
     },
     []
   );
