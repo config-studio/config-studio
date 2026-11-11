@@ -88,9 +88,35 @@ export interface DiagnosticsCountBadgeProps {
   className?: string;
 }
 
+function getPluralText(count: number, label?: string, type: 'error' | 'warning' = 'error'): string {
+  if (label && label !== 'ошибок' && label !== 'предупреждений' && label !== 'errors' && label !== 'warnings') {
+    return `${count} ${label}`;
+  }
+  if (label === 'errors' || label === 'warnings') {
+    const word = type === 'error' ? (count === 1 ? 'error' : 'errors') : (count === 1 ? 'warning' : 'warnings');
+    return `${count} ${word}`;
+  }
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  let form: string;
+  if (type === 'error') {
+    if (mod100 >= 11 && mod100 <= 19) form = 'ошибок';
+    else if (mod10 === 1) form = 'ошибка';
+    else if (mod10 >= 2 && mod10 <= 4) form = 'ошибки';
+    else form = 'ошибок';
+  } else {
+    if (mod100 >= 11 && mod100 <= 19) form = 'предупреждений';
+    else if (mod10 === 1) form = 'предупреждение';
+    else if (mod10 >= 2 && mod10 <= 4) form = 'предупреждения';
+    else form = 'предупреждений';
+  }
+  return `${count} ${form}`;
+}
+
 /**
  * DiagnosticsCountBadge: Dedicated badge for syntax and guard diagnostics count.
- * Solves the issue where 0 errors / 0 warnings was displayed inside a red error badge.
+ * Solves the issue where 0 errors / 0 warnings was displayed inside a red error badge,
+ * and ensures accurate grammatical declension for Russian and English.
  */
 export const DiagnosticsCountBadge: React.FC<DiagnosticsCountBadgeProps> = ({
   errors,
@@ -114,6 +140,9 @@ export const DiagnosticsCountBadge: React.FC<DiagnosticsCountBadgeProps> = ({
     Icon = AlertTriangle;
   }
 
+  const errorsText = getPluralText(errors, errorsLabel, 'error');
+  const warningsText = getPluralText(warnings, warningsLabel, 'warning');
+
   return (
     <StatusBadge
       status={status}
@@ -121,7 +150,7 @@ export const DiagnosticsCountBadge: React.FC<DiagnosticsCountBadgeProps> = ({
       icon={<Icon size={11} className="shrink-0" />}
       className={className}
     >
-      {errors} {errorsLabel}, {warnings} {warningsLabel}
+      {errorsText}, {warningsText}
     </StatusBadge>
   );
 };
