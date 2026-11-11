@@ -214,7 +214,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
       {isOpen && (
         <div
           style={{ height: isMaximized ? 'calc(100vh - 120px)' : `${height}px` }}
-          className="flex flex-col overflow-hidden relative border-b border-base-border bg-[#0d1117]"
+          className="flex flex-col overflow-hidden relative border-b border-base-border bg-base"
         >
           {/* Top Drag Splitter */}
           <div
@@ -226,7 +226,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
           </div>
 
           {/* Panel Header & Controls */}
-          <div className="h-8 px-3 border-b border-base-border bg-[#161b22] flex items-center justify-between text-xs text-[#8b949e]">
+          <div className="h-8 px-3 border-b border-base-border bg-base-surface flex items-center justify-between text-xs text-[var(--text-muted)]">
             <div className="flex items-center space-x-2 min-w-0">
               <span className="font-semibold text-gray-200 truncate">
                 {activePanelId === 'terminal' && (t.dockTerminalTitle || 'SSH / Shell Терминал')}
@@ -276,7 +276,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                     type="button"
                     onClick={() => loadRecentAudit()}
                     disabled={auditLoading}
-                    className="p-1 hover:text-white hover:bg-white/5 rounded transition"
+                    className="p-1 hover:text-white hover:bg-base-surface-hover/80 rounded transition"
                     title={t.dockRefreshTooltip}
                   >
                     <RefreshCw size={13} className={auditLoading ? 'animate-spin' : ''} />
@@ -287,7 +287,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
               <button
                 type="button"
                 onClick={() => setHeight((h) => (h <= 240 ? 420 : 240))}
-                className="p-1 hover:text-white hover:bg-white/5 rounded transition"
+                className="p-1 hover:text-white hover:bg-base-surface-hover/80 rounded transition"
                 title={language === 'en' ? (height <= 240 ? 'Expand height' : 'Shrink height') : (height <= 240 ? 'Увеличить высоту' : 'Уменьшить высоту')}
               >
                 {height <= 240 ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -296,7 +296,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
               <button
                 type="button"
                 onClick={() => setIsMaximized((m) => !m)}
-                className="p-1 hover:text-white hover:bg-white/5 rounded transition"
+                className="p-1 hover:text-white hover:bg-base-surface-hover/80 rounded transition"
                 title={isMaximized ? t.dockRestoreTooltip : t.dockMaximizeTooltip}
               >
                 {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
@@ -317,7 +317,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
           <div className="flex-1 overflow-auto relative p-0 font-mono text-xs custom-scrollbar">
             {/* 1. Built-in: Terminal Tab */}
             {activePanelId === 'terminal' && (
-              <div className="h-full w-full bg-[#0d1117] flex flex-col overflow-hidden">
+              <div className="h-full w-full bg-base flex flex-col overflow-hidden">
                 {currentHost ? (
                   <Suspense
                     fallback={
@@ -365,14 +365,14 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                         <div>
                           <div className="font-semibold text-xs">{iss.message}</div>
                           {iss.snippet && (
-                            <pre className="text-[11px] text-[#8b949e] mt-1 bg-black/40 p-1.5 rounded border border-[#30363d] overflow-x-auto">
+                            <pre className="text-[11px] text-[var(--text-muted)] mt-1 bg-black/40 p-1.5 rounded border border-base-border overflow-x-auto">
                               {iss.snippet}
                             </pre>
                           )}
                         </div>
                       </div>
                       <div className="text-right shrink-0 pl-3">
-                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-black/40 text-cyan-400 border border-[#30363d]">
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-black/40 text-cyan-400 border border-base-border">
                           {iss.file}:{iss.line}:{iss.column}
                         </span>
                       </div>
@@ -472,12 +472,12 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                   recentAudit.map((evt) => (
                     <div
                       key={evt.id}
-                      className="flex flex-col py-1 px-2 hover:bg-white/5 rounded text-[11px] text-[#c9d1d9] border-b border-[#21262d]/50"
+                      className="flex flex-col py-1 px-2 hover:bg-base-surface-hover/80 rounded text-[11px] text-[var(--text-secondary)] border-b border-[#21262d]/50"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2 truncate">
-                          <Clock size={11} className="text-[#8b949e] shrink-0" />
-                          <span className="text-[#8b949e] shrink-0 font-mono text-[10px]">
+                          <Clock size={11} className="text-[var(--text-muted)] shrink-0" />
+                          <span className="text-[var(--text-muted)] shrink-0 font-mono text-[10px]">
                             {new Date(evt.timestamp).toLocaleTimeString()}
                           </span>
                           <span
@@ -506,7 +506,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                           </span>
                           <span className="font-mono text-gray-200 truncate">{evt.target}</span>
                         </div>
-                        <span className="text-[#8b949e] text-[10px] shrink-0 font-mono">
+                        <span className="text-[var(--text-muted)] text-[10px] shrink-0 font-mono">
                           {evt.user} {evt.source ? `[${evt.source}]` : ''}
                         </span>
                       </div>
@@ -538,7 +538,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
       )}
 
       {/* The Always-Visible Strip Bar */}
-      <div className="min-h-[32px] sm:min-h-[28px] h-8 sm:h-7 px-2 bg-[#161b22] border-t border-[#30363d] flex items-center justify-between text-xs select-none shrink-0 pb-[env(safe-area-inset-bottom)]">
+      <div className="min-h-[32px] sm:min-h-[28px] h-8 sm:h-7 px-2 bg-base-surface border-t border-base-border flex items-center justify-between text-xs select-none shrink-0 pb-[env(safe-area-inset-bottom)]">
         {/* Left: Tab Buttons */}
         <ScrollArea
           orientation="horizontal"
@@ -552,7 +552,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
             className={`flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
               isOpen && activePanelId === 'terminal'
                 ? 'bg-accent text-gray-900 shadow-sm'
-                : 'text-[#8b949e] hover:text-[#c9d1d9] hover:bg-white/5'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-base-surface-hover/80'
             }`}
             style={isOpen && activePanelId === 'terminal' ? { backgroundColor: accentColor } : {}}
           >
@@ -571,7 +571,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                 className={`flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                   isActive
                     ? 'bg-accent text-gray-900 shadow-sm'
-                    : 'text-[#8b949e] hover:text-[#c9d1d9] hover:bg-white/5'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-base-surface-hover/80'
                 }`}
                 style={isActive ? { backgroundColor: accentColor } : {}}
               >
@@ -593,7 +593,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
             className={`flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
               isOpen && activePanelId === 'output'
                 ? 'bg-accent text-gray-900 shadow-sm'
-                : 'text-[#8b949e] hover:text-[#c9d1d9] hover:bg-white/5'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-base-surface-hover/80'
             }`}
             style={isOpen && activePanelId === 'output' ? { backgroundColor: accentColor } : {}}
           >
@@ -610,7 +610,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                 ? 'bg-accent text-gray-900 shadow-sm'
                 : criticalIssuesCount > 0
                 ? 'text-red-400 bg-red-950/40 border border-red-800/40'
-                : 'text-[#8b949e] hover:text-[#c9d1d9] hover:bg-white/5'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-base-surface-hover/80'
             }`}
             style={isOpen && activePanelId === 'problems' ? { backgroundColor: accentColor } : {}}
           >
@@ -625,7 +625,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
         </ScrollArea>
 
         {/* Right: SysInfo & File Status & Hotkey Hint */}
-        <div className="flex items-center space-x-2.5 sm:space-x-3 text-[11px] text-[#8b949e] font-mono shrink-0 pl-2">
+        <div className="flex items-center space-x-2.5 sm:space-x-3 text-[11px] text-[var(--text-muted)] font-mono shrink-0 pl-2">
           {/* SysInfo Hardware Telemetry (CPU / RAM / Disks / Uptime) */}
           <SysInfoBar language={language} accentColor={accentColor} />
 

@@ -162,7 +162,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
       {/* Header action bar */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-white">Управление SSH-хостами и ключами</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Управление SSH-хостами и ключами</h3>
           <p className="text-xs text-gray-400">
             Сохраненные серверы для терминала, SFTP и управления конфигурациями
           </p>
@@ -172,7 +172,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
             type="button"
             onClick={handleGenerateKey}
             disabled={isGenerating}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 transition"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs bg-black/5 dark:bg-white/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-gray-700 transition"
           >
             <Key size={13} />
             <span>{isGenerating ? 'Генерация...' : 'Создать ED25519 ключ'}</span>
@@ -201,17 +201,17 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
 
       {/* Generated Key Modal / Card */}
       {generatedKey && (
-        <div className="p-4 rounded-xl bg-gray-900 border border-gray-700 space-y-3">
+        <div className="p-4 rounded-xl bg-gray-900 border border-base-border space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Shield size={15} className="text-emerald-400" />
-              <span className="text-xs font-semibold text-white">
+              <span className="text-xs font-semibold text-[var(--text-primary)]">
                 Новая ключевая пара ED25519 сгенерирована
               </span>
             </div>
             <button
               onClick={() => setGeneratedKey(null)}
-              className="text-xs text-gray-400 hover:text-white"
+              className="text-xs text-gray-400 hover:text-[var(--text-primary)]"
             >
               Закрыть
             </button>
@@ -225,11 +225,11 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                 type="text"
                 readOnly
                 value={generatedKey.publicKey}
-                className="flex-1 px-2.5 py-1.5 bg-[#0d1117] border border-gray-800 rounded font-mono text-xs text-emerald-300 select-all"
+                className="flex-1 px-2.5 py-1.5 bg-base-surface border border-base-border rounded font-mono text-xs text-emerald-300 select-all"
               />
               <button
                 onClick={handleCopyPublicKey}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-white rounded flex items-center space-x-1"
+                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-[var(--text-primary)] rounded flex items-center space-x-1"
               >
                 {copiedKey ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
                 <span>{copiedKey ? 'Скопировано' : 'Копировать'}</span>
@@ -241,15 +241,15 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
 
       {/* Host Editing Form */}
       {isEditing && (
-        <form onSubmit={handleSaveHost} className="p-4 rounded-xl bg-[#0d1117] border border-gray-700 space-y-3">
-          <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-            <span className="text-xs font-semibold text-white">
+        <form onSubmit={handleSaveHost} className="p-4 rounded-xl bg-base-surface border border-base-border space-y-3">
+          <div className="flex items-center justify-between border-b border-base-border pb-2">
+            <span className="text-xs font-semibold text-[var(--text-primary)]">
               {editingHost.id ? 'Редактировать хост' : 'Новый SSH-хост'}
             </span>
             <button
               type="button"
               onClick={() => setIsEditing(false)}
-              className="text-xs text-gray-400 hover:text-white"
+              className="text-xs text-gray-400 hover:text-[var(--text-primary)]"
             >
               Отмена
             </button>
@@ -263,7 +263,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                 value={editingHost.name || ''}
                 onChange={(e) => setEditingHost({ ...editingHost, name: e.target.value })}
                 placeholder="Production Web"
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)]"
               />
             </div>
             <div>
@@ -274,7 +274,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                 value={editingHost.host || ''}
                 onChange={(e) => setEditingHost({ ...editingHost, host: e.target.value })}
                 placeholder="192.168.1.100 или server.com"
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)]"
               />
             </div>
           </div>
@@ -286,7 +286,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                 type="number"
                 value={editingHost.port || 22}
                 onChange={(e) => setEditingHost({ ...editingHost, port: Number(e.target.value) })}
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)]"
               />
             </div>
             <div>
@@ -297,7 +297,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                 value={editingHost.user || ''}
                 onChange={(e) => setEditingHost({ ...editingHost, user: e.target.value })}
                 placeholder="root"
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)]"
               />
             </div>
             <div>
@@ -305,7 +305,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
               <select
                 value={editingHost.authType || 'password'}
                 onChange={(e) => setEditingHost({ ...editingHost, authType: e.target.value as any })}
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)]"
               >
                 <option value="password">Пароль</option>
                 <option value="private_key">SSH Ключ (PEM)</option>
@@ -323,7 +323,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                 value={editingHost.password || ''}
                 onChange={(e) => setEditingHost({ ...editingHost, password: e.target.value })}
                 placeholder="Введите пароль SSH"
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)]"
               />
             </div>
           )}
@@ -337,7 +337,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                   value={editingHost.privateKey || ''}
                   onChange={(e) => setEditingHost({ ...editingHost, privateKey: e.target.value })}
                   placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..."
-                  className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs font-mono text-white"
+                  className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs font-mono text-[var(--text-primary)]"
                 />
               </div>
               <div>
@@ -346,7 +346,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                   type="password"
                   value={editingHost.passphrase || ''}
                   onChange={(e) => setEditingHost({ ...editingHost, passphrase: e.target.value })}
-                  className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                  className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)]"
                 />
               </div>
             </div>
@@ -358,7 +358,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
               <select
                 value={editingHost.identityId || ''}
                 onChange={(e) => setEditingHost({ ...editingHost, identityId: e.target.value })}
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)]"
               >
                 <option value="">Выберите секрет из хранилища...</option>
                 {identities.map((id) => (
@@ -377,7 +377,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
               value={editingHost.defaultPath || ''}
               onChange={(e) => setEditingHost({ ...editingHost, defaultPath: e.target.value })}
               placeholder="/etc или /var/www"
-              className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white font-mono"
+              className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)] font-mono"
             />
           </div>
 
@@ -385,7 +385,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
             <button
               type="button"
               onClick={() => setIsEditing(false)}
-              className="px-3 py-1.5 text-xs text-gray-400 hover:text-white"
+              className="px-3 py-1.5 text-xs text-gray-400 hover:text-[var(--text-primary)]"
             >
               Отмена
             </button>
@@ -415,18 +415,18 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
             return (
               <div
                 key={host.id}
-                className="p-3.5 bg-[#0d1117] rounded-xl border border-gray-800 flex items-center justify-between hover:border-gray-700 transition"
+                className="p-3.5 bg-base-surface rounded-xl border border-base-border flex items-center justify-between hover:border-base-border transition"
               >
                 <div className="flex items-center space-x-3 min-w-0">
-                  <div className="p-2 rounded-lg bg-gray-800 text-gray-300 shrink-0">
+                  <div className="p-2 rounded-lg bg-black/5 dark:bg-white/10 text-[var(--text-secondary)] shrink-0">
                     <Server size={16} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs font-semibold text-white truncate">
+                      <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
                         {host.name || host.host}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-800 text-gray-400 font-mono">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-black/5 dark:bg-white/10 text-[var(--text-muted)] font-mono">
                         {host.user}@{host.host}:{host.port || 22}
                       </span>
                       <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/10 text-blue-400">
@@ -467,7 +467,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                     type="button"
                     onClick={() => handleTestConnection(host)}
                     disabled={isTesting}
-                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition"
+                    className="p-1.5 text-gray-400 hover:text-[var(--text-primary)] hover:bg-gray-800 rounded transition"
                     title="Проверить связь с сервером"
                   >
                     <RefreshCw size={13} className={isTesting ? 'animate-spin' : ''} />
@@ -487,7 +487,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => handleEdit(host)}
-                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition"
+                    className="p-1.5 text-gray-400 hover:text-[var(--text-primary)] hover:bg-gray-800 rounded transition"
                     title="Редактировать"
                   >
                     <Edit2 size={13} />
@@ -516,7 +516,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
         message={
           <span>
             Вы уверены, что хотите удалить SSH-хост{' '}
-            <strong className="text-white font-semibold">
+            <strong className="text-[var(--text-primary)] font-semibold">
               «{hostToDelete?.name || hostToDelete?.host}»
             </strong>?
           </span>

@@ -645,12 +645,12 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
             })}
           </ScrollArea>
 
-          {/* Search Input */}
+          {/* Search Input - Fixed width protection (UI-003) */}
           <SearchInput
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder={t.searchSecretsPlaceholder || 'Поиск по названию или ID...'}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-64 shrink-0"
             inputClassName="bg-black/20"
           />
         </div>

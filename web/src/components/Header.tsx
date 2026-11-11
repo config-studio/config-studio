@@ -358,7 +358,7 @@ export const Header: React.FC<HeaderProps> = ({
   );
 
   return (
-    <header className="relative h-14 bg-base-surface border-b border-base-border px-3 sm:px-4 flex items-center justify-between select-none z-30">
+    <header className="relative h-14 bg-base-surface border-b border-base-border px-3 sm:px-4 flex md:grid md:grid-cols-[1fr_auto_1fr] items-center justify-between select-none z-30">
       {/* Mobile Search Overlay Bar */}
       {isMobileSearchOpen && (
         <div
@@ -412,7 +412,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
       {/* Left: Mobile Hamburger, Branding & Path */}
-      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 justify-self-start">
         {onToggleMobileFiles && (
           <button
             type="button"
@@ -455,10 +455,10 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Center: Quick File Search with Autocomplete Dropdown */}
+      {/* Center: Quick File Search with Autocomplete Dropdown - STRICTLY CENTERED (UI-001) */}
       <div
         ref={searchContainerRef}
-        className="hidden md:flex items-center relative w-72 lg:w-96 mx-4"
+        className="hidden md:flex items-center justify-self-center relative w-72 lg:w-96 mx-4"
       >
         <Search className="w-4 h-4 absolute left-3 text-gray-400 pointer-events-none z-10" />
         <input
@@ -499,7 +499,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
+      <div className="flex items-center space-x-1 sm:space-x-2 shrink-0 justify-self-end">
         {/* Mobile search trigger icon */}
         <button
           type="button"
