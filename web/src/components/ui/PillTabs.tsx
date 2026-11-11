@@ -82,7 +82,7 @@ export const PillTabs: React.FC<PillTabsProps> = ({
       case 'accent':
         return 'bg-accent/20 text-accent border-accent/30';
       default:
-        return 'bg-white/10 text-[var(--text-secondary)] border-base-border';
+        return 'bg-black/20 dark:bg-white/10 text-[var(--text-secondary)] border-base-border';
     }
   };
 
@@ -173,9 +173,11 @@ export const PillTabs: React.FC<PillTabsProps> = ({
               {/* Badge */}
               {tab.badge !== undefined && tab.badge !== null && (
                 <span
-                  className={`text-[9px] font-mono px-1 py-0.2 rounded font-semibold shrink-0 ${getBadgeColorClass(
-                    tab.badgeColor
-                  )}`}
+                  className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full font-semibold shrink-0 ${
+                    isSelected
+                      ? 'bg-black/25 text-white'
+                      : getBadgeColorClass(tab.badgeColor)
+                  }`}
                 >
                   {tab.badge}
                 </span>

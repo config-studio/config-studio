@@ -38,6 +38,8 @@ import {
   SearchInput,
   ConfirmModal,
   SectionHeader,
+  PillTabs,
+  PillTabItem,
 } from '../../ui';
 
 interface SecretsTabProps {
@@ -102,6 +104,16 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
     }
     return map;
   }, [secretsList]);
+
+  const categoryTabItems: PillTabItem[] = useMemo(() => {
+    return categories.map((cat) => ({
+      id: cat.id,
+      label: cat.label,
+      icon: cat.icon,
+      badge: counts[cat.id] ?? 0,
+      closable: false,
+    }));
+  }, [categories, counts]);
 
   const filteredSecrets = useMemo(() => {
     return secretsList.filter((item) => {
@@ -609,41 +621,19 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
           }
         />
 
-        {/* Filter Pills + Search */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          {/* Categories Pill Bar */}
-          <ScrollArea
-            orientation="horizontal"
-            className="rounded-xl bg-black/20 border border-base-border/60 p-1 flex-1 min-w-0"
-            contentClassName="flex items-center gap-1.5 w-max"
-          >
-            {categories.map((cat) => {
-              const isSelected = activeCategory === cat.id;
-              const count = counts[cat.id] || 0;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap cursor-pointer ${
-                    isSelected
-                      ? 'bg-accent text-white shadow-sm'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-                  }`}
-                >
-                  <span className="shrink-0">{cat.icon}</span>
-                  <span>{cat.label}</span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                      isSelected ? 'bg-black/25 text-white' : 'bg-black/30 text-gray-400'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </ScrollArea>
+        {/* Filter Pills + Search (Variant A: Dynamic Hugging Width) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 min-w-0">
+          {/* Categories Pill Bar - Dynamic Width (Variant A) */}
+          <div className="overflow-x-auto no-scrollbar max-w-full shrink-0">
+            <PillTabs
+              items={categoryTabItems}
+              activeId={activeCategory}
+              onChange={(id) => setActiveCategory(id as any)}
+              variant="filters"
+              size="sm"
+              className="w-fit"
+            />
+          </div>
 
           {/* Search Input - Fixed width protection (UI-003) */}
           <SearchInput

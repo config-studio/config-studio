@@ -214,18 +214,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }
       />
 
-      {/* Unified PillTabs Navigation Strip with Wheel Scroll */}
+      {/* Unified PillTabs Navigation Strip with Centering & Wheel Scroll */}
       <div
         ref={tabsStripRef}
         className="px-5 py-2.5 border-b border-base-border bg-base-surface shrink-0 overflow-x-auto no-scrollbar"
       >
-        <PillTabs
-          items={tabItems}
-          activeId={activeTab}
-          onChange={(id) => setActiveTab(id as SettingsTab)}
-          variant="filters"
-          size="sm"
-        />
+        <div className="min-w-full w-max flex justify-center">
+          <PillTabs
+            items={tabItems}
+            activeId={activeTab}
+            onChange={(id) => setActiveTab(id as SettingsTab)}
+            variant="filters"
+            size="sm"
+            className="w-fit"
+          />
+        </div>
       </div>
 
       {/* Active Tab Content Area - Zero Layout Shift */}
