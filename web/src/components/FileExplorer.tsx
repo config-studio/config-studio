@@ -637,10 +637,9 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           items={sidebarTabItems}
           activeId={sidebarTab}
           onChange={(id) => setSidebarTab(id as 'workspaces' | 'sftp')}
-          variant="filters"
+          variant="segmented"
           size="sm"
           className="w-full"
-          trackClassName="w-full flex [&>button]:flex-1 [&>button]:justify-center"
         />
       </div>
 

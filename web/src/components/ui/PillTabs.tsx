@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { X, Plus } from 'lucide-react';
 
 export interface PillTabItem {
@@ -20,11 +20,12 @@ export interface PillTabsProps {
   onClose?: (id: string, e: React.MouseEvent) => void;
   onAdd?: () => void;
   addTooltip?: string;
-  variant?: 'files' | 'filters' | 'dock';
+  variant?: 'files' | 'filters' | 'dock' | 'segmented';
   size?: 'sm' | 'md';
   className?: string;
   trackClassName?: string;
   rightSlot?: React.ReactNode;
+  enableWheelScroll?: boolean;
 }
 
 export const PillTabs: React.FC<PillTabsProps> = ({
@@ -39,8 +40,36 @@ export const PillTabs: React.FC<PillTabsProps> = ({
   className = '',
   trackClassName = '',
   rightSlot,
+  enableWheelScroll = true,
 }) => {
   const isSm = size === 'sm';
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!enableWheelScroll || variant === 'segmented') return;
+    const el = trackRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0 && e.deltaX === 0) {
+        const maxScrollLeft = el.scrollWidth - el.clientWidth;
+        if (maxScrollLeft > 0) {
+          const canScrollLeft = e.deltaY < 0 && el.scrollLeft > 0;
+          const canScrollRight = e.deltaY > 0 && el.scrollLeft < maxScrollLeft;
+
+          if (canScrollLeft || canScrollRight) {
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+          }
+        }
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, [enableWheelScroll, variant]);
 
   const getBadgeColorClass = (color?: PillTabItem['badgeColor']) => {
     switch (color) {
@@ -58,13 +87,16 @@ export const PillTabs: React.FC<PillTabsProps> = ({
   };
 
   return (
-    <div className={`flex items-center justify-between gap-3 ${className}`}>
+    <div className={`flex items-center justify-between gap-3 ${variant === 'segmented' ? 'w-full' : ''} ${className}`}>
       {/* Recessed Segmented Track */}
       <div
-        className={`flex items-center select-none shrink-0 overflow-x-auto custom-scrollbar border border-base-border shadow-inner ${
-          variant === 'dock'
-            ? 'p-0.5 rounded-xl gap-0.5 bg-black/10 dark:bg-black/35'
-            : 'p-1 rounded-2xl gap-1 bg-black/15 dark:bg-black/35'
+        ref={trackRef}
+        className={`flex items-center select-none ${
+          variant === 'segmented'
+            ? 'w-full p-1 rounded-2xl gap-1 bg-black/15 dark:bg-black/35 overflow-hidden border border-base-border shadow-inner'
+            : variant === 'dock'
+            ? 'p-0.5 rounded-xl gap-0.5 bg-black/10 dark:bg-black/35 shrink-0 overflow-x-auto no-scrollbar border border-base-border shadow-inner'
+            : 'p-1 rounded-2xl gap-1 bg-black/15 dark:bg-black/35 shrink-0 overflow-x-auto no-scrollbar border border-base-border shadow-inner'
         } ${trackClassName}`}
         role="tablist"
       >
@@ -82,8 +114,12 @@ export const PillTabs: React.FC<PillTabsProps> = ({
               aria-selected={isSelected}
               disabled={tab.disabled}
               onClick={() => onChange(tab.id)}
-              className={`group flex items-center space-x-1.5 font-medium transition cursor-pointer select-none shrink-0 ${
-                variant === 'dock' ? 'rounded-lg' : 'rounded-xl'
+              className={`group flex items-center space-x-1.5 font-medium transition cursor-pointer select-none ${
+                variant === 'segmented'
+                  ? 'flex-1 min-w-0 justify-center rounded-xl'
+                  : variant === 'dock'
+                  ? 'shrink-0 rounded-lg'
+                  : 'shrink-0 rounded-xl'
               } ${
                 isSm
                   ? variant === 'dock'
@@ -122,7 +158,7 @@ export const PillTabs: React.FC<PillTabsProps> = ({
                 />
               )}
 
-              <span className="truncate max-w-[160px]">{tab.label}</span>
+              <span className={`truncate ${variant === 'segmented' ? 'min-w-0' : 'max-w-[160px]'}`}>{tab.label}</span>
 
               {/* Unsaved dirty dot indicator */}
               {tab.isDirty && (

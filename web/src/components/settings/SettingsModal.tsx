@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Palette,
   Shield,
@@ -95,6 +95,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, [isOpen, settings, initialTab]);
 
+  const tabsStripRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = tabsStripRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0 && e.deltaX === 0) {
+        const maxScrollLeft = el.scrollWidth - el.clientWidth;
+        if (maxScrollLeft > 0) {
+          const canScrollLeft = e.deltaY < 0 && el.scrollLeft > 0;
+          const canScrollRight = e.deltaY > 0 && el.scrollLeft < maxScrollLeft;
+
+          if (canScrollLeft || canScrollRight) {
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+          }
+        }
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const activeBtn = tabsStripRef.current?.querySelector('[aria-selected="true"]');
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+  }, [isOpen, activeTab]);
+
   if (!isOpen) return null;
 
   const t = translations[language] || translations.ru;
@@ -178,8 +214,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }
       />
 
-      {/* Unified PillTabs Navigation Strip */}
-      <div className="px-5 py-2.5 border-b border-base-border bg-base-surface shrink-0 overflow-x-auto custom-scrollbar">
+      {/* Unified PillTabs Navigation Strip with Wheel Scroll */}
+      <div
+        ref={tabsStripRef}
+        className="px-5 py-2.5 border-b border-base-border bg-base-surface shrink-0 overflow-x-auto no-scrollbar"
+      >
         <PillTabs
           items={tabItems}
           activeId={activeTab}
