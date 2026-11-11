@@ -494,38 +494,38 @@ export const PluginConsentModal: React.FC<PluginConsentModalProps> = ({
                     key={idx}
                     className={`p-3 rounded-xl border flex items-start gap-3 transition-colors ${
                       meta.isUnknown
-                        ? 'bg-rose-950/20 border-rose-500/40'
+                        ? 'bg-rose-500/10 border-rose-500/30'
                         : isCrit
-                        ? 'bg-rose-950/20 border-rose-900/40'
+                        ? 'bg-rose-500/10 border-rose-500/30'
                         : isMed
-                        ? 'bg-amber-950/15 border-amber-900/30'
-                        : 'bg-black/20 border-base-border'
+                        ? 'bg-amber-500/10 border-amber-500/30'
+                        : 'bg-black/5 dark:bg-black/25 border-base-border'
                     }`}
                   >
-                    <div className="p-1.5 rounded-lg bg-black/30 border border-base-border shrink-0 mt-0.5">
+                    <div className="p-1.5 rounded-lg bg-black/5 dark:bg-black/30 border border-base-border shrink-0 mt-0.5">
                       {meta.icon}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-gray-200">
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">
                           {meta.label}
                         </span>
                         <span
-                          className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                          className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-medium border ${
                             meta.isUnknown
-                              ? 'bg-rose-900/60 text-rose-200 font-bold'
+                              ? 'bg-rose-500/20 text-rose-800 dark:text-rose-200 border-rose-500/30 font-bold'
                               : isCrit
-                              ? 'bg-rose-950/60 text-rose-300'
+                              ? 'bg-rose-500/20 text-rose-800 dark:text-rose-200 border-rose-500/30'
                               : isMed
-                              ? 'bg-amber-950/60 text-amber-300'
-                              : 'bg-blue-950/60 text-blue-300'
+                              ? 'bg-amber-500/20 text-amber-900 dark:text-amber-300 border-amber-500/30'
+                              : 'bg-blue-500/20 text-blue-800 dark:text-blue-300 border-blue-500/30'
                           }`}
                         >
                           {meta.riskLabel}
                         </span>
                       </div>
-                      <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+                      <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
                         {meta.desc}
                       </p>
                       <div className="mt-1 text-[10px] font-mono text-gray-500">

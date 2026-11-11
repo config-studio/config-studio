@@ -69,10 +69,10 @@ export const PreSaveGuardModal: React.FC<PreSaveGuardModalProps> = ({
 
         {/* Error Message */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Code className="w-3.5 h-3.5 text-red-400" /> Сообщение валидатора
+          <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1.5">
+            <Code className="w-3.5 h-3.5 text-rose-500" /> Сообщение валидатора
           </label>
-          <div className="bg-red-950/20 border border-red-900/50 rounded-xl p-3 text-xs font-mono text-red-200">
+          <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 text-xs font-mono text-rose-900 dark:text-rose-200">
             {issue.message}
           </div>
         </div>
@@ -80,10 +80,10 @@ export const PreSaveGuardModal: React.FC<PreSaveGuardModalProps> = ({
         {/* Snippet preview */}
         {issue.snippet && (
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
               Контекст в коде
             </label>
-            <pre className="bg-black/40 border border-base-border rounded-xl p-3 text-xs font-mono text-gray-300 overflow-x-auto leading-relaxed">
+            <pre className="bg-white/90 dark:bg-black/50 border border-rose-200 dark:border-rose-900/40 rounded-xl p-3 text-xs font-mono text-slate-800 dark:text-slate-200 overflow-x-auto leading-relaxed shadow-2xs">
               {issue.snippet.split('\n').map((line, idx) => {
                 const isTarget = line.startsWith('>');
                 return (
@@ -91,8 +91,8 @@ export const PreSaveGuardModal: React.FC<PreSaveGuardModalProps> = ({
                     key={idx}
                     className={
                       isTarget
-                        ? 'bg-red-500/20 text-red-200 font-bold px-1.5 py-0.5 rounded -mx-1 border-l-2 border-red-500'
-                        : 'text-gray-400'
+                        ? 'bg-rose-500/15 text-rose-900 dark:text-rose-200 font-bold px-1.5 py-0.5 rounded -mx-1 border-l-2 border-rose-500'
+                        : 'text-slate-600 dark:text-gray-400'
                     }
                   >
                     {line}
@@ -103,7 +103,7 @@ export const PreSaveGuardModal: React.FC<PreSaveGuardModalProps> = ({
           </div>
         )}
 
-        <div className="text-[11px] text-gray-400 bg-black/20 p-3 rounded-xl border border-base-border flex items-center gap-2">
+        <div className="text-[11px] text-[var(--text-secondary)] bg-black/5 dark:bg-black/25 p-3 rounded-xl border border-base-border flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-accent shrink-0" />
           <span>
             При нажатии <strong>«Force Save»</strong> файл будет сохранен на диск, а инцидент будет зафиксирован

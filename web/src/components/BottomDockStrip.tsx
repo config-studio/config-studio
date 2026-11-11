@@ -561,30 +561,44 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                     <div
                       key={idx}
                       onClick={() => onJumpToLine?.(iss.line, iss.column)}
-                      className={`flex items-start justify-between p-2 rounded-lg cursor-pointer transition border ${
+                      className={`flex items-start justify-between p-3 rounded-xl cursor-pointer transition border select-none ${
                         iss.severity === 'critical'
-                          ? 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/15 text-rose-800 dark:text-rose-200'
-                          : 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15 text-amber-800 dark:text-amber-200'
+                          ? 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/15'
+                          : 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15'
                       }`}
                     >
-                      <div className="flex items-start space-x-2">
+                      <div className="flex items-start space-x-2.5 min-w-0 flex-1">
                         <AlertCircle
-                          size={14}
+                          size={15}
                           className={`shrink-0 mt-0.5 ${
                             iss.severity === 'critical' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
                           }`}
                         />
-                        <div>
-                          <div className="font-semibold text-xs">{iss.message}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className={`font-semibold text-xs leading-snug ${
+                            iss.severity === 'critical'
+                              ? 'text-rose-950 dark:text-rose-100'
+                              : 'text-amber-950 dark:text-amber-100'
+                          }`}>
+                            {iss.message}
+                          </div>
                           {iss.snippet && (
-                            <pre className="text-[11px] text-[var(--text-muted)] mt-1 bg-black/40 p-1.5 rounded border border-base-border overflow-x-auto">
+                            <pre className={`text-[11px] font-mono leading-relaxed mt-2 p-2.5 rounded-lg border overflow-x-auto select-text shadow-2xs ${
+                              iss.severity === 'critical'
+                                ? 'bg-white/90 text-slate-800 border-rose-200/80 dark:bg-black/50 dark:text-slate-200 dark:border-rose-900/40'
+                                : 'bg-white/90 text-slate-800 border-amber-200/80 dark:bg-black/50 dark:text-slate-200 dark:border-amber-900/40'
+                            }`}>
                               {iss.snippet}
                             </pre>
                           )}
                         </div>
                       </div>
                       <div className="text-right shrink-0 pl-3">
-                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-black/40 text-cyan-400 border border-base-border">
+                        <span className={`text-[11px] font-mono px-2 py-0.5 rounded-md border font-medium shadow-2xs ${
+                          iss.severity === 'critical'
+                            ? 'bg-white/90 text-rose-700 border-rose-200 dark:bg-black/40 dark:text-cyan-300 dark:border-base-border'
+                            : 'bg-white/90 text-amber-800 border-amber-200 dark:bg-black/40 dark:text-amber-300 dark:border-base-border'
+                        }`}>
                           {iss.file}:{iss.line}:{iss.column}
                         </span>
                       </div>
@@ -603,17 +617,17 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
             {activePanelId === 'output' && (
               <div className="space-y-1.5 p-2">
                 {/* Category Filter Pills */}
-                <div className="flex items-center gap-1 pb-1.5 border-b border-[#21262d]/70 overflow-x-auto text-[11px]">
+                <div className="flex items-center gap-1 pb-1.5 border-b border-base-border overflow-x-auto text-[11px] no-scrollbar">
                   <button
                     type="button"
                     onClick={() => {
                       setAuditCategory('');
                       loadRecentAudit('');
                     }}
-                    className={`px-2 py-0.5 rounded transition font-medium ${
+                    className={`px-2 py-0.5 rounded transition font-medium cursor-pointer ${
                       auditCategory === ''
-                        ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
-                        : 'text-gray-400 hover:text-white bg-white/5'
+                        ? 'bg-accent/15 text-accent border border-accent/40 font-semibold'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/5'
                     }`}
                   >
                     {t.auditFilterAll}
@@ -624,13 +638,13 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                       setAuditCategory('error');
                       loadRecentAudit('error');
                     }}
-                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 ${
+                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 cursor-pointer ${
                       auditCategory === 'error'
-                        ? 'bg-rose-500/25 text-rose-300 border border-rose-500/50'
-                        : 'text-gray-400 hover:text-rose-300 bg-white/5'
+                        ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/40 font-semibold'
+                        : 'text-[var(--text-muted)] hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-500/5'
                     }`}
                   >
-                    <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                    <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
                     <span>{t.auditCatError || 'Ошибки'}</span>
                   </button>
                   <button
@@ -639,13 +653,13 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                       setAuditCategory('user');
                       loadRecentAudit('user');
                     }}
-                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 ${
+                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 cursor-pointer ${
                       auditCategory === 'user'
-                        ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50'
-                        : 'text-gray-400 hover:text-emerald-300 bg-white/5'
+                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 font-semibold'
+                        : 'text-[var(--text-muted)] hover:text-emerald-600 dark:hover:text-emerald-300 hover:bg-emerald-500/5'
                     }`}
                   >
-                    <User className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <User className="w-3 h-3 text-emerald-500 shrink-0" />
                     <span>{t.auditCatUser || 'Действия'}</span>
                   </button>
                   <button
@@ -654,13 +668,13 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                       setAuditCategory('network');
                       loadRecentAudit('network');
                     }}
-                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 ${
+                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 cursor-pointer ${
                       auditCategory === 'network'
-                        ? 'bg-indigo-500/25 text-indigo-300 border border-indigo-500/50'
-                        : 'text-gray-400 hover:text-indigo-300 bg-white/5'
+                        ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/40 font-semibold'
+                        : 'text-[var(--text-muted)] hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-500/5'
                     }`}
                   >
-                    <Globe className="w-3 h-3 text-indigo-400 shrink-0" />
+                    <Globe className="w-3 h-3 text-indigo-500 shrink-0" />
                     <span>{t.auditCatNetwork || 'Сеть'}</span>
                   </button>
                   <button
@@ -669,13 +683,13 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                       setAuditCategory('system');
                       loadRecentAudit('system');
                     }}
-                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 ${
+                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 cursor-pointer ${
                       auditCategory === 'system'
-                        ? 'bg-slate-700/60 text-slate-200 border border-slate-600'
-                        : 'text-gray-400 hover:text-slate-300 bg-white/5'
+                        ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/40 font-semibold'
+                        : 'text-[var(--text-muted)] hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-500/5'
                     }`}
                   >
-                    <Cpu className="w-3 h-3 text-slate-300 shrink-0" />
+                    <Cpu className="w-3 h-3 text-slate-500 shrink-0" />
                     <span>{t.auditCatSystem || 'Система'}</span>
                   </button>
                 </div>
@@ -684,7 +698,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                   recentAudit.map((evt) => (
                     <div
                       key={evt.id}
-                      className="flex flex-col py-1 px-2 hover:bg-base-surface-hover/80 rounded text-[11px] text-[var(--text-secondary)] border-b border-[#21262d]/50"
+                      className="flex flex-col py-1 px-2 hover:bg-base-surface-hover/80 rounded text-[11px] text-[var(--text-secondary)] border-b border-base-border/50"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2 truncate">
@@ -693,37 +707,37 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                             {new Date(evt.timestamp).toLocaleTimeString()}
                           </span>
                           <span
-                            className={`font-semibold px-1 py-0.2 rounded text-[9px] uppercase tracking-wider ${
+                            className={`font-semibold px-1.5 py-0.2 rounded text-[9px] uppercase tracking-wider font-mono ${
                               evt.category === 'error' || evt.severity === 'error'
-                                ? 'bg-rose-950 text-rose-300 border border-rose-800'
+                                ? 'bg-rose-500/15 text-rose-800 dark:text-rose-300 border border-rose-500/30'
                                 : evt.category === 'network'
-                                ? 'bg-indigo-950 text-indigo-300 border border-indigo-800'
+                                ? 'bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border border-indigo-500/30'
                                 : evt.category === 'system'
-                                ? 'bg-slate-800 text-slate-300 border border-slate-700'
-                                : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                ? 'bg-slate-500/15 text-slate-800 dark:text-slate-300 border border-slate-500/30'
+                                : 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
                             }`}
                           >
                             {evt.category || 'user'}
                           </span>
                           <span
-                            className={`font-semibold px-1.5 py-0.2 rounded text-[10px] ${
+                            className={`font-semibold px-1.5 py-0.2 rounded text-[10px] font-mono ${
                               evt.severity === 'error' || evt.severity === 'critical'
-                                ? 'bg-rose-900/60 text-rose-200 border border-rose-700'
+                                ? 'bg-rose-500/20 text-rose-800 dark:text-rose-200 border border-rose-500/30'
                                 : evt.severity === 'warn'
-                                ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                                : 'bg-cyan-950 text-cyan-300 border border-cyan-800'
+                                ? 'bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-500/30'
+                                : 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30'
                             }`}
                           >
                             {evt.action}
                           </span>
-                          <span className="font-mono text-gray-200 truncate">{evt.target}</span>
+                          <span className="font-mono text-[var(--text-primary)] truncate">{evt.target}</span>
                         </div>
                         <span className="text-[var(--text-muted)] text-[10px] shrink-0 font-mono">
                           {evt.user} {evt.source ? `[${evt.source}]` : ''}
                         </span>
                       </div>
                       {evt.details && Object.keys(evt.details).length > 0 && (
-                        <div className="text-[10px] text-gray-400 font-mono pl-6 pt-0.5 truncate">
+                        <div className="text-[10px] text-[var(--text-muted)] font-mono pl-6 pt-0.5 truncate">
                           {JSON.stringify(evt.details)}
                         </div>
                       )}

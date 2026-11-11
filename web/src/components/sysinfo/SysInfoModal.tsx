@@ -98,11 +98,11 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
         {/* Body */}
         <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar">
           {error && (
-            <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800/50 flex items-start space-x-2 text-rose-300 text-xs">
-              <AlertTriangle size={15} className="shrink-0 mt-0.5 text-rose-400" />
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start space-x-2 text-rose-900 dark:text-rose-200 text-xs">
+              <AlertTriangle size={15} className="shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
               <div>
                 <p className="font-semibold">{t.sysinfoOffline || 'Узел недоступен'}</p>
-                <p className="text-[11px] opacity-80 mt-0.5">{error}</p>
+                <p className="text-[11px] opacity-90 mt-0.5">{error}</p>
               </div>
             </div>
           )}
