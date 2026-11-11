@@ -39,6 +39,11 @@ input, button, select, textarea {
   font-family: inherit;
 }
 
+/* xterm.js viewport background reset for dynamic theme adaptation */
+.xterm .xterm-viewport {
+  background-color: transparent !important;
+}
+
 html, body, #root {
   height: 100%;
   height: 100dvh;

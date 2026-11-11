@@ -1071,6 +1071,7 @@ export const App: React.FC = () => {
             currentFile={currentFile}
             cursorPos={cursorPos}
             language={settings.language}
+            themeMode={settings.themeMode}
             onToggleOpen={(open) => setIsBottomDockOpen((prev) => (open !== undefined ? open : !prev))}
             onSelectPanel={(panelId) => {
               setActiveBottomDockId(panelId);

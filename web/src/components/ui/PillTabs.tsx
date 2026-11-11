@@ -60,7 +60,11 @@ export const PillTabs: React.FC<PillTabsProps> = ({
     <div className={`flex items-center justify-between gap-3 ${className}`}>
       {/* Recessed Segmented Track */}
       <div
-        className={`flex items-center gap-1 p-1 rounded-2xl bg-black/15 dark:bg-black/35 border border-base-border shadow-inner overflow-x-auto custom-scrollbar select-none shrink-0 ${trackClassName}`}
+        className={`flex items-center select-none shrink-0 overflow-x-auto custom-scrollbar border border-base-border shadow-inner ${
+          variant === 'dock'
+            ? 'p-0.5 rounded-xl gap-0.5 bg-black/10 dark:bg-black/35'
+            : 'p-1 rounded-2xl gap-1 bg-black/15 dark:bg-black/35'
+        } ${trackClassName}`}
         role="tablist"
       >
         {items.map((tab) => {
@@ -75,11 +79,17 @@ export const PillTabs: React.FC<PillTabsProps> = ({
               aria-selected={isSelected}
               disabled={tab.disabled}
               onClick={() => onChange(tab.id)}
-              className={`group flex items-center space-x-2 rounded-xl font-medium transition cursor-pointer select-none shrink-0 ${
-                isSm ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-xs'
+              className={`group flex items-center space-x-1.5 font-medium transition cursor-pointer select-none shrink-0 ${
+                variant === 'dock' ? 'rounded-lg' : 'rounded-xl'
+              } ${
+                isSm
+                  ? variant === 'dock'
+                    ? 'px-2 py-0.5 text-[11px]'
+                    : 'px-2.5 py-1 text-xs'
+                  : 'px-3 py-1.5 text-xs'
               } ${
                 isSelected
-                  ? 'bg-accent text-white font-semibold shadow-sm'
+                  ? 'bg-accent text-white font-semibold shadow-xs'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/10 dark:hover:bg-white/5'
               } ${tab.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
@@ -101,9 +111,9 @@ export const PillTabs: React.FC<PillTabsProps> = ({
               )}
 
               {/* Badge */}
-              {tab.badge && (
+              {tab.badge !== undefined && tab.badge !== null && (
                 <span
-                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md border font-semibold shrink-0 ${getBadgeColorClass(
+                  className={`text-[9px] font-mono px-1 py-0.2 rounded font-semibold shrink-0 ${getBadgeColorClass(
                     tab.badgeColor
                   )}`}
                 >

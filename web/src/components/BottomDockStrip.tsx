@@ -26,7 +26,7 @@ import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
 import { sshHostService } from '../services/sshHosts';
 import { SysInfoBar } from './sysinfo/SysInfoBar';
-import { Dropdown, DropdownOption, ScrollArea } from '@config-studio/ui';
+import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem } from '@config-studio/ui';
 
 const XTerminal = lazy(() => import('./terminal/XTerminal'));
 
@@ -44,6 +44,7 @@ interface BottomDockStripProps {
   onClosePanel: (panelId: string) => void;
   onJumpToLine?: (line: number, col?: number) => void;
   accentColor?: string;
+  themeMode?: 'dark' | 'light';
 }
 
 export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
@@ -60,6 +61,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
   onClosePanel,
   onJumpToLine,
   accentColor = '#00d2b4',
+  themeMode,
 }) => {
   const t = translations[language] || translations.ru;
   const [height, setHeight] = useState<number>(() => {
@@ -204,6 +206,51 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
   const warningIssuesCount = guardResult?.issues.filter((i) => i.severity === 'warning').length || 0;
   const currentHost = sshHosts.find((h) => h.id === selectedHostId) || sshHosts[0];
 
+  const dockTabItems = useMemo<PillTabItem[]>(() => {
+    const items: PillTabItem[] = [
+      {
+        id: 'terminal',
+        label: t.dockTerminal || 'Терминал',
+        icon: <Terminal size={12} />,
+        closable: false,
+      },
+    ];
+
+    panels.forEach((p) => {
+      items.push({
+        id: p.id,
+        label: p.title,
+        icon: <Terminal size={12} />,
+        badge: p.badge,
+        badgeColor: 'accent',
+        closable: false,
+      });
+    });
+
+    items.push({
+      id: 'output',
+      label: t.dockOutput,
+      icon: <FileText size={12} />,
+      closable: false,
+    });
+
+    items.push({
+      id: 'problems',
+      label: t.dockProblems,
+      icon: (
+        <AlertCircle
+          size={12}
+          className={criticalIssuesCount > 0 ? 'text-red-400 animate-pulse' : ''}
+        />
+      ),
+      badge: criticalIssuesCount > 0 ? criticalIssuesCount : undefined,
+      badgeColor: 'red',
+      closable: false,
+    });
+
+    return items;
+  }, [t, panels, criticalIssuesCount]);
+
   return (
     <div
       className={`border-t border-base-border flex flex-col bg-base-surface select-none z-30 shrink-0 transition-colors ${
@@ -228,7 +275,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
           {/* Panel Header & Controls */}
           <div className="h-8 px-3 border-b border-base-border bg-base-surface flex items-center justify-between text-xs text-[var(--text-muted)]">
             <div className="flex items-center space-x-2 min-w-0">
-              <span className="font-semibold text-gray-200 truncate">
+              <span className="font-semibold text-[var(--text-primary)] truncate">
                 {activePanelId === 'terminal' && (t.dockTerminalTitle || 'SSH / Shell Терминал')}
                 {activePanelId === 'output' && t.dockOutputTitle}
                 {activePanelId === 'problems' && t.dockProblemsTitle}
@@ -266,7 +313,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                   <button
                     type="button"
                     onClick={handleCopyAiReport}
-                    className="flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 transition mr-1 font-medium"
+                    className="flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 transition mr-1 font-medium cursor-pointer"
                     title={t.auditCopyAi}
                   >
                     {copiedAi ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
@@ -276,7 +323,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                     type="button"
                     onClick={() => loadRecentAudit()}
                     disabled={auditLoading}
-                    className="p-1 hover:text-white hover:bg-base-surface-hover/80 rounded transition"
+                    className="p-1 hover:text-[var(--text-primary)] hover:bg-base-surface-hover/80 rounded transition cursor-pointer"
                     title={t.dockRefreshTooltip}
                   >
                     <RefreshCw size={13} className={auditLoading ? 'animate-spin' : ''} />
@@ -287,7 +334,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
               <button
                 type="button"
                 onClick={() => setHeight((h) => (h <= 240 ? 420 : 240))}
-                className="p-1 hover:text-white hover:bg-base-surface-hover/80 rounded transition"
+                className="p-1 hover:text-[var(--text-primary)] hover:bg-base-surface-hover/80 rounded transition cursor-pointer"
                 title={language === 'en' ? (height <= 240 ? 'Expand height' : 'Shrink height') : (height <= 240 ? 'Увеличить высоту' : 'Уменьшить высоту')}
               >
                 {height <= 240 ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -296,7 +343,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
               <button
                 type="button"
                 onClick={() => setIsMaximized((m) => !m)}
-                className="p-1 hover:text-white hover:bg-base-surface-hover/80 rounded transition"
+                className="p-1 hover:text-[var(--text-primary)] hover:bg-base-surface-hover/80 rounded transition cursor-pointer"
                 title={isMaximized ? t.dockRestoreTooltip : t.dockMaximizeTooltip}
               >
                 {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
@@ -305,7 +352,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
               <button
                 type="button"
                 onClick={() => onToggleOpen(false)}
-                className="p-1 hover:text-red-400 hover:bg-red-500/10 rounded transition"
+                className="p-1 hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer"
                 title={t.dockCloseTooltip}
               >
                 <X size={13} />
@@ -327,7 +374,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                       </div>
                     }
                   >
-                    <XTerminal host={currentHost} accentColor={accentColor} />
+                    <XTerminal host={currentHost} accentColor={accentColor} themeMode={themeMode} />
                   </Suspense>
                 ) : (
                   <div className="p-8 text-center text-xs text-gray-400 flex flex-col items-center justify-center h-full space-y-3">
@@ -539,90 +586,16 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
       {/* The Always-Visible Strip Bar */}
       <div className="min-h-[32px] sm:min-h-[28px] h-8 sm:h-7 px-2 bg-base-surface border-t border-base-border flex items-center justify-between text-xs select-none shrink-0 pb-[env(safe-area-inset-bottom)]">
-        {/* Left: Tab Buttons */}
-        <ScrollArea
-          orientation="horizontal"
-          className="flex-1 min-w-0 pr-1"
-          contentClassName="flex items-center space-x-1 w-max"
-        >
-          {/* Built-in: Terminal */}
-          <button
-            type="button"
-            onClick={() => handleTabClick('terminal')}
-            className={`flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-              isOpen && activePanelId === 'terminal'
-                ? 'bg-accent text-gray-900 shadow-sm'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-base-surface-hover/80'
-            }`}
-            style={isOpen && activePanelId === 'terminal' ? { backgroundColor: accentColor } : {}}
-          >
-            <Terminal size={12} />
-            <span>{t.dockTerminal || 'Терминал'}</span>
-          </button>
-
-          {/* Plugin Tabs (Docker Logs, etc.) */}
-          {panels.map((p) => {
-            const isActive = isOpen && activePanelId === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handleTabClick(p.id)}
-                className={`flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-accent text-gray-900 shadow-sm'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-base-surface-hover/80'
-                }`}
-                style={isActive ? { backgroundColor: accentColor } : {}}
-              >
-                <Terminal size={12} />
-                <span>{p.title}</span>
-                {p.badge && (
-                  <span className="px-1 py-0.2 rounded text-[9px] bg-black/40 text-white font-mono">
-                    {p.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-
-          {/* Built-in: Output */}
-          <button
-            type="button"
-            onClick={() => handleTabClick('output')}
-            className={`flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-              isOpen && activePanelId === 'output'
-                ? 'bg-accent text-gray-900 shadow-sm'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-base-surface-hover/80'
-            }`}
-            style={isOpen && activePanelId === 'output' ? { backgroundColor: accentColor } : {}}
-          >
-            <FileText size={12} />
-            <span>{t.dockOutput}</span>
-          </button>
-
-          {/* Built-in: Problems (Shows red badge when syntax error occurs) */}
-          <button
-            type="button"
-            onClick={() => handleTabClick('problems')}
-            className={`flex items-center space-x-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-              isOpen && activePanelId === 'problems'
-                ? 'bg-accent text-gray-900 shadow-sm'
-                : criticalIssuesCount > 0
-                ? 'text-red-400 bg-red-950/40 border border-red-800/40'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-base-surface-hover/80'
-            }`}
-            style={isOpen && activePanelId === 'problems' ? { backgroundColor: accentColor } : {}}
-          >
-            <AlertCircle size={12} className={criticalIssuesCount > 0 ? 'text-red-400 animate-pulse' : ''} />
-            <span>{t.dockProblems}</span>
-            {criticalIssuesCount > 0 && (
-              <span className="px-1.5 py-0.2 text-[9px] font-mono font-bold rounded-full bg-red-600 text-white">
-                {criticalIssuesCount}
-              </span>
-            )}
-          </button>
-        </ScrollArea>
+        {/* Left: Tab Buttons (Option 2: PillTabs) */}
+        <div className="flex-1 min-w-0 pr-2 overflow-x-auto custom-scrollbar">
+          <PillTabs
+            items={dockTabItems}
+            activeId={isOpen ? activePanelId || '' : ''}
+            onChange={(id) => handleTabClick(id)}
+            variant="dock"
+            size="sm"
+          />
+        </div>
 
         {/* Right: SysInfo & File Status & Hotkey Hint */}
         <div className="flex items-center space-x-2.5 sm:space-x-3 text-[11px] text-[var(--text-muted)] font-mono shrink-0 pl-2">
@@ -642,7 +615,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
           <button
             type="button"
             onClick={() => onToggleOpen(!isOpen)}
-            className="flex items-center space-x-1 text-[10px] text-gray-400 hover:text-white transition"
+            className="flex items-center space-x-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition cursor-pointer"
             title={t.dockToggleTooltip}
           >
             <span>Ctrl+~</span>
