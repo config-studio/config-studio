@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Palette,
   Shield,
@@ -148,19 +148,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setIsResetConfirmOpen(false);
   };
 
-  const tabItems: PillTabItem[] = useMemo(
-    () => [
-      { id: 'general', label: t.tabGeneral, icon: <Palette size={13} />, closable: false },
-      { id: 'security', label: t.tabSecurity, icon: <Shield size={13} />, closable: false },
-      { id: 'secrets', label: t.tabSecrets, icon: <Key size={13} />, closable: false },
-      { id: 'ssh', label: 'SSH & Хосты', icon: <Server size={13} />, closable: false },
-      { id: 'plugins', label: t.tabPlugins, icon: <Package size={13} />, closable: false },
-      { id: 'plugin-settings', label: t.tabPluginSettings, icon: <Sliders size={13} />, closable: false },
-      { id: 'profile', label: t.tabProfile, icon: <Share2 size={13} />, closable: false },
-      { id: 'audit', label: t.tabAudit, icon: <ScrollText size={13} />, closable: false },
-    ],
-    [t]
-  );
+  const tabItems: PillTabItem[] = [
+    { id: 'general', label: t.tabGeneral, icon: <Palette size={13} />, closable: false },
+    { id: 'security', label: t.tabSecurity, icon: <Shield size={13} />, closable: false },
+    { id: 'secrets', label: t.tabSecrets, icon: <Key size={13} />, closable: false },
+    { id: 'ssh', label: 'SSH & Хосты', icon: <Server size={13} />, closable: false },
+    { id: 'plugins', label: t.tabPlugins, icon: <Package size={13} />, closable: false },
+    { id: 'plugin-settings', label: t.tabPluginSettings, icon: <Sliders size={13} />, closable: false },
+    { id: 'profile', label: t.tabProfile, icon: <Share2 size={13} />, closable: false },
+    { id: 'audit', label: t.tabAudit, icon: <ScrollText size={13} />, closable: false },
+  ];
 
   return (
     <>
