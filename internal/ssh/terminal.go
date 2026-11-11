@@ -183,6 +183,13 @@ func (m *ClientManager) HandleWebSocket(w http.ResponseWriter, r *http.Request) 
 				var ctrl TerminalControlMessage
 				if err := json.Unmarshal(data, &ctrl); err == nil && ctrl.Type != "" {
 					switch ctrl.Type {
+					case "input":
+						if ctrl.Data != "" {
+							if _, err := stdinPipe.Write([]byte(ctrl.Data)); err != nil {
+								return
+							}
+						}
+						continue
 					case "resize":
 						if ctrl.Cols > 0 && ctrl.Rows > 0 {
 							_ = session.WindowChange(ctrl.Rows, ctrl.Cols)

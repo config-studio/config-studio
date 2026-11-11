@@ -66,11 +66,12 @@ type TerminalInitMessage struct {
 	Term       string  `json:"term"`
 }
 
-// TerminalControlMessage handles window resize and heartbeat pings.
+// TerminalControlMessage handles window resize, heartbeat pings, and input encapsulation.
 type TerminalControlMessage struct {
-	Type string `json:"type"` // "resize", "ping", "pong"
+	Type string `json:"type"` // "resize", "ping", "pong", "input"
 	Cols int    `json:"cols,omitempty"`
 	Rows int    `json:"rows,omitempty"`
+	Data string `json:"data,omitempty"`
 }
 
 // SFTPFileInfo holds file and directory metadata for the SFTP explorer.

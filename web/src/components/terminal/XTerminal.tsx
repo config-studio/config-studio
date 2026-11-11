@@ -270,10 +270,21 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
       }
     };
 
-    // Forward user keystrokes to WebSocket
+    // Forward user keystrokes to WebSocket as high-performance binary stream
+    const encoder = new TextEncoder();
     term.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'input', data }));
+        ws.send(encoder.encode(data));
+      }
+    });
+
+    term.onBinary?.((data) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        const bytes = new Uint8Array(data.length);
+        for (let i = 0; i < data.length; i++) {
+          bytes[i] = data.charCodeAt(i) & 255;
+        }
+        ws.send(bytes);
       }
     });
 
