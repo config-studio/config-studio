@@ -16,7 +16,8 @@ import { pluginManager } from '../../../services/pluginLoader';
 import {
   Card,
   Input,
-  Select,
+  Dropdown,
+  DropdownOption,
   Toggle,
   Badge,
   SearchInput,
@@ -352,16 +353,17 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
                     if (field.type === 'select') {
                       return (
                         <Card key={field.id} className="p-3.5">
-                          <Select
+                          <Dropdown
                             label={field.label}
                             description={field.description}
                             value={val}
-                            onChange={(e) => handleUpdateSetting(field.id, e.target.value)}
+                            onChange={(v) => handleUpdateSetting(field.id, v)}
                             options={(field.options || []).map((opt: any) => {
                               const optVal = typeof opt === 'object' ? opt.value : opt;
                               const optLabel = typeof opt === 'object' ? opt.label : opt;
                               return { value: optVal, label: optLabel };
                             })}
+                            size="sm"
                           />
                         </Card>
                       );

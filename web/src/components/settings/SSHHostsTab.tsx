@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Server,
   Plus,
@@ -16,7 +16,7 @@ import {
 import { SSHHost, SSHKeyPair, SecretMeta } from '../../types';
 import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
-import { ConfirmModal, EmptyState } from '../ui';
+import { ConfirmModal, EmptyState, Dropdown, DropdownOption } from '../ui';
 
 interface SSHHostsTabProps {
   accentColor?: string;
@@ -65,6 +65,23 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
       })
       .catch(() => {});
   }, []);
+
+  const authTypeOptions: DropdownOption[] = [
+    { value: 'password', label: 'Пароль', icon: <Key size={14} className="text-amber-400" /> },
+    { value: 'private_key', label: 'SSH Ключ (PEM)', icon: <Shield size={14} className="text-emerald-400" /> },
+    { value: 'vault', label: 'Сейф (Vault Identity)', icon: <Server size={14} className="text-purple-400" /> },
+  ];
+
+  const identityOptions: DropdownOption[] = useMemo(() => {
+    return identities.map((id) => ({
+      value: id.id,
+      label: id.title,
+      subtitle: `ID: ${id.id}`,
+      icon: id.type === 'ssh_key' ? <Shield size={14} className="text-emerald-400" /> : <Key size={14} className="text-amber-400" />,
+      badge: id.type,
+      badgeColor: id.type === 'ssh_key' ? 'green' : 'amber',
+    }));
+  }, [identities]);
 
   const handleSaveHost = (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,16 +318,13 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
               />
             </div>
             <div>
-              <label className="text-[11px] text-gray-400 block mb-1">Тип авторизации</label>
-              <select
+              <Dropdown
+                label="Тип авторизации"
                 value={editingHost.authType || 'password'}
-                onChange={(e) => setEditingHost({ ...editingHost, authType: e.target.value as any })}
-                className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)]"
-              >
-                <option value="password">Пароль</option>
-                <option value="private_key">SSH Ключ (PEM)</option>
-                <option value="vault">Сейф (Vault Identity)</option>
-              </select>
+                onChange={(val) => setEditingHost({ ...editingHost, authType: val })}
+                options={authTypeOptions}
+                size="sm"
+              />
             </div>
           </div>
 
@@ -354,19 +368,15 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
 
           {editingHost.authType === 'vault' && (
             <div>
-              <label className="text-[11px] text-gray-400 block mb-1">Запись из Сейфа ключей</label>
-              <select
+              <Dropdown
+                label="Запись из Сейфа ключей"
                 value={editingHost.identityId || ''}
-                onChange={(e) => setEditingHost({ ...editingHost, identityId: e.target.value })}
-                className="w-full px-2.5 py-1.5 bg-base-surface dark:bg-black/30 border border-base-border rounded text-xs text-[var(--text-primary)]"
-              >
-                <option value="">Выберите секрет из хранилища...</option>
-                {identities.map((id) => (
-                  <option key={id.id} value={id.id}>
-                    {id.title} ({id.type})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setEditingHost({ ...editingHost, identityId: val })}
+                options={identityOptions}
+                placeholder="Выберите секрет из хранилища..."
+                searchable={identityOptions.length > 5}
+                size="sm"
+              />
             </div>
           )}
 

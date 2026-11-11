@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { WorkspaceRoot, Settings } from '../types';
 import { translations } from '../utils/i18n';
-import { Modal, Input, Button, Toggle, Select } from './ui';
+import { Modal, Input, Button, Toggle, Dropdown, DropdownOption } from './ui';
 
 interface AddWorkspaceModalProps {
   isOpen: boolean;
@@ -23,15 +23,15 @@ interface AddWorkspaceModalProps {
   settings: Settings;
 }
 
-const iconOptions = [
-  { value: 'folder', label: 'Папка (Folder)' },
-  { value: 'server', label: 'Сервер (Server / Fleet)' },
-  { value: 'box', label: 'Контейнеры (Docker / Podman)' },
-  { value: 'shield', label: 'Безопасность (Clash / VPN)' },
-  { value: 'terminal', label: 'Системный (System / Scripts)' },
-  { value: 'globe', label: 'Веб-сервер (Nginx / Web)' },
-  { value: 'cpu', label: 'Службы (Systemd / Daemons)' },
-  { value: 'database', label: 'Базы данных (Database / Storage)' },
+const iconOptions: DropdownOption[] = [
+  { value: 'folder', label: 'Папка (Folder)', icon: <Folder size={14} className="text-amber-400" /> },
+  { value: 'server', label: 'Сервер (Server / Fleet)', icon: <Server size={14} className="text-blue-400" /> },
+  { value: 'box', label: 'Контейнеры (Docker / Podman)', icon: <Box size={14} className="text-cyan-400" /> },
+  { value: 'shield', label: 'Безопасность (Clash / VPN)', icon: <Shield size={14} className="text-emerald-400" /> },
+  { value: 'terminal', label: 'Системный (System / Scripts)', icon: <Terminal size={14} className="text-purple-400" /> },
+  { value: 'globe', label: 'Веб-сервер (Nginx / Web)', icon: <Globe size={14} className="text-indigo-400" /> },
+  { value: 'cpu', label: 'Службы (Systemd / Daemons)', icon: <Cpu size={14} className="text-rose-400" /> },
+  { value: 'database', label: 'Базы данных (Database / Storage)', icon: <Database size={14} className="text-teal-400" /> },
 ];
 
 export const AddWorkspaceModal: React.FC<AddWorkspaceModalProps> = ({
@@ -161,11 +161,12 @@ export const AddWorkspaceModal: React.FC<AddWorkspaceModalProps> = ({
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <Select
+            <Dropdown
               label={t.workspaceIcon || 'Иконка папки'}
               options={iconOptions}
               value={icon}
               onChange={(val) => setIcon(String(val))}
+              size="sm"
             />
 
             <div className="flex flex-col justify-end">

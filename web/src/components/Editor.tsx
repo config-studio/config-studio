@@ -6,7 +6,7 @@ import { translations } from '../utils/i18n';
 import { getLuminance } from '../utils/color';
 import { pluginManager } from '../services/pluginLoader';
 import { ActionToolbar } from './ActionToolbar';
-import { ScrollArea, EmptyState, Button, PillTabs, PillTabItem } from '@config-studio/ui';
+import { ScrollArea, EmptyState, Button, PillTabs, PillTabItem, Dropdown, DropdownOption } from '@config-studio/ui';
 import { FileFormatIcon } from './icons/FileFormatIcon';
 
 interface EditorProps {
@@ -457,34 +457,35 @@ export const Editor: React.FC<EditorProps> = ({
             </div>
 
             {revisions.length > 0 ? (
-              <div className="flex items-center bg-black/25 dark:bg-white/5 rounded-lg border border-base-border p-0.5">
+              <div className="flex items-center space-x-1.5">
                 <button
                   type="button"
                   onClick={() => setSelectedRevIndex((idx) => Math.min(revisions.length - 1, idx + 1))}
                   disabled={selectedRevIndex >= revisions.length - 1}
-                  className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300"
+                  className="p-1 rounded-lg border border-base-border bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 transition"
                   title={t.revisionOlder || 'Старее'}
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
 
-                <select
+                <Dropdown
                   value={selectedRevIndex}
-                  onChange={(e) => setSelectedRevIndex(Number(e.target.value))}
-                  className="bg-transparent text-xs text-gray-200 font-mono px-2 py-0.5 border-none focus:outline-hidden cursor-pointer max-w-[210px] sm:max-w-xs truncate"
-                >
-                  {revisions.map((rev, idx) => (
-                    <option key={rev.id || idx} value={idx} className="bg-gray-900 text-gray-100">
-                      {formatRevOption(rev, idx, revisions.length, settings.language)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedRevIndex(Number(val))}
+                  options={revisions.map((rev, idx) => ({
+                    value: idx,
+                    label: formatRevOption(rev, idx, revisions.length, settings.language),
+                    badge: idx === 0 ? (settings.language === 'ru' ? 'Текущая' : 'Current') : undefined,
+                    badgeColor: 'green',
+                  }))}
+                  size="sm"
+                  className="w-48 sm:w-64 font-mono text-xs"
+                />
 
                 <button
                   type="button"
                   onClick={() => setSelectedRevIndex((idx) => Math.max(0, idx - 1))}
                   disabled={selectedRevIndex <= 0}
-                  className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300"
+                  className="p-1 rounded-lg border border-base-border bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 transition"
                   title={t.revisionNewer || 'Новее'}
                 >
                   <ChevronRight className="w-3.5 h-3.5" />

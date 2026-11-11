@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Server, Eye, EyeOff, Shield, Key } from 'lucide-react';
-import { Modal, Button } from '@config-studio/ui';
+import { Modal, Button, Dropdown, DropdownOption } from '@config-studio/ui';
 import { SSHHost } from '../../types';
 import { api } from '../../services/api';
 
@@ -76,6 +76,23 @@ export const EditHostModal: React.FC<EditHostModalProps> = ({
         .catch(() => {});
     }
   }, [isOpen]);
+
+  const authTypeOptions: DropdownOption[] = [
+    { value: 'password', label: 'Пароль', icon: <Key size={14} className="text-amber-400" /> },
+    { value: 'private_key', label: 'SSH-ключ (PEM)', icon: <Shield size={14} className="text-emerald-400" /> },
+    { value: 'vault', label: 'Сейф секретов', icon: <Server size={14} className="text-purple-400" /> },
+  ];
+
+  const identityOptions: DropdownOption[] = useMemo(() => {
+    return identities.map((id) => ({
+      value: id.id,
+      label: id.title,
+      subtitle: `ID: ${id.id}`,
+      icon: id.type === 'ssh_key' ? <Shield size={14} className="text-emerald-400" /> : <Key size={14} className="text-amber-400" />,
+      badge: id.type,
+      badgeColor: id.type === 'ssh_key' ? 'green' : 'amber',
+    }));
+  }, [identities]);
 
   const handleSubmit = (e: React.FormEvent, autoConnect: boolean = false) => {
     e.preventDefault();
@@ -168,18 +185,13 @@ export const EditHostModal: React.FC<EditHostModalProps> = ({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
-                Тип авторизации
-              </label>
-              <select
+              <Dropdown
+                label="Тип авторизации"
                 value={formData.authType || 'password'}
-                onChange={(e) => setFormData({ ...formData, authType: e.target.value as any })}
-                className="w-full px-3 py-2 bg-base-surface dark:bg-black/25 border border-base-border rounded-xl text-xs text-[var(--text-primary)] focus:outline-none focus:border-accent transition-colors cursor-pointer"
-              >
-                <option value="password">Пароль</option>
-                <option value="private_key">SSH-ключ (PEM)</option>
-                <option value="vault">Сейф секретов</option>
-              </select>
+                onChange={(val) => setFormData({ ...formData, authType: val })}
+                options={authTypeOptions}
+                size="sm"
+              />
             </div>
           </div>
 
@@ -239,21 +251,15 @@ export const EditHostModal: React.FC<EditHostModalProps> = ({
 
           {formData.authType === 'vault' && (
             <div>
-              <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
-                Запись из Сейфа ключей
-              </label>
-              <select
+              <Dropdown
+                label="Запись из Сейфа ключей"
                 value={formData.identityId || ''}
-                onChange={(e) => setFormData({ ...formData, identityId: e.target.value })}
-                className="w-full px-3 py-2 bg-base-surface dark:bg-black/25 border border-base-border rounded-xl text-xs text-[var(--text-primary)] focus:outline-none focus:border-accent transition-colors cursor-pointer"
-              >
-                <option value="">Выберите секрет из хранилища...</option>
-                {identities.map((id) => (
-                  <option key={id.id} value={id.id}>
-                    {id.title} ({id.type})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setFormData({ ...formData, identityId: val })}
+                options={identityOptions}
+                placeholder="Выберите секрет из хранилища..."
+                searchable={identityOptions.length > 5}
+                size="sm"
+              />
             </div>
           )}
 

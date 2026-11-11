@@ -40,6 +40,8 @@ import {
   SectionHeader,
   PillTabs,
   PillTabItem,
+  Dropdown,
+  DropdownOption,
 } from '../../ui';
 
 interface SecretsTabProps {
@@ -114,6 +116,30 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
       closable: false,
     }));
   }, [categories, counts]);
+
+  const secretTypeOptions: DropdownOption[] = useMemo(() => [
+    { value: 'password', label: t.secretTypePassword, icon: <Key size={14} className="text-amber-400" /> },
+    { value: 'ssh_key', label: t.secretTypeSSHKey, icon: <Shield size={14} className="text-emerald-400" /> },
+    { value: 'token', label: t.secretTypeToken, icon: <Sparkles size={14} className="text-cyan-400" /> },
+    { value: 'certificate', label: t.secretTypeCertificate, icon: <FileCheck size={14} className="text-blue-400" /> },
+    { value: 'env', label: t.secretTypeEnv, icon: <Sliders size={14} className="text-purple-400" /> },
+    { value: 'other', label: t.secretTypeOther, icon: <Lock size={14} className="text-gray-400" /> },
+  ], [t]);
+
+  const secretScopeOptions: DropdownOption[] = useMemo(() => [
+    {
+      value: 'shared',
+      label: t.secretScopeShared,
+      icon: <Globe size={14} className="text-blue-400" />,
+      subtitle: language === 'en' ? 'Available for SSH, SFTP and plugins' : 'Доступен для SSH, SFTP и плагинов',
+    },
+    {
+      value: 'plugin',
+      label: t.secretScopePlugin,
+      icon: <Layers size={14} className="text-purple-400" />,
+      subtitle: language === 'en' ? 'Scoped to specific extension' : 'Привязан к конкретному плагину',
+    },
+  ], [t, language]);
 
   const filteredSecrets = useMemo(() => {
     return secretsList.filter((item) => {
@@ -798,30 +824,22 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
               }
             />
 
-            {/* Secret Type & Scope grid */}
+            {/* Secret Type & Scope grid (Dropdown v2) */}
             <div className="grid grid-cols-2 gap-3">
-              <Select
+              <Dropdown
                 label={t.secretTypeLabel}
                 value={secretType}
-                onChange={(e) => setSecretType(e.target.value as SecretType)}
-                options={[
-                  { label: t.secretTypePassword, value: 'password' },
-                  { label: t.secretTypeSSHKey, value: 'ssh_key' },
-                  { label: t.secretTypeToken, value: 'token' },
-                  { label: t.secretTypeCertificate, value: 'certificate' },
-                  { label: t.secretTypeEnv, value: 'env' },
-                  { label: t.secretTypeOther, value: 'other' },
-                ]}
+                onChange={(val) => setSecretType(val as SecretType)}
+                options={secretTypeOptions}
+                size="sm"
               />
 
-              <Select
+              <Dropdown
                 label={t.secretScopeLabel}
                 value={secretScope}
-                onChange={(e) => setSecretScope(e.target.value as SecretScope)}
-                options={[
-                  { label: t.secretScopeShared, value: 'shared' },
-                  { label: t.secretScopePlugin, value: 'plugin' },
-                ]}
+                onChange={(val) => setSecretScope(val as SecretScope)}
+                options={secretScopeOptions}
+                size="sm"
               />
             </div>
 
