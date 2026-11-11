@@ -16,3 +16,5 @@ export * from './EmptyState';
 export * from './SearchInput';
 export * from './ConfirmModal';
 export * from './SectionHeader';
+export * from './PillTabs';
+export * from './NumberInput';
