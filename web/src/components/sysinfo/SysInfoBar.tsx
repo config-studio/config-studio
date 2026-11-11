@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Cpu, Layers, HardDrive, Clock, Server, AlertCircle } from 'lucide-react';
+import { StatusDot } from '@config-studio/ui';
 import { sysinfoService, SysInfoState, formatBytes, formatUptime, getLoadStatus } from '../../services/sysinfo';
 import { SysInfoModal } from './SysInfoModal';
 import { translations } from '../../utils/i18n';
@@ -43,10 +44,10 @@ export const SysInfoBar: React.FC<SysInfoBarProps> = ({
       >
         {/* Node Name & Health Dot */}
         <div className="flex items-center space-x-1.5 text-[var(--text-primary)]">
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              error ? 'bg-rose-500 animate-pulse' : metrics ? 'bg-emerald-500' : 'bg-amber-500'
-            }`}
+          <StatusDot
+            status={error ? 'error' : metrics ? 'online' : 'connecting'}
+            size="xs"
+            pulse={Boolean(error || !metrics)}
           />
           <span className="max-w-[80px] sm:max-w-[120px] truncate text-[11px] font-semibold text-[var(--text-primary)]">
             {activeNodeName}

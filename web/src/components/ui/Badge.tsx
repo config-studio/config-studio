@@ -1,7 +1,7 @@
 import React from 'react';
 
 export type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'accent' | 'neutral';
-export type BadgeSize = 'sm' | 'md';
+export type BadgeSize = 'xs' | 'sm' | 'md';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
@@ -19,6 +19,7 @@ const variantStyles: Record<BadgeVariant, string> = {
 };
 
 const sizeStyles: Record<BadgeSize, string> = {
+  xs: 'px-1 py-0.2 text-[9px] rounded-md gap-0.5',
   sm: 'px-1.5 py-0.5 text-[10px] rounded-md gap-1',
   md: 'px-2 py-0.5 text-xs rounded-lg gap-1.5',
 };

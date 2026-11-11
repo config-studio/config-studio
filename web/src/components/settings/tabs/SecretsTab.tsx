@@ -709,9 +709,9 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
                 <div className="flex items-center space-x-2 px-1 text-xs font-semibold text-gray-400">
                   <span className="shrink-0">{group.icon}</span>
                   <span>{group.label}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/5 dark:bg-black/20 text-gray-600 dark:text-gray-400 font-mono">
+                  <Badge variant="neutral" size="xs">
                     {group.items.length}
-                  </span>
+                  </Badge>
                 </div>
                 <div className="space-y-2.5">
                   {group.items.map((item) => renderSecretCard(item))}

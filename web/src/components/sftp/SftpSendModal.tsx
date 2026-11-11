@@ -14,7 +14,7 @@ import {
 import { SSHHost, SFTPFileInfo } from '../../types';
 import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
-import { Dropdown, DropdownOption } from '@config-studio/ui';
+import { Dropdown, DropdownOption, Modal, Button, Input, StatusBadge, Card } from '@config-studio/ui';
 
 interface SftpSendModalProps {
   filePath: string;
@@ -193,182 +193,152 @@ export const SftpSendModal: React.FC<SftpSendModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#161b22] border border-gray-700/80 rounded-xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden text-gray-200">
-        {/* Header */}
-        <div className="px-5 py-3.5 border-b border-gray-800 flex items-center justify-between bg-[#0d1117]">
-          <div className="flex items-center space-x-2.5">
-            <Send size={16} style={{ color: accentColor }} />
-            <h2 className="text-sm font-semibold text-white tracking-wide">
-              Отправить по SFTP
-            </h2>
+    <Modal isOpen={isOpen} onClose={onClose} size="md">
+      <Modal.Header
+        icon={<Send size={16} style={{ color: accentColor }} />}
+        onClose={onClose}
+      >
+        Отправить по SFTP
+      </Modal.Header>
+
+      <Modal.Body className="space-y-4">
+        {/* File summary */}
+        <Card className="p-3 bg-black/5 dark:bg-black/30 flex items-center justify-between border-base-border">
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <Folder size={15} className="text-accent shrink-0" />
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-[var(--text-primary)] truncate">{fileName}</div>
+              <div className="text-[11px] text-[var(--text-muted)] truncate font-mono">
+                {rootId ? `${rootId}:${filePath}` : filePath}
+              </div>
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition"
-          >
-            <X size={16} />
-          </button>
+        </Card>
+
+        {/* Host selector */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-[var(--text-secondary)] flex items-center justify-between">
+            <span>Целевой сервер (SSH Хост):</span>
+            {hosts.length === 0 && (
+              <span className="text-[11px] text-amber-500 dark:text-amber-400 font-medium">Нет сохраненных хостов</span>
+            )}
+          </label>
+          {hosts.length > 0 ? (
+            <Dropdown
+              options={hostOptions}
+              value={selectedHostId}
+              onChange={(val) => handleHostChange(val)}
+              placeholder="Выберите SSH хост..."
+            />
+          ) : (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-700 dark:text-amber-300">
+              Добавьте SSH хост в разделе Настройки → SSH & Хосты для отправки файлов.
+            </div>
+          )}
         </div>
 
-        {/* Content */}
-        <div className="p-5 space-y-4">
-          {/* File summary */}
-          <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex items-center justify-between">
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <Folder size={15} className="text-accent shrink-0" />
-              <div className="min-w-0">
-                <div className="text-xs font-semibold text-white truncate">{fileName}</div>
-                <div className="text-[11px] text-gray-400 truncate font-mono">
-                  {rootId ? `${rootId}:${filePath}` : filePath}
+        {/* Remote Directory */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-[var(--text-secondary)] flex items-center justify-between">
+            <span>Удаленная папка на сервере:</span>
+            {activeHost && (
+              <button
+                type="button"
+                onClick={handleOpenBrowser}
+                className="text-[11px] text-accent hover:underline flex items-center space-x-1 cursor-pointer"
+              >
+                <FolderPlus size={12} />
+                <span>{isBrowsing ? 'Обновить обзор' : 'Обзор папок'}</span>
+              </button>
+            )}
+          </label>
+          <div className="flex items-center space-x-2">
+            <Input
+              type="text"
+              value={remotePath}
+              onChange={(e) => setRemotePath(e.target.value)}
+              placeholder="/etc/nginx или /var/www"
+              className="font-mono text-xs"
+            />
+          </div>
+          <div className="text-[11px] text-[var(--text-muted)]">
+            Файл будет сохранен как: <span className="text-[var(--text-primary)] font-mono">{remotePath.replace(/\/$/, '')}/{fileName}</span>
+          </div>
+        </div>
+
+        {/* Directory Picker Explorer */}
+        {isBrowsing && (
+          <div className="border border-base-border rounded-xl bg-black/5 dark:bg-black/30 p-2.5 space-y-2 max-h-48 flex flex-col">
+            <div className="flex items-center justify-between pb-1 border-b border-base-border text-[11px] text-[var(--text-muted)]">
+              <span className="font-mono truncate">{remotePath}</span>
+              <Button
+                variant="secondary"
+                size="xs"
+                onClick={handleNavigateUp}
+              >
+                .. Наверх
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar">
+              {pickerLoading ? (
+                <div className="flex items-center justify-center p-4 text-xs text-[var(--text-muted)]">
+                  <RefreshCw size={13} className="animate-spin mr-2" /> Загрузка каталогов...
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Host selector */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-300 flex items-center justify-between">
-              <span>Целевой сервер (SSH Хост):</span>
-              {hosts.length === 0 && (
-                <span className="text-[11px] text-amber-400">Нет сохраненных хостов</span>
-              )}
-            </label>
-            {hosts.length > 0 ? (
-              <Dropdown
-                options={hostOptions}
-                value={selectedHostId}
-                onChange={(val) => handleHostChange(val)}
-                placeholder="Выберите SSH хост..."
-              />
-            ) : (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-300">
-                Добавьте SSH хост в разделе Настройки → SSH & Хосты для отправки файлов.
-              </div>
-            )}
-          </div>
-
-          {/* Remote Directory */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-300 flex items-center justify-between">
-              <span>Удаленная папка на сервере:</span>
-              {activeHost && (
-                <button
-                  type="button"
-                  onClick={handleOpenBrowser}
-                  className="text-[11px] text-accent hover:underline flex items-center space-x-1"
-                >
-                  <FolderPlus size={12} />
-                  <span>{isBrowsing ? 'Обновить обзор' : 'Обзор папок'}</span>
-                </button>
-              )}
-            </label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={remotePath}
-                onChange={(e) => setRemotePath(e.target.value)}
-                placeholder="/etc/nginx или /var/www"
-                className="flex-1 px-3 py-2 bg-[#0d1117] border border-gray-700 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-accent"
-              />
-            </div>
-            <div className="text-[11px] text-gray-400">
-              Файл будет сохранен как: <span className="text-gray-200 font-mono">{remotePath.replace(/\/$/, '')}/{fileName}</span>
-            </div>
-          </div>
-
-          {/* Directory Picker Explorer */}
-          {isBrowsing && (
-            <div className="border border-gray-700 rounded-lg bg-[#0d1117] p-2.5 space-y-2 max-h-48 flex flex-col">
-              <div className="flex items-center justify-between pb-1 border-b border-gray-800 text-[11px] text-gray-400">
-                <span className="font-mono truncate">{remotePath}</span>
-                <button
-                  type="button"
-                  onClick={handleNavigateUp}
-                  className="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-800 text-[10px]"
-                >
-                  .. Наверх
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar">
-                {pickerLoading ? (
-                  <div className="flex items-center justify-center p-4 text-xs text-gray-400">
-                    <RefreshCw size={13} className="animate-spin mr-2" /> Загрузка каталогов...
-                  </div>
-                ) : pickerEntries.length === 0 ? (
-                  <div className="text-xs text-gray-500 italic p-2 text-center">
-                    Вложенных подкаталогов нет
-                  </div>
-                ) : (
-                  pickerEntries.map((e) => (
-                    <div
-                      key={e.path}
-                      onClick={() => handleSelectDirectory(e.path)}
-                      className="flex items-center space-x-2 px-2 py-1 rounded hover:bg-gray-800/80 cursor-pointer text-xs text-gray-300 transition"
-                    >
-                      <Folder size={13} className="text-amber-400 shrink-0" />
-                      <span className="truncate flex-1">{e.name}</span>
-                      <ChevronRight size={11} className="text-gray-500" />
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Status Message */}
-          {statusMessage && (
-            <div
-              className={`p-3 rounded-lg text-xs flex items-center space-x-2 ${
-                statusMessage.type === 'success'
-                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                  : 'bg-red-500/10 border border-red-500/20 text-red-400'
-              }`}
-            >
-              {statusMessage.type === 'success' ? (
-                <CheckCircle size={14} className="shrink-0" />
+              ) : pickerEntries.length === 0 ? (
+                <div className="text-xs text-[var(--text-muted)] italic p-2 text-center">
+                  Вложенных подкаталогов нет
+                </div>
               ) : (
-                <AlertCircle size={14} className="shrink-0" />
+                pickerEntries.map((e) => (
+                  <div
+                    key={e.path}
+                    onClick={() => handleSelectDirectory(e.path)}
+                    className="flex items-center space-x-2 px-2 py-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
+                  >
+                    <Folder size={13} className="text-amber-500 dark:text-amber-400 shrink-0" />
+                    <span className="truncate flex-1 font-mono">{e.name}</span>
+                    <ChevronRight size={11} className="text-gray-400" />
+                  </div>
+                ))
               )}
-              <span>{statusMessage.text}</span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Footer */}
-        <div className="px-5 py-3 border-t border-gray-800 bg-[#0d1117] flex items-center justify-end space-x-2.5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3.5 py-1.5 text-xs text-gray-400 hover:text-white rounded-lg transition"
+        {/* Status Message */}
+        {statusMessage && (
+          <StatusBadge
+            status={statusMessage.type === 'success' ? 'success' : 'error'}
+            size="md"
+            icon={statusMessage.type === 'success' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+            className="w-full justify-start py-2"
           >
-            Отмена
-          </button>
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={isSending || hosts.length === 0}
-            className="flex items-center space-x-2 px-4 py-1.5 rounded-lg text-xs font-semibold text-black transition shadow-lg disabled:opacity-50"
-            style={{ backgroundColor: accentColor }}
-          >
-            {isSending ? (
-              <>
-                <RefreshCw size={13} className="animate-spin" />
-                <span>Отправка...</span>
-              </>
-            ) : (
-              <>
-                <Send size={13} />
-                <span>Отправить на сервер</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+            {statusMessage.text}
+          </StatusBadge>
+        )}
+      </Modal.Body>
+
+      <Modal.Footer justify="end">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onClose}
+        >
+          Отмена
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={handleSend}
+          disabled={isSending || hosts.length === 0}
+          loading={isSending}
+          icon={<Send size={13} />}
+        >
+          {isSending ? 'Отправка...' : 'Отправить на сервер'}
+        </Button>
+      </Modal.Footer>
+    </Modal>
   );
 };
 

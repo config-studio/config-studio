@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldAlert, AlertTriangle, ArrowLeft, Save, Code } from 'lucide-react';
 import { GuardIssue } from '../types';
-import { Modal, Button, Badge } from './ui';
+import { Modal, Button, Badge, StatusDot } from './ui';
 
 interface PreSaveGuardModalProps {
   isOpen: boolean;
@@ -104,7 +104,7 @@ export const PreSaveGuardModal: React.FC<PreSaveGuardModalProps> = ({
         )}
 
         <div className="text-[11px] text-[var(--text-secondary)] bg-black/5 dark:bg-black/25 p-3 rounded-xl border border-base-border flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-accent shrink-0" />
+          <StatusDot status="warning" size="xs" />
           <span>
             При нажатии <strong>«Force Save»</strong> файл будет сохранен на диск, а инцидент будет зафиксирован
             в журнале аудита безопасности.

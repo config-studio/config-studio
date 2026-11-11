@@ -6,7 +6,7 @@ import { translations } from '../utils/i18n';
 import { getLuminance } from '../utils/color';
 import { pluginManager } from '../services/pluginLoader';
 import { ActionToolbar } from './ActionToolbar';
-import { ScrollArea, EmptyState, Button, PillTabs, PillTabItem, Dropdown, DropdownOption } from '@config-studio/ui';
+import { ScrollArea, EmptyState, Button, PillTabs, PillTabItem, Dropdown, DropdownOption, Badge } from '@config-studio/ui';
 import { FileFormatIcon } from './icons/FileFormatIcon';
 
 interface EditorProps {
@@ -430,9 +430,9 @@ export const Editor: React.FC<EditorProps> = ({
               <History className={`w-3.5 h-3.5 ${isTimeMachineActive ? 'text-accent' : 'text-gray-400'}`} />
               <span className="hidden sm:inline">{t.timeMachine || 'История'}</span>
               {revisions.length > 0 && (
-                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-accent/20 text-accent font-mono font-bold">
+                <Badge variant="accent" size="xs">
                   {revisions.length}
-                </span>
+                </Badge>
               )}
             </button>
           )}

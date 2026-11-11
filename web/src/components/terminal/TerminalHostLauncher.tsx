@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Server, Plus, Edit2, Trash2, Terminal, ArrowRight, Folder, Shield, Key } from 'lucide-react';
-import { SearchInput, Button } from '@config-studio/ui';
+import { SearchInput, Button, Badge } from '@config-studio/ui';
 import { SSHHost } from '../../types';
 
 export interface TerminalHostLauncherProps {
@@ -39,14 +39,14 @@ export const TerminalHostLauncher: React.FC<TerminalHostLauncherProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4 shrink-0">
         <div className="flex items-center space-x-3">
           {/* Prominent "+ Добавить хост" Button */}
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
             onClick={onAddHost}
-            className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-accent text-slate-950 font-bold text-xs hover:opacity-90 transition-all shadow-sm active:scale-95 cursor-pointer"
+            icon={<Plus size={15} />}
           >
-            <Plus size={15} />
-            <span>Добавить хост</span>
-          </button>
+            Добавить хост
+          </Button>
 
           <span className="text-xs text-[var(--text-muted)] font-medium">
             Сохраненные SSH-хосты ({hosts.length})
@@ -100,9 +100,9 @@ export const TerminalHostLauncher: React.FC<TerminalHostLauncherProps> = ({
                     </div>
 
                     {/* Auth Badge */}
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase font-bold tracking-wider bg-black/5 dark:bg-white/10 text-[var(--text-muted)] border border-base-border shrink-0 ml-1">
+                    <Badge variant="neutral" size="xs" className="uppercase font-mono font-bold tracking-wider shrink-0 ml-1">
                       {authBadge}
-                    </span>
+                    </Badge>
                   </div>
 
                   {/* Middle: Path (if set) */}

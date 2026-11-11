@@ -28,7 +28,7 @@ import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
 import { sshHostService } from '../services/sshHosts';
 import { SysInfoBar } from './sysinfo/SysInfoBar';
-import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem, ConfirmModal, DiagnosticsCountBadge, StatusBadge } from '@config-studio/ui';
+import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem, ConfirmModal, DiagnosticsCountBadge, StatusBadge, Badge } from '@config-studio/ui';
 import { TerminalHostLauncher } from './terminal/TerminalHostLauncher';
 import { EditHostModal } from './terminal/EditHostModal';
 import type { XTerminalHandle } from './terminal/XTerminal';
@@ -710,30 +710,34 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                           <span className="text-[var(--text-muted)] shrink-0 font-mono text-[10px]">
                             {new Date(evt.timestamp).toLocaleTimeString()}
                           </span>
-                          <span
-                            className={`font-semibold px-1.5 py-0.2 rounded text-[9px] uppercase tracking-wider font-mono ${
+                          <Badge
+                            variant={
                               evt.category === 'error' || evt.severity === 'error'
-                                ? 'bg-rose-500/15 text-rose-800 dark:text-rose-300 border border-rose-500/30'
+                                ? 'error'
                                 : evt.category === 'network'
-                                ? 'bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border border-indigo-500/30'
+                                ? 'info'
                                 : evt.category === 'system'
-                                ? 'bg-slate-500/15 text-slate-800 dark:text-slate-300 border border-slate-500/30'
-                                : 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
-                            }`}
+                                ? 'neutral'
+                                : 'success'
+                            }
+                            size="xs"
+                            className="uppercase font-mono font-bold tracking-wider"
                           >
                             {evt.category || 'user'}
-                          </span>
-                          <span
-                            className={`font-semibold px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                          </Badge>
+                          <Badge
+                            variant={
                               evt.severity === 'error' || evt.severity === 'critical'
-                                ? 'bg-rose-500/20 text-rose-800 dark:text-rose-200 border border-rose-500/30'
+                                ? 'error'
                                 : evt.severity === 'warn'
-                                ? 'bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-500/30'
-                                : 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30'
-                            }`}
+                                ? 'warning'
+                                : 'neutral'
+                            }
+                            size="xs"
+                            className="font-mono font-medium"
                           >
                             {evt.action}
-                          </span>
+                          </Badge>
                           <span className="font-mono text-[var(--text-primary)] truncate">{evt.target}</span>
                         </div>
                         <span className="text-[var(--text-muted)] text-[10px] shrink-0 font-mono">

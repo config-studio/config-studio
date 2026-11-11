@@ -11,6 +11,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { SysInfoState, formatBytes, formatUptime, getLoadStatus } from '../../services/sysinfo';
+import { Badge } from '@config-studio/ui';
 import { translations } from '../../utils/i18n';
 
 interface SysInfoModalProps {
@@ -64,9 +65,9 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
             <div className="truncate">
               <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center space-x-2">
                 <span>{t.sysinfoTitle || 'Мониторинг узла'}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-black/5 dark:bg-white/10 text-emerald-600 dark:text-emerald-400 font-normal border border-base-border">
+                <Badge variant="neutral" size="sm" className="font-mono text-emerald-600 dark:text-emerald-400">
                   {activeNodeName}
-                </span>
+                </Badge>
               </h3>
               {metrics && (
                 <p className="text-[11px] text-[var(--text-muted)] font-mono mt-0.5">

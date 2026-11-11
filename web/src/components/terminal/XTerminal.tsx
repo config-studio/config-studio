@@ -3,6 +3,7 @@ import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import 'xterm/css/xterm.css';
 import { RefreshCw, Trash2, Power, Terminal as TerminalIcon, AlertCircle } from 'lucide-react';
+import { StatusBadge } from '@config-studio/ui';
 import { SSHHost } from '../../types';
 
 export interface XTerminalHandle {
@@ -400,28 +401,24 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
 
             {/* Status Indicator */}
             {status === 'connected' && (
-              <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Онлайн</span>
-              </span>
+              <StatusBadge status="success" size="xs" dot="online">
+                Онлайн
+              </StatusBadge>
             )}
             {status === 'connecting' && (
-              <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                <span>Подключение...</span>
-              </span>
+              <StatusBadge status="warning" size="xs" dot="connecting">
+                Подключение...
+              </StatusBadge>
             )}
             {status === 'disconnected' && (
-              <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-black/10 dark:bg-white/10 text-[var(--text-muted)] font-medium">
-                <Power size={10} />
-                <span>Отключено</span>
-              </span>
+              <StatusBadge status="neutral" size="xs" icon={<Power size={10} />}>
+                Отключено
+              </StatusBadge>
             )}
             {status === 'error' && (
-              <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 font-medium" title={errorMessage}>
-                <AlertCircle size={10} />
-                <span>Ошибка</span>
-              </span>
+              <StatusBadge status="error" size="xs" icon={<AlertCircle size={10} />} title={errorMessage}>
+                Ошибка
+              </StatusBadge>
             )}
           </div>
 

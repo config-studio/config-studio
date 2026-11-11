@@ -20,6 +20,7 @@ import {
   DropdownOption,
   Toggle,
   Badge,
+  StatusDot,
   SearchInput,
   EmptyState,
   SectionHeader,
@@ -188,10 +189,9 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
                   }`}
                 >
                   {/* Status dot */}
-                  <span
-                    className={`w-2 h-2 rounded-full shrink-0 ${
-                      p.enabled ? 'bg-emerald-400 shadow-xs' : 'bg-gray-400 dark:bg-gray-600'
-                    }`}
+                  <StatusDot
+                    status={p.enabled ? 'online' : 'neutral'}
+                    size="sm"
                     title={p.enabled ? 'Включен' : 'Отключен'}
                   />
 

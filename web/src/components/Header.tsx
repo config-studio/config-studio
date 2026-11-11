@@ -23,7 +23,7 @@ import { Settings, OpenFile, FileItem, HeaderItemDef } from '../types';
 import { translations, Language, getAvailableLanguages, subscribeLanguages, LanguageMeta } from '../utils/i18n';
 import { api } from '../services/api';
 import { formatBytes } from '../utils/color';
-import { TreeAsciiIcon } from './ui';
+import { TreeAsciiIcon, Badge, StatusDot } from './ui';
 import { FileFormatIcon } from './icons/FileFormatIcon';
 
 interface HeaderProps {
@@ -555,7 +555,7 @@ export const Header: React.FC<HeaderProps> = ({
           )}
           <span className="hidden sm:inline">{isSaving ? t.saving : t.save}</span>
           {currentFile?.isDirty && (
-            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block animate-pulse ml-0.5" />
+            <StatusDot status="warning" size="xs" pulse className="ml-0.5" />
           )}
         </button>
 
@@ -617,9 +617,9 @@ export const Header: React.FC<HeaderProps> = ({
               <Package className="w-3.5 h-3.5 text-accent" />
               <span className="hidden lg:inline font-medium">{t.tabPlugins}</span>
               {activePluginsCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-accent/20 text-accent border border-accent/30">
+                <Badge variant="accent" size="xs">
                   {activePluginsCount}
-                </span>
+                </Badge>
               )}
             </button>
           )}

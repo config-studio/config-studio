@@ -16,7 +16,7 @@ import {
 import { SSHHost, SSHKeyPair, SecretMeta } from '../../types';
 import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
-import { ConfirmModal, EmptyState, Dropdown, DropdownOption } from '../ui';
+import { ConfirmModal, EmptyState, Dropdown, DropdownOption, Badge, StatusBadge, Button } from '../ui';
 
 interface SSHHostsTabProps {
   accentColor?: string;
@@ -436,12 +436,12 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                       <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
                         {host.name || host.host}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-black/5 dark:bg-white/10 text-[var(--text-muted)] font-mono">
+                      <Badge variant="neutral" size="xs" className="font-mono">
                         {host.user}@{host.host}:{host.port || 22}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                      </Badge>
+                      <Badge variant={host.authType === 'vault' ? 'accent' : 'info'} size="xs" className="uppercase font-mono font-bold tracking-wider">
                         {host.authType}
-                      </span>
+                      </Badge>
                     </div>
                     <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono truncate">
                       Путь: {host.defaultPath || '/etc'}
@@ -452,25 +452,14 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                 {/* Status / Test result */}
                 <div className="flex items-center space-x-2">
                   {res && (
-                    <div
-                      className={`text-[11px] px-2 py-0.5 rounded flex items-center space-x-1 ${
-                        res.success
-                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                          : 'bg-red-500/10 text-red-700 dark:text-red-400'
-                      }`}
+                    <StatusBadge
+                      status={res.success ? 'success' : 'error'}
+                      size="sm"
+                      icon={res.success ? <CheckCircle size={11} /> : <AlertCircle size={11} />}
+                      title={res.error}
                     >
-                      {res.success ? (
-                        <>
-                          <CheckCircle size={11} />
-                          <span>OK ({res.latencyMs}мс)</span>
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle size={11} />
-                          <span title={res.error}>Ошибка</span>
-                        </>
-                      )}
-                    </div>
+                      {res.success ? `OK (${res.latencyMs}мс)` : 'Ошибка'}
+                    </StatusBadge>
                   )}
 
                   <button
