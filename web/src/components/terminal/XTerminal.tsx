@@ -216,6 +216,7 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
         password: host.password,
         privateKey: host.privateKey,
         passphrase: host.passphrase,
+        identityId: host.identityId,
         cols: term.cols || 80,
         rows: term.rows || 24,
       };
@@ -282,7 +283,7 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
         ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
       }
     });
-  }, [host.host, host.port, host.user, host.authType, host.password, host.privateKey, host.passphrase, accentColor, themeMode, notifyStatus, safeFit]);
+  }, [host.host, host.port, host.user, host.authType, host.password, host.privateKey, host.passphrase, host.identityId, accentColor, themeMode, notifyStatus, safeFit]);
 
   // Connect on mount or when host connection attributes change
   useEffect(() => {
