@@ -52,24 +52,24 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
       <div
-        className="w-full max-w-xl bg-[#161b22] border border-[#30363d] rounded-xl shadow-2xl overflow-hidden flex flex-col text-sm text-[#c9d1d9]"
+        className="w-full max-w-xl bg-base-surface border border-base-border rounded-xl shadow-2xl overflow-hidden flex flex-col text-sm text-[var(--text-primary)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-3.5 bg-[#0d1117] border-b border-[#30363d] flex items-center justify-between">
+        <div className="px-5 py-3.5 bg-base-surface border-b border-base-border flex items-center justify-between">
           <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
               <Server size={16} />
             </div>
             <div className="truncate">
-              <h3 className="text-sm font-semibold text-white flex items-center space-x-2">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center space-x-2">
                 <span>{t.sysinfoTitle || 'Мониторинг узла'}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-white/10 text-emerald-400 font-normal">
+                <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-black/5 dark:bg-white/10 text-emerald-600 dark:text-emerald-400 font-normal border border-base-border">
                   {activeNodeName}
                 </span>
               </h3>
               {metrics && (
-                <p className="text-[11px] text-[#8b949e] font-mono mt-0.5">
+                <p className="text-[11px] text-[var(--text-muted)] font-mono mt-0.5">
                   {metrics.hostname} • {metrics.os}/{metrics.arch} • {metrics.numCpu} {t.sysinfoCores || 'cores'}
                 </p>
               )}
@@ -80,15 +80,15 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
               type="button"
               onClick={onRefresh}
               disabled={loading}
-              className="p-1.5 rounded-md text-[#8b949e] hover:text-white hover:bg-white/5 transition disabled:opacity-50"
+              className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/5 transition disabled:opacity-50 cursor-pointer"
               title={t.sysinfoRefresh || 'Обновить'}
             >
-              <RefreshCw size={14} className={loading ? 'animate-spin text-emerald-400' : ''} />
+              <RefreshCw size={14} className={loading ? 'animate-spin text-emerald-500' : ''} />
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-md text-[#8b949e] hover:text-white hover:bg-white/5 transition"
+              className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer"
             >
               <X size={15} />
             </button>
@@ -112,10 +112,10 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
               {/* Top Row: CPU & RAM Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* CPU Card */}
-                <div className="p-3.5 rounded-lg bg-[#0d1117]/80 border border-[#30363d] space-y-2">
+                <div className="p-3.5 rounded-xl bg-black/5 dark:bg-black/30 border border-base-border space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center space-x-1.5 text-[#8b949e]">
-                      <Cpu size={14} className="text-blue-400" />
+                    <span className="flex items-center space-x-1.5 text-[var(--text-muted)]">
+                      <Cpu size={14} className="text-blue-600 dark:text-blue-400" />
                       <span>{t.sysinfoCpu || 'ЦП (CPU)'}</span>
                     </span>
                     <span className={`font-mono font-bold ${getTextColor(metrics.cpuPercent ?? 0)}`}>
@@ -123,23 +123,23 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
                     </span>
                   </div>
                   {/* Progress bar */}
-                  <div className="h-1.5 w-full bg-[#21262d] rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${getBarColor(metrics.cpuPercent ?? 0)}`}
                       style={{ width: `${Math.min(100, Math.max(0, metrics.cpuPercent ?? 0))}%` }}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-[#8b949e] font-mono pt-0.5">
+                  <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)] font-mono pt-0.5">
                     <span>Load Avg (1m, 5m, 15m):</span>
-                    <span className="text-gray-300">{(metrics.loadAvg || []).map((l) => (l ?? 0).toFixed(2)).join(', ') || 'N/A'}</span>
+                    <span className="text-[var(--text-secondary)] font-medium">{(metrics.loadAvg || []).map((l) => (l ?? 0).toFixed(2)).join(', ') || 'N/A'}</span>
                   </div>
                 </div>
 
                 {/* RAM Card */}
-                <div className="p-3.5 rounded-lg bg-[#0d1117]/80 border border-[#30363d] space-y-2">
+                <div className="p-3.5 rounded-xl bg-black/5 dark:bg-black/30 border border-base-border space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center space-x-1.5 text-[#8b949e]">
-                      <Layers size={14} className="text-purple-400" />
+                    <span className="flex items-center space-x-1.5 text-[var(--text-muted)]">
+                      <Layers size={14} className="text-purple-600 dark:text-purple-400" />
                       <span>{t.sysinfoRam || 'ОЗУ (RAM)'}</span>
                     </span>
                     <span className={`font-mono font-bold ${getTextColor(metrics.memory?.usedPercent ?? 0)}`}>
@@ -147,39 +147,39 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
                     </span>
                   </div>
                   {/* Progress bar */}
-                  <div className="h-1.5 w-full bg-[#21262d] rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${getBarColor(metrics.memory?.usedPercent ?? 0)}`}
                       style={{ width: `${Math.min(100, Math.max(0, metrics.memory?.usedPercent ?? 0))}%` }}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-[#8b949e] font-mono pt-0.5">
+                  <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)] font-mono pt-0.5">
                     <span>{formatBytes(metrics.memory?.usedBytes ?? 0)} / {formatBytes(metrics.memory?.totalBytes ?? 0)}</span>
-                    <span className="text-emerald-400">{formatBytes(metrics.memory?.availableBytes ?? 0)} {t.sysinfoFree || 'free'}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">{formatBytes(metrics.memory?.availableBytes ?? 0)} {t.sysinfoFree || 'free'}</span>
                   </div>
                 </div>
               </div>
 
               {/* Uptime Banner */}
-              <div className="p-3 rounded-lg bg-[#0d1117]/60 border border-[#30363d] flex items-center justify-between text-xs">
-                <div className="flex items-center space-x-2 text-[#8b949e]">
-                  <Clock size={14} className="text-emerald-400" />
+              <div className="p-3 rounded-xl bg-black/5 dark:bg-black/25 border border-base-border flex items-center justify-between text-xs">
+                <div className="flex items-center space-x-2 text-[var(--text-muted)]">
+                  <Clock size={14} className="text-emerald-600 dark:text-emerald-400" />
                   <span>{t.sysinfoUptime || 'Время непрерывной работы (Uptime)'}:</span>
                 </div>
-                <div className="font-mono font-bold text-white flex items-center space-x-1.5">
-                  <CheckCircle2 size={13} className="text-emerald-400" />
+                <div className="font-mono font-bold text-[var(--text-primary)] flex items-center space-x-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400" />
                   <span>{formatUptime(metrics.uptimeSec)}</span>
                 </div>
               </div>
 
               {/* Disks Partition Table */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-gray-300 px-0.5">
+                <div className="flex items-center justify-between text-xs font-semibold text-[var(--text-primary)] px-0.5">
                   <span className="flex items-center space-x-1.5">
-                    <HardDrive size={14} className="text-cyan-400" />
+                    <HardDrive size={14} className="text-cyan-600 dark:text-cyan-400" />
                     <span>{t.sysinfoDisk || 'Дисковые накопители'}</span>
                   </span>
-                  <span className="text-[11px] font-mono text-[#8b949e]">
+                  <span className="text-[11px] font-mono text-[var(--text-muted)]">
                     {(metrics.disks || []).length} {(metrics.disks || []).length === 1 ? 'mount' : 'mounts'}
                   </span>
                 </div>
@@ -188,23 +188,23 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
                   {(metrics.disks || []).map((d, idx) => (
                     <div
                       key={d.mountPoint || idx}
-                      className="p-3 rounded-lg bg-[#0d1117]/80 border border-[#30363d] space-y-1.5"
+                      className="p-3 rounded-xl bg-black/5 dark:bg-black/30 border border-base-border space-y-1.5"
                     >
                       <div className="flex items-center justify-between text-xs font-mono">
-                        <span className="font-bold text-gray-200">{d.mountPoint}</span>
+                        <span className="font-bold text-[var(--text-primary)]">{d.mountPoint}</span>
                         <span className={`font-semibold ${getTextColor(d.usedPercent ?? 0)}`}>
                           {(d.usedPercent ?? 0).toFixed(1)}%
                         </span>
                       </div>
-                      <div className="h-1.5 w-full bg-[#21262d] rounded-full overflow-hidden">
+                      <div className="h-1.5 w-full bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${getBarColor(d.usedPercent ?? 0)}`}
                           style={{ width: `${Math.min(100, Math.max(0, d.usedPercent ?? 0))}%` }}
                         />
                       </div>
-                      <div className="flex items-center justify-between text-[11px] text-[#8b949e] font-mono">
+                      <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)] font-mono">
                         <span>{formatBytes(d.usedBytes)} {t.sysinfoUsed || 'used'}</span>
-                        <span className="text-gray-300">
+                        <span className="text-[var(--text-secondary)] font-medium">
                           {formatBytes(d.availableBytes)} {t.sysinfoFree || 'free'} / {formatBytes(d.totalBytes)}
                         </span>
                       </div>
@@ -228,7 +228,7 @@ export const SysInfoModal: React.FC<SysInfoModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 bg-[#0d1117] border-t border-[#30363d] flex items-center justify-between text-[11px] text-[#8b949e] font-mono">
+        <div className="px-5 py-3 bg-base-surface border-t border-base-border flex items-center justify-between text-[11px] text-[var(--text-muted)] font-mono">
           <span>
             {state.lastUpdated ? `Обновлено: ${state.lastUpdated.toLocaleTimeString()}` : ''}
           </span>

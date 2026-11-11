@@ -783,7 +783,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
           {currentFile && (
             <>
-              <span className="hidden sm:inline text-gray-600">|</span>
+              <span className="hidden sm:inline text-gray-400 dark:text-gray-600 select-none">|</span>
               <span>
                 Ln {cursorPos.line}, Col {cursorPos.col}
               </span>
