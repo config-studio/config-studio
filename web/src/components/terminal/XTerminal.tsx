@@ -101,6 +101,18 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
     onStatusChange?.(s, err);
   }, [onStatusChange]);
 
+  // Safe dimension-aware fit wrapper that prevents 'dimensions of undefined' layout exceptions
+  const safeFit = useCallback(() => {
+    try {
+      const el = containerRef.current;
+      if (!el || el.clientWidth === 0 || el.clientHeight === 0) return;
+      if (!termRef.current?.element) return;
+      fitAddonRef.current?.fit();
+    } catch {
+      // Suppress transient layout/dimension calculation errors during tab switches or resizes
+    }
+  }, []);
+
   // Live dark/light theme observer
   useEffect(() => {
     const updateTheme = () => {
@@ -156,7 +168,9 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
     term.loadAddon(fitAddon);
 
     term.open(containerRef.current);
-    fitAddon.fit();
+    requestAnimationFrame(() => {
+      safeFit();
+    });
 
     termRef.current = term;
     fitAddonRef.current = fitAddon;
@@ -236,12 +250,13 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
     });
   }, [host, accentColor, themeMode, notifyStatus, status]);
 
-  // Initial connect
+  // Initial connect & window resize handling
   useEffect(() => {
     connect();
 
     const handleResize = () => {
-      fitAddonRef.current?.fit();
+      if (!isActive) return;
+      safeFit();
     };
 
     window.addEventListener('resize', handleResize);
@@ -255,21 +270,46 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
         termRef.current.dispose();
       }
     };
-  }, [connect]);
+  }, [connect, isActive, safeFit]);
+
+  // ResizeObserver for dynamic dock height changes and container resizing
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+
+    let rAF: number | null = null;
+    const observer = new ResizeObserver(() => {
+      if (!isActive) return;
+      if (rAF) cancelAnimationFrame(rAF);
+      rAF = requestAnimationFrame(() => {
+        safeFit();
+      });
+    });
+
+    observer.observe(el);
+    return () => {
+      if (rAF) cancelAnimationFrame(rAF);
+      observer.disconnect();
+    };
+  }, [isActive, safeFit]);
 
   // Refit when tab becomes active
   useEffect(() => {
     if (isActive) {
       const timer = setTimeout(() => {
-        fitAddonRef.current?.fit();
-        termRef.current?.focus();
+        safeFit();
+        try {
+          termRef.current?.focus();
+        } catch {}
       }, 60);
       return () => clearTimeout(timer);
     }
-  }, [isActive]);
+  }, [isActive, safeFit]);
 
   const handleClear = useCallback(() => {
-    termRef.current?.clear();
+    try {
+      termRef.current?.clear();
+    } catch {}
   }, []);
 
   const handleReconnect = useCallback(() => {
@@ -279,9 +319,13 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
   useImperativeHandle(ref, () => ({
     reconnect: handleReconnect,
     clear: handleClear,
-    fit: () => fitAddonRef.current?.fit(),
-    focus: () => termRef.current?.focus(),
-  }), [handleReconnect, handleClear]);
+    fit: safeFit,
+    focus: () => {
+      try {
+        termRef.current?.focus();
+      } catch {}
+    },
+  }), [handleReconnect, handleClear, safeFit]);
 
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-[#0d1117] text-[var(--text-primary)] select-none overflow-hidden">
