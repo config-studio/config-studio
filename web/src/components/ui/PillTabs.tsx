@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Zap } from 'lucide-react';
 
 export interface PillTabItem {
   id: string;
@@ -263,7 +263,7 @@ export const PluginActionGroup: React.FC<PluginActionGroupProps> = ({
     <div className={`flex items-center space-x-1.5 p-1 rounded-xl bg-black/15 dark:bg-black/30 border border-base-border select-none ${className}`}>
       {badge && (
         <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider shrink-0 ${badgeColor}`}>
-          <span>⚡</span>
+          <Zap size={11} className="shrink-0" />
           <span>{badge}</span>
         </div>
       )}

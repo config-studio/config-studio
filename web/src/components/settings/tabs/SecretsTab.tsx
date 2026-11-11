@@ -393,15 +393,15 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
         {/* Top row: Title + badges */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="p-1.5 rounded-lg bg-black/30 border border-base-border shrink-0">
+            <div className="p-1.5 rounded-lg bg-black/5 dark:bg-black/30 border border-base-border shrink-0">
               {typeMeta.icon}
             </div>
             <div className="min-w-0">
               <h4 className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                 {item.title}
               </h4>
-              <p className="text-[10px] text-gray-400 font-mono truncate">
-                ID: <span className="text-gray-300">{item.id}</span>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 font-mono truncate">
+                ID: <span className="text-gray-700 dark:text-gray-300">{item.id}</span>
               </p>
             </div>
           </div>
@@ -434,7 +434,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
         </div>
 
         {/* Middle row: Masked/Revealed secret container */}
-        <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/30 border border-base-border font-mono text-xs">
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/5 dark:bg-black/30 border border-base-border font-mono text-xs">
           <div className="flex-1 truncate pr-3 select-all">
             {isRevealed ? (
               <span className="text-emerald-400 font-mono text-[11px] whitespace-pre-wrap break-all">
@@ -558,12 +558,12 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
       {/* Condition 1: Password protection disabled */}
       {!authEnabled && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start space-x-3.5">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-2 flex-1">
-            <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
               {t.authRequiredToManage}
             </h4>
-            <p className="text-xs text-gray-300 leading-relaxed">
+            <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
               {t.authRequiredHelp}
             </p>
             <div className="pt-1">
@@ -572,7 +572,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
                 size="sm"
                 onClick={onNavigateToSecurity}
                 icon={<Shield size={13} />}
-                className="text-amber-200 border-amber-500/40 hover:bg-amber-500/20"
+                className="text-amber-800 dark:text-amber-200 border-amber-500/40 hover:bg-amber-500/20"
               >
                 {t.tabSecurity}
               </Button>
@@ -585,7 +585,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
       {authEnabled && !secretsStatus?.privilegedActive && (
         <Card className="p-4 flex items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-black/30 border border-base-border text-gray-400">
+            <div className="p-2.5 rounded-xl bg-black/5 dark:bg-black/30 border border-base-border text-gray-500 dark:text-gray-400">
               <Lock size={18} />
             </div>
             <div>
@@ -709,7 +709,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
                 <div className="flex items-center space-x-2 px-1 text-xs font-semibold text-gray-400">
                   <span className="shrink-0">{group.icon}</span>
                   <span>{group.label}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/20 text-gray-400 font-mono">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/5 dark:bg-black/20 text-gray-600 dark:text-gray-400 font-mono">
                     {group.items.length}
                   </span>
                 </div>

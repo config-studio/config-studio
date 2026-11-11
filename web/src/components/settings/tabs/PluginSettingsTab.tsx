@@ -277,10 +277,10 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
                     {getPluginDescription(selectedPlugin, language)}
                   </p>
 
-                  <div className="flex items-center space-x-3 text-[11px] text-gray-500 dark:text-gray-400 mt-2">
+                  <div className="flex items-center space-x-3 text-[11px] text-gray-600 dark:text-gray-400 mt-2">
                     {selectedPlugin.author && (
                       <span>
-                        {t.author}: <strong className="text-gray-300">{selectedPlugin.author}</strong>
+                        {t.author}: <strong className="text-gray-800 dark:text-gray-200">{selectedPlugin.author}</strong>
                       </span>
                     )}
                     <span className="font-mono">ID: {selectedPlugin.id}</span>
@@ -314,7 +314,7 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
                 />
                 <div
                   ref={customContainerRef}
-                  className="p-4 rounded-2xl bg-black/20 border border-base-border min-h-[120px]"
+                  className="p-4 rounded-2xl bg-base-surface border border-base-border min-h-[120px]"
                 />
               </div>
             )}

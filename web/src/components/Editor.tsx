@@ -530,11 +530,13 @@ export const Editor: React.FC<EditorProps> = ({
           <div className="flex-1 w-full min-h-0 overflow-hidden relative flex flex-col">
             {/* Diff header indicator */}
             <div className="h-6 bg-base-surface/80 border-b border-base-border text-[11px] font-mono flex items-center justify-between px-3 text-gray-400 select-none shrink-0">
-              <span className="flex items-center space-x-1 text-rose-400">
-                <span>◀ {settings.language === 'ru' ? 'Снимок из истории' : 'Historical Snapshot'} ({new Date(selectedRev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</span>
+              <span className="flex items-center space-x-1 text-rose-500 dark:text-rose-400">
+                <ChevronLeft size={12} className="shrink-0" />
+                <span>{settings.language === 'ru' ? 'Снимок из истории' : 'Historical Snapshot'} ({new Date(selectedRev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</span>
               </span>
-              <span className="flex items-center space-x-1 text-emerald-400">
-                <span>{settings.language === 'ru' ? 'Текущий файл в редакторе' : 'Current File in Editor'} ▶</span>
+              <span className="flex items-center space-x-1 text-emerald-600 dark:text-emerald-400">
+                <span>{settings.language === 'ru' ? 'Текущий файл в редакторе' : 'Current File in Editor'}</span>
+                <ChevronRight size={12} className="shrink-0" />
               </span>
             </div>
             <div className="flex-1 w-full min-h-0">

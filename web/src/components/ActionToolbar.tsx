@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ToolbarButtonDef, OpenFile } from '../types';
-import { Play, ChevronDown, Check, Globe, Server, Terminal, Sparkles, Command } from 'lucide-react';
+import { Play, ChevronDown, Check, Globe, Server, Terminal, Sparkles, Command, CheckCircle2 } from 'lucide-react';
 
 interface ActionToolbarProps {
   buttons: ToolbarButtonDef[];
@@ -8,24 +8,37 @@ interface ActionToolbarProps {
   accentColor?: string;
 }
 
-// Matches filename against glob patterns (e.g. Makefile, *.mk, .html, docker-compose*.yml)
+// Matches filename or path against glob patterns (e.g. Makefile, *.mk, .html, docker-compose*.yml, traefik*.yaml, rules/*.yml)
 function matchesPattern(filename: string, pattern: string): boolean {
-  const f = filename.toLowerCase();
-  const p = pattern.toLowerCase().trim();
+  if (!filename || !pattern) return false;
+  const f = filename.toLowerCase().replace(/\\/g, '/');
+  const p = pattern.toLowerCase().trim().replace(/\\/g, '/');
   if (p === f) return true;
+  const baseName = f.split('/').pop() || f;
+  if (p === baseName) return true;
   if (p.startsWith('*.')) {
     const ext = p.slice(1);
-    return f.endsWith(ext);
+    return baseName.endsWith(ext) || f.endsWith(ext);
   }
   if (p.startsWith('.')) {
-    return f.endsWith(p);
+    return baseName.endsWith(p) || f.endsWith(p);
   }
   if (p.includes('*')) {
     const parts = p.split('*');
     if (parts.length === 2) {
-      return f.startsWith(parts[0]) && f.endsWith(parts[1]);
+      const prefix = parts[0];
+      const suffix = parts[1];
+      if (prefix && suffix) {
+        if (baseName.startsWith(prefix) && baseName.endsWith(suffix)) return true;
+        if (f.includes(prefix) && f.endsWith(suffix)) return true;
+      } else if (prefix) {
+        if (baseName.startsWith(prefix) || f.includes(prefix)) return true;
+      } else if (suffix) {
+        if (baseName.endsWith(suffix) || f.endsWith(suffix)) return true;
+      }
     }
   }
+  if (p.includes('/') && f.includes(p)) return true;
   return false;
 }
 
@@ -91,7 +104,10 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   const renderIcon = (iconName?: string) => {
     switch (iconName) {
       case 'globe':
+      case 'network':
         return <Globe size={12} />;
+      case 'check-circle':
+        return <CheckCircle2 size={12} />;
       case 'server':
         return <Server size={12} />;
       case 'terminal':
@@ -101,7 +117,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
       case 'command':
         return <Command size={12} />;
       default:
-        if (iconName && iconName.length <= 4) {
+        if (iconName && iconName.length <= 4 && !iconName.includes('-')) {
           return <span className="text-xs">{iconName}</span>;
         }
         return <Play size={11} fill="currentColor" />;
@@ -126,14 +142,13 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
             : `${btn.label} ${activeOption.label}`;
 
           return (
-            <div key={btn.id} className="relative inline-flex items-center rounded-lg shadow-sm">
-              {/* Main Action Trigger in 1 click */}
+            <div key={btn.id} className="relative inline-flex items-center rounded-lg shadow-xs">
+              {/* Main Action Trigger in 1 click (Ghost/Outline) */}
               <button
                 type="button"
                 onClick={() => btn.onClick(activeOption.id)}
                 title={btn.title || `${displayLabel} (${activeOption.shortcut || 'F5'})`}
-                className="flex items-center space-x-1.5 px-2.5 py-1 text-xs font-semibold rounded-l-lg bg-accent text-gray-900 hover:opacity-90 active:scale-[0.98] transition cursor-pointer"
-                style={{ backgroundColor: accentColor }}
+                className="flex items-center space-x-1.5 px-2.5 py-1 text-xs font-semibold rounded-l-lg border border-base-border bg-base-surface/90 hover:bg-accent/15 hover:border-accent hover:text-accent text-[var(--text-primary)] active:scale-[0.98] transition cursor-pointer"
               >
                 {renderIcon(activeOption.icon || btn.icon)}
                 <span>{displayLabel}</span>
@@ -144,8 +159,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
                 type="button"
                 onClick={() => setOpenDropdownId(isDropdownOpen ? null : btn.id)}
                 title="Переключить действие / цель"
-                className="px-1.5 py-1 text-xs rounded-r-lg bg-accent text-gray-900 hover:opacity-90 border-l border-black/15 transition cursor-pointer flex items-center justify-center"
-                style={{ backgroundColor: accentColor }}
+                className="px-1.5 py-1 text-xs rounded-r-lg border-y border-r border-base-border bg-base-surface/90 hover:bg-accent/15 hover:border-accent hover:text-accent text-[var(--text-primary)] transition cursor-pointer flex items-center justify-center"
               >
                 <ChevronDown
                   size={12}
@@ -156,10 +170,10 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
               {/* Split Action Dropdown Menu */}
               {isDropdownOpen && (
                 <div
-                  className="absolute right-0 top-full mt-1.5 w-56 bg-[#161b22] border border-[#30363d] rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
-                  style={{ boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)' }}
+                  className="absolute right-0 top-full mt-1.5 w-56 bg-base-surface border border-base-border rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
+                  style={{ boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)' }}
                 >
-                  <div className="px-3 py-1.5 border-b border-[#21262d] text-[10px] uppercase font-semibold text-[#8b949e] tracking-wider">
+                  <div className="px-3 py-1.5 border-b border-base-border text-[10px] uppercase font-semibold text-[var(--text-muted)] tracking-wider">
                     Выберите действие ({currentFile?.name})
                   </div>
                   <div className="max-h-56 overflow-y-auto py-1">
@@ -177,8 +191,8 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
                           }}
                           className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-left transition ${
                             isSelected
-                              ? 'bg-accent/15 text-white font-medium border-l-2 border-accent'
-                              : 'text-[#c9d1d9] hover:bg-white/5 hover:text-white'
+                              ? 'bg-accent/15 text-accent font-medium border-l-2 border-accent'
+                              : 'text-[var(--text-secondary)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[var(--text-primary)]'
                           }`}
                         >
                           <div className="flex items-center space-x-2 truncate">
@@ -187,7 +201,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
                           </div>
                           <div className="flex items-center space-x-2 shrink-0">
                             {opt.shortcut && (
-                              <span className="text-[10px] text-[#8b949e] font-mono bg-black/40 px-1.5 py-0.5 rounded border border-[#30363d]">
+                              <span className="text-[10px] text-[var(--text-muted)] font-mono bg-black/5 dark:bg-black/40 px-1.5 py-0.5 rounded border border-base-border">
                                 {opt.shortcut}
                               </span>
                             )}
@@ -203,15 +217,14 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           );
         }
 
-        // 2. Standard 1-click Button [ 🌐 Live Preview ]
+        // 2. Standard 1-click Button (Ghost/Outline Design System v2)
         return (
           <button
             key={btn.id}
             type="button"
             onClick={() => btn.onClick()}
             title={btn.title || btn.label}
-            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-accent text-gray-900 hover:opacity-90 shadow-sm transition flex items-center space-x-1.5 cursor-pointer active:scale-[0.98]"
-            style={{ backgroundColor: accentColor }}
+            className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-base-border bg-base-surface/90 hover:bg-accent/15 hover:border-accent hover:text-accent text-[var(--text-primary)] shadow-xs transition flex items-center space-x-1.5 cursor-pointer active:scale-[0.98]"
           >
             {renderIcon(btn.icon)}
             <span>{btn.label}</span>

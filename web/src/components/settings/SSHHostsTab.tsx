@@ -218,23 +218,23 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
 
       {/* Generated Key Modal / Card */}
       {generatedKey && (
-        <div className="p-4 rounded-xl bg-gray-900 border border-base-border space-y-3">
+        <div className="p-4 rounded-xl bg-base-surface border border-base-border space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Shield size={15} className="text-emerald-400" />
+              <Shield size={15} className="text-emerald-500 dark:text-emerald-400" />
               <span className="text-xs font-semibold text-[var(--text-primary)]">
                 Новая ключевая пара ED25519 сгенерирована
               </span>
             </div>
             <button
               onClick={() => setGeneratedKey(null)}
-              className="text-xs text-gray-400 hover:text-[var(--text-primary)]"
+              className="text-xs text-gray-500 hover:text-[var(--text-primary)] cursor-pointer"
             >
               Закрыть
             </button>
           </div>
           <div>
-            <label className="text-[11px] text-gray-400 block mb-1">
+            <label className="text-[11px] text-gray-500 dark:text-gray-400 block mb-1">
               Публичный ключ (добавьте в ~/.ssh/authorized_keys на сервере):
             </label>
             <div className="flex items-center space-x-2">
@@ -242,13 +242,13 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                 type="text"
                 readOnly
                 value={generatedKey.publicKey}
-                className="flex-1 px-2.5 py-1.5 bg-base-surface border border-base-border rounded font-mono text-xs text-emerald-300 select-all"
+                className="flex-1 px-2.5 py-1.5 bg-base-surface border border-base-border rounded font-mono text-xs text-emerald-600 dark:text-emerald-300 select-all"
               />
               <button
                 onClick={handleCopyPublicKey}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-[var(--text-primary)] rounded flex items-center space-x-1"
+                className="px-3 py-1.5 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-base-border text-xs text-[var(--text-primary)] rounded flex items-center space-x-1 cursor-pointer transition"
               >
-                {copiedKey ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                {copiedKey ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
                 <span>{copiedKey ? 'Скопировано' : 'Копировать'}</span>
               </button>
             </div>
@@ -439,11 +439,11 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                       <span className="px-1.5 py-0.5 rounded text-[10px] bg-black/5 dark:bg-white/10 text-[var(--text-muted)] font-mono">
                         {host.user}@{host.host}:{host.port || 22}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/10 text-blue-400">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/10 text-blue-700 dark:text-blue-400">
                         {host.authType}
                       </span>
                     </div>
-                    <div className="text-[11px] text-gray-500 font-mono truncate">
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono truncate">
                       Путь: {host.defaultPath || '/etc'}
                     </div>
                   </div>
@@ -455,8 +455,8 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                     <div
                       className={`text-[11px] px-2 py-0.5 rounded flex items-center space-x-1 ${
                         res.success
-                          ? 'bg-emerald-500/10 text-emerald-400'
-                          : 'bg-red-500/10 text-red-400'
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                          : 'bg-red-500/10 text-red-700 dark:text-red-400'
                       }`}
                     >
                       {res.success ? (
@@ -477,7 +477,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                     type="button"
                     onClick={() => handleTestConnection(host)}
                     disabled={isTesting}
-                    className="p-1.5 text-gray-400 hover:text-[var(--text-primary)] hover:bg-gray-800 rounded transition"
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 rounded transition cursor-pointer"
                     title="Проверить связь с сервером"
                   >
                     <RefreshCw size={13} className={isTesting ? 'animate-spin' : ''} />
@@ -487,7 +487,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                     <button
                       type="button"
                       onClick={() => onOpenTerminal(host)}
-                      className="p-1.5 text-gray-400 hover:text-accent hover:bg-gray-800 rounded transition"
+                      className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-accent hover:bg-black/5 dark:hover:bg-white/10 rounded transition cursor-pointer"
                       title="Открыть терминал к этому хосту"
                     >
                       <Terminal size={13} />
@@ -497,7 +497,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => handleEdit(host)}
-                    className="p-1.5 text-gray-400 hover:text-[var(--text-primary)] hover:bg-gray-800 rounded transition"
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 rounded transition cursor-pointer"
                     title="Редактировать"
                   >
                     <Edit2 size={13} />
@@ -505,7 +505,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => handleDelete(host)}
-                    className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition"
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer"
                     title="Удалить"
                   >
                     <Trash2 size={13} />

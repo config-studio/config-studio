@@ -168,11 +168,11 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
               }}
               className={`px-2 py-1 rounded-lg text-xs font-medium transition flex items-center space-x-1 cursor-pointer ${
                 auditSeverity === 'critical'
-                  ? 'bg-red-500/20 text-red-400 shadow-xs'
-                  : 'text-gray-400 hover:text-red-400'
+                  ? 'bg-red-500/20 text-red-700 dark:text-red-400 font-semibold shadow-xs'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400'
               }`}
             >
-              <ShieldAlert className="w-3.5 h-3.5 text-red-400 shrink-0" />
+              <ShieldAlert className="w-3.5 h-3.5 text-red-600 dark:text-red-400 shrink-0" />
               <span>{t.auditSeverityCritical}</span>
             </button>
             <button
@@ -183,11 +183,11 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
               }}
               className={`px-2 py-1 rounded-lg text-xs font-medium transition flex items-center space-x-1 cursor-pointer ${
                 auditSeverity === 'warn'
-                  ? 'bg-amber-500/20 text-amber-400 shadow-xs'
-                  : 'text-gray-400 hover:text-amber-400'
+                  ? 'bg-amber-500/20 text-amber-800 dark:text-amber-400 font-semibold shadow-xs'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-amber-800 dark:hover:text-amber-400'
               }`}
             >
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
               <span>{t.auditSeverityWarn}</span>
             </button>
             <button
@@ -198,11 +198,11 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
               }}
               className={`px-2 py-1 rounded-lg text-xs font-medium transition flex items-center space-x-1 cursor-pointer ${
                 auditSeverity === 'info'
-                  ? 'bg-blue-500/20 text-blue-400 shadow-xs'
-                  : 'text-gray-400 hover:text-blue-400'
+                  ? 'bg-blue-500/20 text-blue-700 dark:text-blue-400 font-semibold shadow-xs'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
               }`}
             >
-              <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <Info className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
               <span>{t.auditSeverityInfo}</span>
             </button>
           </div>
@@ -371,9 +371,9 @@ export const AuditTab: React.FC<AuditTabProps> = ({ t }) => {
                   </div>
 
                   {/* Timestamp & User */}
-                  <div className="text-right shrink-0 text-[10px] text-gray-400">
+                  <div className="text-right shrink-0 text-[10px] text-gray-600 dark:text-gray-400">
                     <div>{dateStr}</div>
-                    <div className="text-gray-500 font-mono">
+                    <div className="text-gray-500 dark:text-gray-400 font-mono">
                       {evt.user} {evt.source ? `[${evt.source}]` : ''} {evt.ip ? `(${evt.ip})` : ''}
                     </div>
                   </div>
