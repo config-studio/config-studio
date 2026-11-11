@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Server, Plus, Edit2, Trash2, Terminal, ArrowRight, Folder, Shield, Key } from 'lucide-react';
-import { SearchInput, Button, Badge } from '@config-studio/ui';
+import { SearchInput, Button, Badge, EmptyState } from '@config-studio/ui';
 import { SSHHost } from '../../types';
 
 export interface TerminalHostLauncherProps {
@@ -154,39 +154,38 @@ export const TerminalHostLauncher: React.FC<TerminalHostLauncherProps> = ({
         </div>
       ) : hosts.length === 0 ? (
         /* Empty State: No hosts yet */
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3">
-          <div className="p-4 rounded-3xl bg-accent/10 text-accent mb-1 border border-accent/20">
-            <Server size={36} />
-          </div>
-          <h3 className="font-semibold text-sm text-[var(--text-primary)]">
-            Нет сохраненных SSH-хостов
-          </h3>
-          <p className="text-xs text-[var(--text-muted)] max-w-md leading-relaxed">
-            Добавьте ваш сервер для быстрого подключения к терминалу в 1 клик,
-            просмотра файлов по SFTP и выполнения удаленных команд.
-          </p>
-          <button
-            type="button"
-            onClick={onAddHost}
-            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-accent text-slate-950 font-bold text-xs hover:opacity-90 transition shadow-sm cursor-pointer mt-2"
-          >
-            <Plus size={15} />
-            <span>Добавить первый хост</span>
-          </button>
+        <div className="flex-1 flex flex-col items-center justify-center p-8">
+          <EmptyState
+            icon={<Server size={36} />}
+            title="Нет сохраненных SSH-хостов"
+            description="Добавьте ваш сервер для быстрого подключения к терминалу в 1 клик, просмотра файлов по SFTP и выполнения удаленных команд."
+            action={
+              <Button
+                variant="primary"
+                size="md"
+                onClick={onAddHost}
+                icon={<Plus size={15} />}
+              >
+                Добавить первый хост
+              </Button>
+            }
+          />
         </div>
       ) : (
         /* Search Query Has No Matches */
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-2">
-          <p className="text-xs text-[var(--text-muted)]">
-            По запросу «{searchQuery}» хосты не найдены.
-          </p>
-          <button
-            type="button"
-            onClick={() => setSearchQuery('')}
-            className="text-xs text-accent hover:underline cursor-pointer"
-          >
-            Сбросить фильтр
-          </button>
+        <div className="flex-1 flex flex-col items-center justify-center p-8">
+          <EmptyState
+            title={`По запросу «${searchQuery}» хосты не найдены.`}
+            action={
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchQuery('')}
+              >
+                Сбросить фильтр
+              </Button>
+            }
+          />
         </div>
       )}
     </div>

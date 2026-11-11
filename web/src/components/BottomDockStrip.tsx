@@ -28,7 +28,7 @@ import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
 import { sshHostService } from '../services/sshHosts';
 import { SysInfoBar } from './sysinfo/SysInfoBar';
-import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem, ConfirmModal, DiagnosticsCountBadge, StatusBadge, Badge } from '@config-studio/ui';
+import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem, ConfirmModal, DiagnosticsCountBadge, StatusBadge, Badge, EmptyState } from '@config-studio/ui';
 import { TerminalHostLauncher } from './terminal/TerminalHostLauncher';
 import { EditHostModal } from './terminal/EditHostModal';
 import type { XTerminalHandle } from './terminal/XTerminal';
@@ -589,29 +589,45 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                           {iss.snippet && (
                             <pre className={`text-[11px] font-mono leading-relaxed mt-2 p-2.5 rounded-lg border overflow-x-auto select-text shadow-2xs ${
                               iss.severity === 'critical'
-                                ? 'bg-white/90 text-slate-800 border-rose-200/80 dark:bg-black/50 dark:text-slate-200 dark:border-rose-900/40'
-                                : 'bg-white/90 text-slate-800 border-amber-200/80 dark:bg-black/50 dark:text-slate-200 dark:border-amber-900/40'
+                                ? 'bg-white/95 text-slate-800 border-rose-200/80 dark:bg-black/50 dark:text-slate-200 dark:border-rose-900/40'
+                                : 'bg-white/95 text-slate-800 border-amber-200/80 dark:bg-black/50 dark:text-slate-200 dark:border-amber-900/40'
                             }`}>
-                              {iss.snippet}
+                              {iss.snippet.split('\n').map((line, lIdx) => {
+                                const isTarget = line.startsWith('>');
+                                return (
+                                  <div
+                                    key={lIdx}
+                                    className={
+                                      isTarget
+                                        ? 'bg-rose-500/15 text-rose-900 dark:text-rose-200 font-bold px-1.5 py-0.5 rounded -mx-1 border-l-2 border-rose-500'
+                                        : 'text-slate-600 dark:text-gray-400'
+                                    }
+                                  >
+                                    {line}
+                                  </div>
+                                );
+                              })}
                             </pre>
                           )}
                         </div>
                       </div>
                       <div className="text-right shrink-0 pl-3">
-                        <span className={`text-[11px] font-mono px-2 py-0.5 rounded-md border font-medium shadow-2xs ${
-                          iss.severity === 'critical'
-                            ? 'bg-white/90 text-rose-700 border-rose-200 dark:bg-black/40 dark:text-cyan-300 dark:border-base-border'
-                            : 'bg-white/90 text-amber-800 border-amber-200 dark:bg-black/40 dark:text-amber-300 dark:border-base-border'
-                        }`}>
+                        <Badge
+                          variant={iss.severity === 'critical' ? 'error' : 'warning'}
+                          size="xs"
+                          className="font-mono font-medium"
+                        >
                           {iss.file}:{iss.line}:{iss.column}
-                        </span>
+                        </Badge>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="py-8 text-center text-[var(--text-muted)] flex flex-col items-center justify-center space-y-1.5">
-                    <CheckCircle2 size={22} className="text-emerald-500" />
-                    <span className="text-xs">{t.dockNoProblems}</span>
+                  <div className="py-6">
+                    <EmptyState
+                      icon={<CheckCircle2 size={24} className="text-emerald-500" />}
+                      title={t.dockNoProblems}
+                    />
                   </div>
                 )}
               </div>
@@ -785,19 +801,19 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
         </div>
 
         {/* Right: SysInfo & File Status & Hotkey Hint */}
-        <div className="flex items-center space-x-2.5 sm:space-x-3 text-[11px] text-[var(--text-muted)] font-mono shrink-0 pl-2">
+        <div className="flex items-center space-x-2.5 sm:space-x-3 text-[11px] font-mono shrink-0 pl-2">
           {/* SysInfo Hardware Telemetry (CPU / RAM / Disks / Uptime) */}
           <SysInfoBar language={language} accentColor={accentColor} />
 
           {currentFile && (
-            <>
+            <div className="flex items-center space-x-2.5 sm:space-x-3 text-[var(--text-muted)]">
               <span className="hidden sm:inline text-gray-400 dark:text-gray-600 select-none">|</span>
               <span>
                 Ln {cursorPos.line}, Col {cursorPos.col}
               </span>
               <span className="hidden sm:inline">UTF-8</span>
               <span className="hidden sm:inline">Spaces: 2</span>
-            </>
+            </div>
           )}
           <button
             type="button"

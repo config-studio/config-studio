@@ -30,7 +30,7 @@ export const SysInfoBar: React.FC<SysInfoBarProps> = ({
     const status = getLoadStatus(pct);
     if (status === 'critical') return 'text-rose-600 dark:text-rose-400 font-bold';
     if (status === 'warning') return 'text-amber-600 dark:text-amber-400 font-semibold';
-    return 'text-[var(--text-secondary)] hover:text-emerald-600 dark:hover:text-emerald-400';
+    return 'text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 font-medium';
   };
 
   const primaryDisk = metrics && metrics.disks && metrics.disks.length > 0 ? metrics.disks[0] : null;
@@ -43,13 +43,13 @@ export const SysInfoBar: React.FC<SysInfoBarProps> = ({
         title="Нажмите для подробного мониторинга аппаратных ресурсов (CPU, RAM, Uptime, Disks)"
       >
         {/* Node Name & Health Dot */}
-        <div className="flex items-center space-x-1.5 text-[var(--text-primary)]">
+        <div className="flex items-center space-x-1.5 text-slate-900 dark:text-slate-100 font-semibold">
           <StatusDot
             status={error ? 'error' : metrics ? 'online' : 'connecting'}
             size="xs"
             pulse={Boolean(error || !metrics)}
           />
-          <span className="max-w-[80px] sm:max-w-[120px] truncate text-[11px] font-semibold text-[var(--text-primary)]">
+          <span className="max-w-[80px] sm:max-w-[120px] truncate text-[11px] font-semibold text-slate-900 dark:text-slate-100">
             {activeNodeName}
           </span>
         </div>
@@ -89,7 +89,7 @@ export const SysInfoBar: React.FC<SysInfoBarProps> = ({
 
             {/* Uptime */}
             <div
-              className="hidden lg:flex items-center space-x-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className="hidden lg:flex items-center space-x-1 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium"
               title={`Uptime: ${metrics.uptimeSec ?? 0}s`}
             >
               <Clock size={12} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
