@@ -356,7 +356,7 @@ export const Editor: React.FC<EditorProps> = ({
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-base">
       {/* Multi-Tab Bar & Action Toolbar (Option 2: PillTabs) */}
-      <div className="min-h-11 bg-base-surface border-b border-base-border flex items-center justify-between px-2.5 py-1 select-none flex-shrink-0 gap-3">
+      <div className="h-11 min-h-11 max-h-11 bg-base-surface border-b border-base-border flex items-center justify-between px-2.5 select-none shrink-0 gap-3">
         <PillTabs
           items={pillTabItems}
           activeId={activeFilePath || (tabs[0] ? getTabKey(tabs[0]) : '')}
@@ -448,7 +448,7 @@ export const Editor: React.FC<EditorProps> = ({
 
       {/* Time Machine Control Bar (2-Click Law) */}
       {isTimeMachineActive && (
-        <div className="min-h-[44px] bg-base-surface/95 backdrop-blur-md border-b border-accent/30 px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs select-none shrink-0 z-10">
+        <div className="h-[42px] min-h-[42px] max-h-[42px] bg-base-surface/95 backdrop-blur-md border-b border-accent/30 px-3 flex items-center justify-between gap-2 text-xs select-none shrink-0 z-10">
           {/* Left: Time Machine badge & revision stepper */}
           <div className="flex items-center space-x-2.5">
             <div className="flex items-center space-x-1.5 text-accent font-semibold shrink-0">
@@ -593,7 +593,7 @@ export const Editor: React.FC<EditorProps> = ({
             <div
               className={`${
                 showMobileTags ? 'flex' : 'hidden md:flex'
-              } min-h-[42px] bg-base-surface/90 backdrop-blur-xs border-b border-base-border items-center px-3 space-x-2 select-none flex-shrink-0 transition-all`}
+              } h-[42px] min-h-[42px] max-h-[42px] bg-base-surface/90 backdrop-blur-xs border-b border-base-border flex items-center px-3 space-x-2 select-none shrink-0 transition-all`}
             >
               <div className="flex items-center space-x-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 flex-shrink-0 mr-1">
                 <Hash className="w-3.5 h-3.5 text-accent" />

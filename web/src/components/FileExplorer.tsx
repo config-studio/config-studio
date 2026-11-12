@@ -632,7 +632,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   const explorerAside = (
     <aside className="w-72 sm:w-64 bg-base-surface border-r border-base-border flex flex-col h-full select-none shrink-0">
       {/* Top Sidebar Tab Switcher: Workspaces vs SFTP (PillTabs) */}
-      <div className="p-1.5 bg-base-surface border-b border-base-border shrink-0">
+      <div className="h-11 min-h-11 max-h-11 bg-base-surface border-b border-base-border flex items-center px-2 shrink-0">
         <PillTabs
           items={sidebarTabItems}
           activeId={sidebarTab}
@@ -646,8 +646,9 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       {sidebarTab === 'workspaces' ? (
         <>
           {/* Title & Toolbar */}
-          <div className="p-3 border-b border-base-border">
+          <div className="h-[42px] min-h-[42px] max-h-[42px] px-3 bg-base-surface border-b border-base-border flex items-center shrink-0">
             <SectionHeader
+              className="w-full"
               title={t.workspaces || t.fileExplorer || 'Рабочие области'}
               rightElement={
                 <div className="flex items-center space-x-1">

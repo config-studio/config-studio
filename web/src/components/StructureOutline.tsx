@@ -211,7 +211,7 @@ export const StructureOutline: React.FC<StructureOutlineProps> = ({
   const outlineContent = (
     <aside className="w-[285px] sm:w-80 lg:w-full bg-base-surface border-l border-base-border flex flex-col h-full select-none flex-shrink-0 text-gray-800 dark:text-gray-200">
       {/* Header */}
-      <div className="p-3 border-b border-base-border flex items-center justify-between">
+      <div className="h-11 min-h-11 max-h-11 px-3 bg-base-surface border-b border-base-border flex items-center justify-between shrink-0">
         <div className="flex items-center space-x-2">
           <FolderTree className="w-4 h-4 text-accent" />
           <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -246,8 +246,8 @@ export const StructureOutline: React.FC<StructureOutlineProps> = ({
       </div>
 
       {/* Search Bar with match counter and navigation buttons */}
-      <div className="p-2 border-b border-base-border space-y-1.5">
-        <div className="relative flex items-center">
+      <div className="h-[42px] min-h-[42px] max-h-[42px] px-2 bg-base-surface border-b border-base-border flex items-center shrink-0">
+        <div className="relative flex items-center w-full">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 pointer-events-none" />
           <input
             type="text"
@@ -255,7 +255,7 @@ export const StructureOutline: React.FC<StructureOutlineProps> = ({
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full bg-gray-100 dark:bg-black/30 text-gray-800 dark:text-gray-200 text-xs rounded-xl pl-8 pr-16 py-1.5 border border-base-border focus:outline-none focus:border-accent transition-colors"
+            className="w-full bg-gray-100 dark:bg-black/30 text-gray-800 dark:text-gray-200 text-xs rounded-xl pl-8 pr-16 py-1 border border-base-border focus:outline-none focus:border-accent transition-colors"
           />
           {localSearch && (
             <button
@@ -286,11 +286,14 @@ export const StructureOutline: React.FC<StructureOutlineProps> = ({
             </button>
           </div>
         </div>
+      </div>
 
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
         {/* Match counter badge */}
         {searchQuery && (
-          <div className="flex items-center justify-between text-[11px] px-1">
-            <span className="text-gray-500">
+          <div className="flex items-center justify-between text-[11px] px-2 py-1 mb-1.5 rounded-lg bg-black/5 dark:bg-white/5 border border-base-border/50">
+            <span className="text-gray-500 dark:text-gray-400">
               {matchingNodes.length > 0
                 ? t.matchesFound
                     .replace('{current}', String(currentMatchIndex + 1))
@@ -299,10 +302,6 @@ export const StructureOutline: React.FC<StructureOutlineProps> = ({
             </span>
           </div>
         )}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
         {error ? (
           <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs text-red-600 dark:text-red-300 flex items-start space-x-2.5">
             <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />

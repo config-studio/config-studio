@@ -48,7 +48,7 @@ export const SplitPanel: React.FC<SplitPanelProps> = ({
       } ${className}`}
     >
       {/* Header */}
-      <div className="h-10 min-h-[40px] px-3.5 border-b border-base-border bg-base-surface flex items-center justify-between select-none shrink-0">
+      <div className="h-11 min-h-11 max-h-11 px-3.5 border-b border-base-border bg-base-surface flex items-center justify-between select-none shrink-0">
         <div className="flex items-center space-x-2.5 min-w-0">
           {statusDot && <StatusDot status={statusDot} size="xs" pulse />}
           {icon && <div className="text-[var(--text-secondary)] shrink-0">{icon}</div>}
