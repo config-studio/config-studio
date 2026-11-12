@@ -205,3 +205,22 @@ html:not(.dark) .tree-line::before {
   background-color: rgba(0, 210, 180, 0.35);
   animation: csLineFlash 1.6s ease-out forwards;
 }
+
+/* Mobile Plugin Dropdowns Safety Rule: prevent left/right overflow on small screens */
+@media (max-width: 640px) {
+  .cs-header-plugins-mobile [class*="dropdown"],
+  .cs-header-plugins-mobile .cs-fleet-dropdown,
+  .cs-header-plugins-mobile .cs-remote-dropdown {
+    position: fixed !important;
+    top: 54px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100vh - 64px) !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+    z-index: 9999 !important;
+  }
+}

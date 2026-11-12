@@ -467,7 +467,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile Plugin Header Items (e.g. Servers Fleet button) in place of redundant path */}
         {isMobile && (
-          <div className="flex sm:hidden items-center space-x-1.5 min-w-0">
+          <div className="flex sm:hidden items-center space-x-1.5 min-w-0 cs-header-plugins-mobile">
             {pluginHeaderItems.map((item) => (
               <PluginHeaderItemMount key={item.id} item={item} />
             ))}
