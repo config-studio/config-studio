@@ -124,6 +124,13 @@ class PluginLoader {
   private setupGlobalAPI() {
     (window as any).ConfigStudio = {
       registerToolbarButton: (btn: ToolbarButtonDef) => {
+        // PLUGIN-002: Inherit fileMatches from plugin manifest if button omitted them
+        if ((!btn.fileMatches || btn.fileMatches.length === 0) && btn.pluginId) {
+          const plugin = this.plugins.find((p) => p.id === btn.pluginId);
+          if (plugin?.fileMatches && plugin.fileMatches.length > 0) {
+            btn.fileMatches = [...plugin.fileMatches];
+          }
+        }
         this.toolbarButtons = this.toolbarButtons.filter((b) => b.id !== btn.id);
         this.toolbarButtons.push(btn);
         this.notify();
@@ -664,6 +671,15 @@ class PluginLoader {
   async loadPlugins(): Promise<PluginItem[]> {
     try {
       this.plugins = await api.getPlugins();
+      // Ensure any existing registered buttons inherit fileMatches from manifest
+      for (const btn of this.toolbarButtons) {
+        if ((!btn.fileMatches || btn.fileMatches.length === 0) && btn.pluginId) {
+          const p = this.plugins.find((x) => x.id === btn.pluginId);
+          if (p?.fileMatches && p.fileMatches.length > 0) {
+            btn.fileMatches = [...p.fileMatches];
+          }
+        }
+      }
       const sorted = this.sortPluginsTopologically(this.plugins);
       for (const p of sorted) {
         await this.injectPluginAssets(p);

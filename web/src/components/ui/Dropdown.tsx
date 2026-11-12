@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Check, Search, X } from 'lucide-react';
+import { StatusDot, StatusDotType } from './StatusDot';
 
 export type DropdownBadgeColor = 'default' | 'green' | 'blue' | 'purple' | 'amber' | 'rose';
 
@@ -12,7 +13,13 @@ export interface DropdownOption {
   badge?: string;
   badgeColor?: DropdownBadgeColor;
   disabled?: boolean;
-  statusDot?: 'online' | 'offline' | 'warning';
+  statusDot?: StatusDotType;
+  latency?: string | number;
+  action?: {
+    icon?: React.ReactNode;
+    label?: string;
+    onClick: (option: DropdownOption, e: React.MouseEvent) => void;
+  };
   meta?: any;
 }
 
@@ -204,7 +211,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
       case 'rose':
         return 'bg-rose-500/15 text-rose-400 border border-rose-500/30';
       default:
-        return 'bg-[#21262d] text-[#8b949e] border border-[#30363d]';
+        return 'bg-black/10 dark:bg-white/10 text-[var(--text-secondary)] border border-base-border';
     }
   };
 
@@ -217,43 +224,51 @@ export const Dropdown: React.FC<DropdownProps> = ({
       <div className="flex items-center justify-between w-full min-w-0">
         <div className="flex items-center space-x-2.5 min-w-0 flex-1">
           {/* Status Dot */}
-          {opt.statusDot && (
-            <span
-              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                opt.statusDot === 'online'
-                  ? 'bg-emerald-400'
-                  : opt.statusDot === 'warning'
-                  ? 'bg-amber-400'
-                  : 'bg-rose-500'
-              }`}
-            />
-          )}
+          {opt.statusDot && <StatusDot status={opt.statusDot} size="sm" />}
 
           {/* Option Icon */}
-          {opt.icon && <span className="shrink-0 text-gray-400">{opt.icon}</span>}
+          {opt.icon && <span className="shrink-0 text-[var(--text-muted)]">{opt.icon}</span>}
 
           {/* Label & Subtitle */}
           <div className="truncate flex flex-col">
-            <span className={`truncate text-xs ${isSelected ? 'text-white font-semibold' : 'text-[#c9d1d9]'}`}>
+            <span className={`truncate text-xs ${isSelected ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}>
               {opt.label}
             </span>
             {opt.subtitle && (
-              <span className="text-[10px] text-[#8b949e] font-mono truncate">
+              <span className="text-[10px] text-[var(--text-muted)] font-mono truncate">
                 {opt.subtitle}
               </span>
             )}
           </div>
         </div>
 
-        {/* Right side: Badge & Check */}
+        {/* Right side: Latency, Action, Badge & Check */}
         <div className="flex items-center space-x-2 shrink-0 ml-2">
+          {opt.latency !== undefined && (
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+              {opt.latency}
+            </span>
+          )}
+          {opt.action && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                opt.action?.onClick(opt, e);
+              }}
+              className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer"
+              title={opt.action.label}
+            >
+              {opt.action.icon || opt.action.label}
+            </button>
+          )}
           {opt.badge && (
             <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${getBadgeClass(opt.badgeColor)}`}>
               {opt.badge}
             </span>
           )}
           {isSelected && (
-            <Check size={14} className="text-emerald-400 shrink-0" />
+            <Check size={14} className="text-accent shrink-0" />
           )}
         </div>
       </div>
@@ -274,12 +289,12 @@ export const Dropdown: React.FC<DropdownProps> = ({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`w-full ${
           size === 'sm' ? 'min-h-[30px] px-2.5 py-1 text-xs' : 'min-h-[36px] px-3 py-1.5 text-xs'
-        } bg-[#0d1117] border rounded-lg flex items-center justify-between cursor-pointer transition select-none ${
+        } bg-base-surface border rounded-xl flex items-center justify-between cursor-pointer transition select-none ${
           error
             ? 'border-red-500 ring-1 ring-red-500'
             : isOpen
-            ? 'border-emerald-500 ring-1 ring-emerald-500/30'
-            : 'border-[#30363d] hover:border-gray-500 hover:bg-[#161b22]'
+            ? 'border-accent ring-1 ring-accent/30'
+            : 'border-base-border hover:border-accent hover:bg-base-surface-hover'
         } ${disabled ? 'opacity-50 cursor-not-allowed bg-black/20' : ''}`}
       >
         <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
@@ -288,20 +303,10 @@ export const Dropdown: React.FC<DropdownProps> = ({
               renderSelected(selectedOption)
             ) : (
               <>
-                {selectedOption.statusDot && (
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      selectedOption.statusDot === 'online'
-                        ? 'bg-emerald-400'
-                        : selectedOption.statusDot === 'warning'
-                        ? 'bg-amber-400'
-                        : 'bg-rose-500'
-                    }`}
-                  />
-                )}
-                {selectedOption.icon && <span className="shrink-0 text-gray-400">{selectedOption.icon}</span>}
+                {selectedOption.statusDot && <StatusDot status={selectedOption.statusDot} size="sm" />}
+                {selectedOption.icon && <span className="shrink-0 text-[var(--text-muted)]">{selectedOption.icon}</span>}
                 <div className="truncate flex items-center space-x-1.5 min-w-0 flex-1">
-                  <span className="truncate text-white font-medium">{selectedOption.label}</span>
+                  <span className="truncate text-[var(--text-primary)] font-medium">{selectedOption.label}</span>
                   {selectedOption.badge && (
                     <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded shrink-0 ${getBadgeClass(selectedOption.badgeColor)}`}>
                       {selectedOption.badge}
@@ -311,23 +316,23 @@ export const Dropdown: React.FC<DropdownProps> = ({
               </>
             )
           ) : (
-            <span className="text-gray-500 truncate">{placeholder}</span>
+            <span className="text-[var(--text-muted)] truncate">{placeholder}</span>
           )}
         </div>
 
-        <div className="flex items-center space-x-1.5 shrink-0 text-gray-400">
+        <div className="flex items-center space-x-1.5 shrink-0 text-[var(--text-muted)]">
           {clearable && selectedOption && !disabled && (
             <button
               type="button"
               onClick={handleClear}
-              className="p-0.5 hover:text-white rounded transition"
+              className="p-0.5 hover:text-[var(--text-primary)] rounded transition"
             >
               <X size={13} />
             </button>
           )}
           <ChevronDown
             size={14}
-            className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-white' : ''}`}
+            className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-[var(--text-primary)]' : ''}`}
           />
         </div>
       </div>
@@ -335,15 +340,15 @@ export const Dropdown: React.FC<DropdownProps> = ({
       {/* Floating Dropdown Menu */}
       {isOpen && (
         <div
-          className={`absolute left-0 min-w-full z-50 bg-[#161b22] border border-[#30363d] rounded-xl shadow-2xl overflow-hidden text-xs animate-in fade-in zoom-in-95 duration-100 flex flex-col ${
+          className={`absolute left-0 min-w-full z-50 bg-base-surface border border-base-border rounded-xl shadow-2xl overflow-hidden text-xs animate-in fade-in zoom-in-95 duration-100 flex flex-col ${
             openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
           } ${menuClassName}`}
           style={{ maxHeight: '280px' }}
         >
           {/* Search Box */}
           {isSearchable && (
-            <div className="p-2 border-b border-[#30363d] bg-[#0d1117] sticky top-0 z-10 flex items-center space-x-2">
-              <Search size={13} className="text-[#8b949e] shrink-0" />
+            <div className="p-2 border-b border-base-border bg-black/5 dark:bg-black/25 sticky top-0 z-10 flex items-center space-x-2">
+              <Search size={13} className="text-[var(--text-muted)] shrink-0" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -353,13 +358,13 @@ export const Dropdown: React.FC<DropdownProps> = ({
                   setHighlightedIndex(0);
                 }}
                 placeholder={searchPlaceholder}
-                className="w-full bg-transparent border-none text-xs text-white placeholder-gray-500 focus:outline-none"
+                className="w-full bg-transparent border-none text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="text-gray-500 hover:text-white"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
                   <X size={12} />
                 </button>
@@ -377,7 +382,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
               Array.from(groups.entries()).map(([groupName, groupOpts]) => (
                 <div key={groupName || 'ungrouped'} className="space-y-0.5">
                   {groupName && (
-                    <div className="px-2.5 py-1 text-[10px] font-semibold font-mono uppercase tracking-wider text-[#8b949e] bg-[#0d1117]/60 rounded">
+                    <div className="px-2.5 py-1 text-[10px] font-semibold font-mono uppercase tracking-wider text-[var(--text-muted)] bg-black/5 dark:bg-black/25 rounded">
                       {groupName}
                     </div>
                   )}
@@ -393,10 +398,10 @@ export const Dropdown: React.FC<DropdownProps> = ({
                         onMouseEnter={() => setHighlightedIndex(globalIdx)}
                         className={`px-2.5 py-2 rounded-lg cursor-pointer transition select-none flex items-center ${
                           isSelected
-                            ? 'bg-emerald-500/15 border border-emerald-500/30'
+                            ? 'bg-accent/15 border border-accent/30'
                             : isHighlighted
-                            ? 'bg-white/10'
-                            : 'hover:bg-white/5'
+                            ? 'bg-base-surface-hover'
+                            : 'hover:bg-base-surface-hover/80'
                         } ${opt.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                       >
                         {renderOptionContent(opt, isSelected)}
@@ -417,10 +422,10 @@ export const Dropdown: React.FC<DropdownProps> = ({
                     onMouseEnter={() => setHighlightedIndex(idx)}
                     className={`px-2.5 py-2 rounded-lg cursor-pointer transition select-none flex items-center ${
                       isSelected
-                        ? 'bg-emerald-500/15 border border-emerald-500/30'
+                        ? 'bg-accent/15 border border-accent/30'
                         : isHighlighted
-                        ? 'bg-white/10'
-                        : 'hover:bg-white/5'
+                        ? 'bg-base-surface-hover'
+                        : 'hover:bg-base-surface-hover/80'
                     } ${opt.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     {renderOptionContent(opt, isSelected)}

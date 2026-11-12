@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Server,
   Plus,
@@ -16,7 +16,7 @@ import {
 import { SSHHost, SSHKeyPair, SecretMeta } from '../../types';
 import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
-import { ConfirmModal, EmptyState } from '../ui';
+import { ConfirmModal, EmptyState, Dropdown, DropdownOption, Badge, StatusBadge, Button, Input, Textarea, Card } from '../ui';
 
 interface SSHHostsTabProps {
   accentColor?: string;
@@ -65,6 +65,23 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
       })
       .catch(() => {});
   }, []);
+
+  const authTypeOptions: DropdownOption[] = [
+    { value: 'password', label: 'Пароль', icon: <Key size={14} className="text-amber-400" /> },
+    { value: 'private_key', label: 'SSH Ключ (PEM)', icon: <Shield size={14} className="text-emerald-400" /> },
+    { value: 'vault', label: 'Сейф (Vault Identity)', icon: <Server size={14} className="text-purple-400" /> },
+  ];
+
+  const identityOptions: DropdownOption[] = useMemo(() => {
+    return identities.map((id) => ({
+      value: id.id,
+      label: id.title,
+      subtitle: `ID: ${id.id}`,
+      icon: id.type === 'ssh_key' ? <Shield size={14} className="text-emerald-400" /> : <Key size={14} className="text-amber-400" />,
+      badge: id.type,
+      badgeColor: id.type === 'ssh_key' ? 'green' : 'amber',
+    }));
+  }, [identities]);
 
   const handleSaveHost = (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,23 +179,26 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
       {/* Header action bar */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-white">Управление SSH-хостами и ключами</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Управление SSH-хостами и ключами</h3>
           <p className="text-xs text-gray-400">
             Сохраненные серверы для терминала, SFTP и управления конфигурациями
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={handleGenerateKey}
             disabled={isGenerating}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 transition"
+            icon={<Key size={13} />}
           >
-            <Key size={13} />
-            <span>{isGenerating ? 'Генерация...' : 'Создать ED25519 ключ'}</span>
-          </button>
-          <button
+            {isGenerating ? 'Генерация...' : 'Создать ED25519 ключ'}
+          </Button>
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             onClick={() => {
               setEditingHost({
                 name: '',
@@ -190,214 +210,186 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
               });
               setIsEditing(true);
             }}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-black transition shadow"
-            style={{ backgroundColor: accentColor }}
+            icon={<Plus size={13} />}
           >
-            <Plus size={13} />
-            <span>Добавить хост</span>
-          </button>
+            Добавить хост
+          </Button>
         </div>
       </div>
 
       {/* Generated Key Modal / Card */}
       {generatedKey && (
-        <div className="p-4 rounded-xl bg-gray-900 border border-gray-700 space-y-3">
-          <div className="flex items-center justify-between">
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center justify-between border-b border-base-border pb-2.5">
             <div className="flex items-center space-x-2">
-              <Shield size={15} className="text-emerald-400" />
-              <span className="text-xs font-semibold text-white">
+              <Shield size={15} className="text-emerald-500 dark:text-emerald-400" />
+              <span className="text-xs font-semibold text-[var(--text-primary)]">
                 Новая ключевая пара ED25519 сгенерирована
               </span>
             </div>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
               onClick={() => setGeneratedKey(null)}
-              className="text-xs text-gray-400 hover:text-white"
             >
               Закрыть
-            </button>
+            </Button>
           </div>
           <div>
-            <label className="text-[11px] text-gray-400 block mb-1">
-              Публичный ключ (добавьте в ~/.ssh/authorized_keys на сервере):
-            </label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                readOnly
-                value={generatedKey.publicKey}
-                className="flex-1 px-2.5 py-1.5 bg-[#0d1117] border border-gray-800 rounded font-mono text-xs text-emerald-300 select-all"
-              />
-              <button
-                onClick={handleCopyPublicKey}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-white rounded flex items-center space-x-1"
-              >
-                {copiedKey ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                <span>{copiedKey ? 'Скопировано' : 'Копировать'}</span>
-              </button>
-            </div>
+            <Input
+              label="Публичный ключ (добавьте в ~/.ssh/authorized_keys на сервере):"
+              readOnly
+              value={generatedKey.publicKey}
+              className="font-mono text-emerald-600 dark:text-emerald-300 select-all"
+              rightElement={
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="secondary"
+                  onClick={handleCopyPublicKey}
+                  icon={copiedKey ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                >
+                  {copiedKey ? 'Скопировано' : 'Копировать'}
+                </Button>
+              }
+            />
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Host Editing Form */}
       {isEditing && (
-        <form onSubmit={handleSaveHost} className="p-4 rounded-xl bg-[#0d1117] border border-gray-700 space-y-3">
-          <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-            <span className="text-xs font-semibold text-white">
-              {editingHost.id ? 'Редактировать хост' : 'Новый SSH-хост'}
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsEditing(false)}
-              className="text-xs text-gray-400 hover:text-white"
-            >
-              Отмена
-            </button>
-          </div>
+        <Card className="p-4">
+          <form onSubmit={handleSaveHost} className="space-y-4">
+            <div className="flex items-center justify-between border-b border-base-border pb-2.5">
+              <span className="text-xs font-semibold text-[var(--text-primary)]">
+                {editingHost.id ? 'Редактировать хост' : 'Новый SSH-хост'}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => setIsEditing(false)}
+              >
+                Отмена
+              </Button>
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] text-gray-400 block mb-1">Понятное имя</label>
-              <input
-                type="text"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Понятное имя"
+                placeholder="Production Web"
                 value={editingHost.name || ''}
                 onChange={(e) => setEditingHost({ ...editingHost, name: e.target.value })}
-                placeholder="Production Web"
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
               />
-            </div>
-            <div>
-              <label className="text-[11px] text-gray-400 block mb-1">Хост / IP-адрес *</label>
-              <input
-                type="text"
+              <Input
+                label="Хост / IP-адрес *"
                 required
+                placeholder="192.168.1.100 или server.com"
                 value={editingHost.host || ''}
                 onChange={(e) => setEditingHost({ ...editingHost, host: e.target.value })}
-                placeholder="192.168.1.100 или server.com"
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="font-mono"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-[11px] text-gray-400 block mb-1">Порт</label>
-              <input
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Input
+                label="Порт"
                 type="number"
                 value={editingHost.port || 22}
                 onChange={(e) => setEditingHost({ ...editingHost, port: Number(e.target.value) })}
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="font-mono"
               />
-            </div>
-            <div>
-              <label className="text-[11px] text-gray-400 block mb-1">Пользователь *</label>
-              <input
-                type="text"
+              <Input
+                label="Пользователь *"
                 required
+                placeholder="root"
                 value={editingHost.user || ''}
                 onChange={(e) => setEditingHost({ ...editingHost, user: e.target.value })}
-                placeholder="root"
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="font-mono"
+              />
+              <Dropdown
+                label="Тип авторизации"
+                value={editingHost.authType || 'password'}
+                onChange={(val) => setEditingHost({ ...editingHost, authType: val })}
+                options={authTypeOptions}
+                size="sm"
               />
             </div>
-            <div>
-              <label className="text-[11px] text-gray-400 block mb-1">Тип авторизации</label>
-              <select
-                value={editingHost.authType || 'password'}
-                onChange={(e) => setEditingHost({ ...editingHost, authType: e.target.value as any })}
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
-              >
-                <option value="password">Пароль</option>
-                <option value="private_key">SSH Ключ (PEM)</option>
-                <option value="vault">Сейф (Vault Identity)</option>
-              </select>
-            </div>
-          </div>
 
-          {/* Conditional credentials */}
-          {editingHost.authType === 'password' && (
-            <div>
-              <label className="text-[11px] text-gray-400 block mb-1">Пароль</label>
-              <input
+            {/* Conditional credentials */}
+            {editingHost.authType === 'password' && (
+              <Input
+                label="Пароль"
                 type="password"
+                placeholder="Введите пароль SSH"
                 value={editingHost.password || ''}
                 onChange={(e) => setEditingHost({ ...editingHost, password: e.target.value })}
-                placeholder="Введите пароль SSH"
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                className="font-mono"
               />
-            </div>
-          )}
+            )}
 
-          {editingHost.authType === 'private_key' && (
-            <div className="space-y-2">
-              <div>
-                <label className="text-[11px] text-gray-400 block mb-1">Приватный ключ (OpenSSH / RSA / Ed25519)</label>
-                <textarea
+            {editingHost.authType === 'private_key' && (
+              <div className="space-y-3">
+                <Textarea
+                  label="Приватный ключ (OpenSSH / RSA / Ed25519)"
                   rows={3}
+                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..."
                   value={editingHost.privateKey || ''}
                   onChange={(e) => setEditingHost({ ...editingHost, privateKey: e.target.value })}
-                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..."
-                  className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs font-mono text-white"
+                  className="font-mono"
                 />
-              </div>
-              <div>
-                <label className="text-[11px] text-gray-400 block mb-1">Passphrase ключа (если задан)</label>
-                <input
+                <Input
+                  label="Passphrase ключа (если задан)"
                   type="password"
+                  placeholder="Оставьте пустым, если ключ без пароля"
                   value={editingHost.passphrase || ''}
                   onChange={(e) => setEditingHost({ ...editingHost, passphrase: e.target.value })}
-                  className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
+                  className="font-mono"
                 />
               </div>
-            </div>
-          )}
+            )}
 
-          {editingHost.authType === 'vault' && (
-            <div>
-              <label className="text-[11px] text-gray-400 block mb-1">Запись из Сейфа ключей</label>
-              <select
+            {editingHost.authType === 'vault' && (
+              <Dropdown
+                label="Запись из Сейфа ключей"
                 value={editingHost.identityId || ''}
-                onChange={(e) => setEditingHost({ ...editingHost, identityId: e.target.value })}
-                className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white"
-              >
-                <option value="">Выберите секрет из хранилища...</option>
-                {identities.map((id) => (
-                  <option key={id.id} value={id.id}>
-                    {id.title} ({id.type})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+                onChange={(val) => setEditingHost({ ...editingHost, identityId: val })}
+                options={identityOptions}
+                placeholder="Выберите секрет из хранилища..."
+                searchable={identityOptions.length > 5}
+                size="sm"
+              />
+            )}
 
-          <div>
-            <label className="text-[11px] text-gray-400 block mb-1">Удаленный путь по умолчанию</label>
-            <input
-              type="text"
+            <Input
+              label="Удаленный путь по умолчанию"
+              placeholder="/etc или /var/www"
               value={editingHost.defaultPath || ''}
               onChange={(e) => setEditingHost({ ...editingHost, defaultPath: e.target.value })}
-              placeholder="/etc или /var/www"
-              className="w-full px-2.5 py-1.5 bg-[#161b22] border border-gray-700 rounded text-xs text-white font-mono"
+              className="font-mono"
             />
-          </div>
 
-          <div className="flex justify-end space-x-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setIsEditing(false)}
-              className="px-3 py-1.5 text-xs text-gray-400 hover:text-white"
-            >
-              Отмена
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-1.5 rounded text-xs font-semibold text-black"
-              style={{ backgroundColor: accentColor }}
-            >
-              Сохранить хост
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsEditing(false)}
+              >
+                Отмена
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+              >
+                Сохранить хост
+              </Button>
+            </div>
+          </form>
+        </Card>
       )}
 
       {/* Hosts list */}
@@ -415,25 +407,25 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
             return (
               <div
                 key={host.id}
-                className="p-3.5 bg-[#0d1117] rounded-xl border border-gray-800 flex items-center justify-between hover:border-gray-700 transition"
+                className="p-3.5 bg-base-surface rounded-xl border border-base-border flex items-center justify-between hover:border-base-border transition"
               >
                 <div className="flex items-center space-x-3 min-w-0">
-                  <div className="p-2 rounded-lg bg-gray-800 text-gray-300 shrink-0">
+                  <div className="p-2 rounded-lg bg-black/5 dark:bg-white/10 text-[var(--text-secondary)] shrink-0">
                     <Server size={16} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs font-semibold text-white truncate">
+                      <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
                         {host.name || host.host}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-800 text-gray-400 font-mono">
+                      <Badge variant="neutral" size="xs" className="font-mono">
                         {host.user}@{host.host}:{host.port || 22}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/10 text-blue-400">
+                      </Badge>
+                      <Badge variant={host.authType === 'vault' ? 'accent' : 'info'} size="xs" className="uppercase font-mono font-bold tracking-wider">
                         {host.authType}
-                      </span>
+                      </Badge>
                     </div>
-                    <div className="text-[11px] text-gray-500 font-mono truncate">
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono truncate">
                       Путь: {host.defaultPath || '/etc'}
                     </div>
                   </div>
@@ -442,32 +434,21 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                 {/* Status / Test result */}
                 <div className="flex items-center space-x-2">
                   {res && (
-                    <div
-                      className={`text-[11px] px-2 py-0.5 rounded flex items-center space-x-1 ${
-                        res.success
-                          ? 'bg-emerald-500/10 text-emerald-400'
-                          : 'bg-red-500/10 text-red-400'
-                      }`}
+                    <StatusBadge
+                      status={res.success ? 'success' : 'error'}
+                      size="sm"
+                      icon={res.success ? <CheckCircle size={11} /> : <AlertCircle size={11} />}
+                      title={res.error}
                     >
-                      {res.success ? (
-                        <>
-                          <CheckCircle size={11} />
-                          <span>OK ({res.latencyMs}мс)</span>
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle size={11} />
-                          <span title={res.error}>Ошибка</span>
-                        </>
-                      )}
-                    </div>
+                      {res.success ? `OK (${res.latencyMs}мс)` : 'Ошибка'}
+                    </StatusBadge>
                   )}
 
                   <button
                     type="button"
                     onClick={() => handleTestConnection(host)}
                     disabled={isTesting}
-                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition"
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 rounded transition cursor-pointer"
                     title="Проверить связь с сервером"
                   >
                     <RefreshCw size={13} className={isTesting ? 'animate-spin' : ''} />
@@ -477,7 +458,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                     <button
                       type="button"
                       onClick={() => onOpenTerminal(host)}
-                      className="p-1.5 text-gray-400 hover:text-accent hover:bg-gray-800 rounded transition"
+                      className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-accent hover:bg-black/5 dark:hover:bg-white/10 rounded transition cursor-pointer"
                       title="Открыть терминал к этому хосту"
                     >
                       <Terminal size={13} />
@@ -487,7 +468,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => handleEdit(host)}
-                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition"
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 rounded transition cursor-pointer"
                     title="Редактировать"
                   >
                     <Edit2 size={13} />
@@ -495,7 +476,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => handleDelete(host)}
-                    className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition"
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer"
                     title="Удалить"
                   >
                     <Trash2 size={13} />
@@ -516,7 +497,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
         message={
           <span>
             Вы уверены, что хотите удалить SSH-хост{' '}
-            <strong className="text-white font-semibold">
+            <strong className="text-[var(--text-primary)] font-semibold">
               «{hostToDelete?.name || hostToDelete?.host}»
             </strong>?
           </span>

@@ -38,14 +38,14 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={`w-full bg-gray-100 dark:bg-black/30 border border-base-border rounded-xl pl-8.5 pr-8 py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-accent transition-colors ${inputClassName}`}
+          className={`w-full bg-gray-100 dark:bg-black/30 border border-base-border rounded-xl pl-9 pr-8 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-accent transition-colors ${inputClassName}`}
           {...props}
         />
         {value && (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-2.5 p-0.5 rounded-md text-gray-400 hover:text-gray-200 hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer"
+            className="absolute right-2.5 p-0.5 rounded-md text-gray-400 hover:text-[var(--text-primary)] hover:bg-black/10 dark:hover:bg-white/10 transition cursor-pointer"
             title="Очистить"
             aria-label="Clear search"
           >

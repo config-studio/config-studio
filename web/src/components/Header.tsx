@@ -23,7 +23,7 @@ import { Settings, OpenFile, FileItem, HeaderItemDef } from '../types';
 import { translations, Language, getAvailableLanguages, subscribeLanguages, LanguageMeta } from '../utils/i18n';
 import { api } from '../services/api';
 import { formatBytes } from '../utils/color';
-import { TreeAsciiIcon } from './ui';
+import { TreeAsciiIcon, Badge, StatusDot, IconButton } from './ui';
 import { FileFormatIcon } from './icons/FileFormatIcon';
 
 interface HeaderProps {
@@ -358,7 +358,7 @@ export const Header: React.FC<HeaderProps> = ({
   );
 
   return (
-    <header className="relative h-14 bg-base-surface border-b border-base-border px-3 sm:px-4 flex items-center justify-between select-none z-30">
+    <header className="relative h-14 bg-base-surface border-b border-base-border px-3 sm:px-4 flex md:grid md:grid-cols-[1fr_auto_1fr] items-center justify-between select-none z-30">
       {/* Mobile Search Overlay Bar */}
       {isMobileSearchOpen && (
         <div
@@ -412,7 +412,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
       {/* Left: Mobile Hamburger, Branding & Path */}
-      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 justify-self-start">
         {onToggleMobileFiles && (
           <button
             type="button"
@@ -455,10 +455,10 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Center: Quick File Search with Autocomplete Dropdown */}
+      {/* Center: Quick File Search with Autocomplete Dropdown - STRICTLY CENTERED (UI-001) */}
       <div
         ref={searchContainerRef}
-        className="hidden md:flex items-center relative w-72 lg:w-96 mx-4"
+        className="hidden md:flex items-center justify-self-center relative w-72 lg:w-96 mx-4"
       >
         <Search className="w-4 h-4 absolute left-3 text-gray-400 pointer-events-none z-10" />
         <input
@@ -499,7 +499,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
+      <div className="flex items-center space-x-1 sm:space-x-2 shrink-0 justify-self-end">
         {/* Mobile search trigger icon */}
         <button
           type="button"
@@ -555,7 +555,7 @@ export const Header: React.FC<HeaderProps> = ({
           )}
           <span className="hidden sm:inline">{isSaving ? t.saving : t.save}</span>
           {currentFile?.isDirty && (
-            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block animate-pulse ml-0.5" />
+            <StatusDot status="warning" size="xs" pulse className="ml-0.5" />
           )}
         </button>
 
@@ -573,14 +573,14 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* File info / hash / history button */}
-          <button
+          <IconButton
+            variant="ghost"
+            size="md"
+            icon={<Info className="w-4 h-4" />}
             onClick={onOpenProperties}
             disabled={!currentFile}
-            className="p-2 rounded-xl text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-30"
             title={t.fileProperties}
-          >
-            <Info className="w-4 h-4" />
-          </button>
+          />
 
           {/* Language switch */}
           {availableLanguages.length > 1 && (
@@ -599,13 +599,13 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           {/* Theme mode toggle */}
-          <button
+          <IconButton
+            variant="ghost"
+            size="md"
+            icon={settings.themeMode === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             onClick={onToggleTheme}
-            className="p-2 rounded-xl text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             title={`Switch to ${settings.themeMode === 'dark' ? t.themeLight : t.themeDark}`}
-          >
-            {settings.themeMode === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          />
 
           {/* Plugins quick toggle button */}
           {onOpenPlugins && (
@@ -617,31 +617,31 @@ export const Header: React.FC<HeaderProps> = ({
               <Package className="w-3.5 h-3.5 text-accent" />
               <span className="hidden lg:inline font-medium">{t.tabPlugins}</span>
               {activePluginsCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-accent/20 text-accent border border-accent/30">
+                <Badge variant="accent" size="xs">
                   {activePluginsCount}
-                </span>
+                </Badge>
               )}
             </button>
           )}
 
           {/* Settings button */}
-          <button
+          <IconButton
+            variant="ghost"
+            size="md"
+            icon={<SettingsIcon className="w-4 h-4" />}
             onClick={onOpenSettings}
-            className="p-2 rounded-xl text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             title={t.settings}
-          >
-            <SettingsIcon className="w-4 h-4" />
-          </button>
+          />
 
           {/* Logout button if auth enabled */}
           {onLogout && (
-            <button
+            <IconButton
+              variant="danger"
+              size="md"
+              icon={<LogOut className="w-4 h-4" />}
               onClick={onLogout}
-              className="p-2 rounded-xl text-gray-500 hover:text-rose-500 dark:text-gray-400 dark:hover:text-rose-400 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title={t.signOut}
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            />
           )}
         </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   Type,
   Globe,
@@ -7,12 +7,11 @@ import {
   Image as ImageIcon,
   Upload,
   Check,
-  ChevronDown,
 } from 'lucide-react';
 import { Settings } from '../../../types';
 import { LanguageMeta } from '../../../utils/i18n';
 import { PRESET_BASE_COLORS, PRESET_ACCENT_COLORS } from '../types';
-import { Input, Button, Card } from '../../ui';
+import { Input, Button, Card, Dropdown, DropdownOption } from '../../ui';
 
 interface GeneralTabProps {
   settings: Settings;
@@ -51,20 +50,18 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
   availableLanguages,
   t,
 }) => {
-  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const langDropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (langDropdownRef.current && !langDropdownRef.current.contains(e.target as Node)) {
-        setIsLangDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, []);
+  const languageOptions: DropdownOption[] = useMemo(() => {
+    return availableLanguages.map((l) => ({
+      value: l.code,
+      label: l.name,
+      icon: <span className="text-base mr-1.5">{l.flag}</span>,
+      badge: l.isPlugin ? 'Pack' : undefined,
+      badgeColor: 'purple',
+    }));
+  }, [availableLanguages]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -76,13 +73,6 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
       reader.readAsDataURL(file);
       onUploadIcon(file);
     }
-  };
-
-  const currentLang = availableLanguages.find((l) => l.code === language) || {
-    code: language,
-    name: language === 'ru' ? 'Русский' : 'English',
-    flag: language === 'ru' ? '🇷🇺' : '🇬🇧',
-    isPlugin: false,
   };
 
   return (
@@ -104,68 +94,21 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
         />
       </div>
 
-      {/* Language Selector Dropdown */}
+      {/* Language Selector Dropdown (Dropdown v2 - Constrained width) */}
       {availableLanguages.length > 1 && (
-        <div ref={langDropdownRef} className="relative">
-          <label className="flex items-center space-x-2 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
-            <Globe className="w-4 h-4 text-accent" />
-            <span>{t.language}</span>
-          </label>
-
-          <button
-            type="button"
-            onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-            className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-black/30 border border-base-border hover:border-gray-400 dark:hover:border-gray-500 rounded-xl text-xs font-medium text-gray-900 dark:text-white flex items-center justify-between transition cursor-pointer shadow-xs"
-          >
-            <span className="flex items-center space-x-2 truncate">
-              <span className="text-sm">{currentLang.flag}</span>
-              <span className="font-semibold">{currentLang.name}</span>
-              {currentLang.isPlugin && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400 font-mono">
-                  Pack
-                </span>
-              )}
-            </span>
-            <ChevronDown
-              className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
-                isLangDropdownOpen ? 'rotate-180 text-accent' : ''
-              }`}
-            />
-          </button>
-
-          {isLangDropdownOpen && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-white dark:bg-[#161b22] border border-base-border rounded-xl shadow-2xl p-1 space-y-0.5 max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
-              {availableLanguages.map((l) => {
-                const isSelected = language === l.code;
-                return (
-                  <button
-                    key={l.code}
-                    type="button"
-                    onClick={() => {
-                      setLanguage(l.code);
-                      setIsLangDropdownOpen(false);
-                    }}
-                    className={`w-full px-3 py-2 rounded-lg text-xs flex items-center justify-between transition cursor-pointer ${
-                      isSelected
-                        ? 'bg-accent/15 text-accent font-semibold'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10'
-                    }`}
-                  >
-                    <span className="flex items-center space-x-2 truncate">
-                      <span className="text-sm">{l.flag}</span>
-                      <span className="truncate">{l.name}</span>
-                      {l.isPlugin && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400 font-mono">
-                          Pack
-                        </span>
-                      )}
-                    </span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-accent shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+        <div className="max-w-md">
+          <Dropdown
+            label={
+              <span className="flex items-center space-x-2">
+                <Globe className="w-4 h-4 text-accent" />
+                <span>{t.language}</span>
+              </span>
+            }
+            value={language}
+            onChange={(val) => setLanguage(val)}
+            options={languageOptions}
+            size="md"
+          />
         </div>
       )}
 

@@ -6,7 +6,8 @@ import { translations } from '../utils/i18n';
 import { getLuminance } from '../utils/color';
 import { pluginManager } from '../services/pluginLoader';
 import { ActionToolbar } from './ActionToolbar';
-import { ScrollArea, EmptyState, Button } from '@config-studio/ui';
+import { ScrollArea, EmptyState, Button, PillTabs, PillTabItem, Dropdown, DropdownOption, Badge } from '@config-studio/ui';
+import { FileFormatIcon } from './icons/FileFormatIcon';
 
 interface EditorProps {
   tabs: OpenFile[];
@@ -100,6 +101,33 @@ export const Editor: React.FC<EditorProps> = ({
   const currentFile =
     tabs.find((t) => getTabKey(t) === activeFilePath || t.path === activeFilePath) ||
     null;
+
+  const pillTabItems: PillTabItem[] = useMemo(() => {
+    return tabs.map((tab) => {
+      const tabKey = getTabKey(tab);
+      const hasDuplicateName = tabs.some((t) => t !== tab && t.name === tab.name);
+      let locationHint = '';
+      if (hasDuplicateName) {
+        if (tab.root && workspaces && workspaces.length > 1) {
+          const ws = workspaces.find((w) => w.id === tab.root);
+          locationHint = ws ? ws.name : tab.root;
+        } else if (tab.path.includes('/')) {
+          const parts = tab.path.split('/');
+          locationHint = parts[parts.length - 2];
+        }
+      }
+
+      return {
+        id: tabKey,
+        label: locationHint ? `${tab.name} • ${locationHint}` : tab.name,
+        icon: <FileFormatIcon filename={tab.name} className="w-3.5 h-3.5 shrink-0" />,
+        badge: tab.badge || (tab.readOnly ? 'RO' : undefined),
+        badgeColor: tab.readOnly ? 'amber' : 'accent',
+        isDirty: tab.isDirty,
+        closable: true,
+      };
+    });
+  }, [tabs, workspaces, activeFilePath]);
 
   const isLight =
     settings.themeMode === 'light' ||
@@ -327,91 +355,17 @@ export const Editor: React.FC<EditorProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-base">
-      {/* Multi-Tab Bar & Action Toolbar */}
-      <div className="h-10 bg-base-surface border-b border-base-border flex items-center justify-between px-2 select-none flex-shrink-0">
-        <ScrollArea
-          orientation="horizontal"
+      {/* Multi-Tab Bar & Action Toolbar (Option 2: PillTabs) */}
+      <div className="min-h-11 bg-base-surface border-b border-base-border flex items-center justify-between px-2.5 py-1 select-none flex-shrink-0 gap-3">
+        <PillTabs
+          items={pillTabItems}
+          activeId={activeFilePath || (tabs[0] ? getTabKey(tabs[0]) : '')}
+          onChange={(key) => onSelectTab(key)}
+          onClose={(key) => onCloseTab(key)}
+          variant="files"
+          size="sm"
           className="flex-1 min-w-0"
-          contentClassName="flex items-center space-x-1 w-max"
-        >
-          {tabs.map((tab) => {
-            const tabKey = getTabKey(tab);
-            const isActive = tabKey === activeFilePath || tab.path === activeFilePath;
-
-            // If another open tab has the same filename, show location hint
-            const hasDuplicateName = tabs.some(
-              (t) => t !== tab && t.name === tab.name
-            );
-            let locationHint = '';
-            if (hasDuplicateName) {
-              if (tab.root && workspaces && workspaces.length > 1) {
-                const ws = workspaces.find((w) => w.id === tab.root);
-                locationHint = ws ? ws.name : tab.root;
-              } else if (tab.path.includes('/')) {
-                const parts = tab.path.split('/');
-                locationHint = parts[parts.length - 2];
-              }
-            }
-
-            return (
-              <div
-                key={tabKey}
-                onClick={() => onSelectTab(tabKey)}
-                className={`group flex items-center space-x-2 px-3 py-1.5 rounded-t-lg text-xs font-medium cursor-pointer transition-all border-b-2 max-w-[220px] ${
-                  isActive
-                    ? 'bg-base text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border-transparent'
-                }`}
-                style={{
-                  borderBottomColor: isActive ? settings.accentColor : 'transparent',
-                }}
-              >
-                <span className="truncate">{tab.name}</span>
-                {locationHint && (
-                  <span
-                    className="text-[10px] opacity-60 font-mono truncate max-w-[80px] shrink-0"
-                    title={`Расположение: ${tab.root ? tab.root + '/' : ''}${tab.path}`}
-                  >
-                    • {locationHint}
-                  </span>
-                )}
-                {tab.badge && (
-                  <span
-                    className="px-1 text-[9px] font-mono uppercase bg-accent/15 text-accent border border-accent/30 rounded shrink-0"
-                    title={tab.badge}
-                  >
-                    {tab.badge}
-                  </span>
-                )}
-                {tab.readOnly && (
-                  <span
-                    className="px-1 text-[9px] font-mono uppercase bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded shrink-0"
-                    title="Только для чтения (Read-Only)"
-                  >
-                    RO
-                  </span>
-                )}
-                {tab.isDirty && (
-                  <span
-                    className="w-2 h-2 rounded-full inline-block animate-pulse flex-shrink-0"
-                    style={{ backgroundColor: settings.accentColor }}
-                    title="Несохраненные изменения"
-                  />
-                )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCloseTab(tabKey);
-                  }}
-                  className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/20 text-gray-400 hover:text-gray-900 dark:hover:text-white flex-shrink-0"
-                  title="Закрыть вкладку"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          })}
-        </ScrollArea>
+        />
 
         {/* Right Action Area: Guard Pill & 1-Click Action Toolbar & Mobile Tag Toggle */}
         <div className="flex items-center space-x-1.5 pl-2 shrink-0">
@@ -476,9 +430,9 @@ export const Editor: React.FC<EditorProps> = ({
               <History className={`w-3.5 h-3.5 ${isTimeMachineActive ? 'text-accent' : 'text-gray-400'}`} />
               <span className="hidden sm:inline">{t.timeMachine || 'История'}</span>
               {revisions.length > 0 && (
-                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-accent/20 text-accent font-mono font-bold">
+                <Badge variant="accent" size="xs">
                   {revisions.length}
-                </span>
+                </Badge>
               )}
             </button>
           )}
@@ -503,34 +457,35 @@ export const Editor: React.FC<EditorProps> = ({
             </div>
 
             {revisions.length > 0 ? (
-              <div className="flex items-center bg-black/25 dark:bg-white/5 rounded-lg border border-base-border p-0.5">
+              <div className="flex items-center space-x-1.5">
                 <button
                   type="button"
                   onClick={() => setSelectedRevIndex((idx) => Math.min(revisions.length - 1, idx + 1))}
                   disabled={selectedRevIndex >= revisions.length - 1}
-                  className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300"
+                  className="p-1 rounded-lg border border-base-border bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 transition"
                   title={t.revisionOlder || 'Старее'}
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
 
-                <select
+                <Dropdown
                   value={selectedRevIndex}
-                  onChange={(e) => setSelectedRevIndex(Number(e.target.value))}
-                  className="bg-transparent text-xs text-gray-200 font-mono px-2 py-0.5 border-none focus:outline-hidden cursor-pointer max-w-[210px] sm:max-w-xs truncate"
-                >
-                  {revisions.map((rev, idx) => (
-                    <option key={rev.id || idx} value={idx} className="bg-gray-900 text-gray-100">
-                      {formatRevOption(rev, idx, revisions.length, settings.language)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedRevIndex(Number(val))}
+                  options={revisions.map((rev, idx) => ({
+                    value: idx,
+                    label: formatRevOption(rev, idx, revisions.length, settings.language),
+                    badge: idx === 0 ? (settings.language === 'ru' ? 'Текущая' : 'Current') : undefined,
+                    badgeColor: 'green',
+                  }))}
+                  size="sm"
+                  className="w-48 sm:w-64 font-mono text-xs"
+                />
 
                 <button
                   type="button"
                   onClick={() => setSelectedRevIndex((idx) => Math.max(0, idx - 1))}
                   disabled={selectedRevIndex <= 0}
-                  className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300"
+                  className="p-1 rounded-lg border border-base-border bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 transition"
                   title={t.revisionNewer || 'Новее'}
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -575,11 +530,13 @@ export const Editor: React.FC<EditorProps> = ({
           <div className="flex-1 w-full min-h-0 overflow-hidden relative flex flex-col">
             {/* Diff header indicator */}
             <div className="h-6 bg-base-surface/80 border-b border-base-border text-[11px] font-mono flex items-center justify-between px-3 text-gray-400 select-none shrink-0">
-              <span className="flex items-center space-x-1 text-rose-400">
-                <span>◀ {settings.language === 'ru' ? 'Снимок из истории' : 'Historical Snapshot'} ({new Date(selectedRev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</span>
+              <span className="flex items-center space-x-1 text-rose-500 dark:text-rose-400">
+                <ChevronLeft size={12} className="shrink-0" />
+                <span>{settings.language === 'ru' ? 'Снимок из истории' : 'Historical Snapshot'} ({new Date(selectedRev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</span>
               </span>
-              <span className="flex items-center space-x-1 text-emerald-400">
-                <span>{settings.language === 'ru' ? 'Текущий файл в редакторе' : 'Current File in Editor'} ▶</span>
+              <span className="flex items-center space-x-1 text-emerald-600 dark:text-emerald-400">
+                <span>{settings.language === 'ru' ? 'Текущий файл в редакторе' : 'Current File in Editor'}</span>
+                <ChevronRight size={12} className="shrink-0" />
               </span>
             </div>
             <div className="flex-1 w-full min-h-0">

@@ -11,7 +11,7 @@ export const Card: React.FC<CardProps> & {
 } = ({ children, interactive = false, className = '', ...props }) => {
   return (
     <div
-      className={`bg-gray-100/60 dark:bg-black/20 border border-base-border rounded-2xl overflow-hidden transition-all ${
+      className={`bg-base-surface border border-base-border rounded-2xl overflow-hidden transition-all ${
         interactive
           ? 'cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 active:scale-[0.99]'
           : ''
@@ -52,7 +52,7 @@ export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   ...props
 }) => (
   <div
-    className={`px-4 py-3 bg-black/5 dark:bg-black/10 border-t border-base-border text-xs flex items-center justify-between ${className}`}
+    className={`px-4 py-3 bg-slate-50 dark:bg-black/10 border-t border-base-border text-xs flex items-center justify-between ${className}`}
     {...props}
   >
     {children}

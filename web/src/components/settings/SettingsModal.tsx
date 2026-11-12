@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Palette,
   Shield,
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { translations, getAvailableLanguages, subscribeLanguages, LanguageMeta } from '../../utils/i18n';
 import { SettingsModalProps, SettingsTab } from './types';
-import { Modal, Tabs, Button, Badge, ConfirmModal } from '../ui';
+import { Modal, PillTabs, PillTabItem, Button, Badge, ConfirmModal } from '../ui';
 import { GeneralTab } from './tabs/GeneralTab';
 import { SecurityTab } from './tabs/SecurityTab';
 import { SecretsTab } from './tabs/SecretsTab';
@@ -95,6 +95,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, [isOpen, settings, initialTab]);
 
+  const tabsStripRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = tabsStripRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0 && e.deltaX === 0) {
+        const maxScrollLeft = el.scrollWidth - el.clientWidth;
+        if (maxScrollLeft > 0) {
+          const canScrollLeft = e.deltaY < 0 && el.scrollLeft > 0;
+          const canScrollRight = e.deltaY > 0 && el.scrollLeft < maxScrollLeft;
+
+          if (canScrollLeft || canScrollRight) {
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+          }
+        }
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const activeBtn = tabsStripRef.current?.querySelector('[aria-selected="true"]');
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+  }, [isOpen, activeTab]);
+
   if (!isOpen) return null;
 
   const t = translations[language] || translations.ru;
@@ -148,15 +184,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setIsResetConfirmOpen(false);
   };
 
-  const tabItems = [
-    { id: 'general', label: t.tabGeneral, icon: <Palette size={14} /> },
-    { id: 'security', label: t.tabSecurity, icon: <Shield size={14} /> },
-    { id: 'secrets', label: t.tabSecrets, icon: <Key size={14} /> },
-    { id: 'ssh', label: 'SSH & Хосты', icon: <Server size={14} /> },
-    { id: 'plugins', label: t.tabPlugins, icon: <Package size={14} /> },
-    { id: 'plugin-settings', label: t.tabPluginSettings, icon: <Sliders size={14} /> },
-    { id: 'profile', label: t.tabProfile, icon: <Share2 size={14} /> },
-    { id: 'audit', label: t.tabAudit, icon: <ScrollText size={14} /> },
+  const tabItems: PillTabItem[] = [
+    { id: 'general', label: t.tabGeneral, icon: <Palette size={13} />, closable: false },
+    { id: 'security', label: t.tabSecurity, icon: <Shield size={13} />, closable: false },
+    { id: 'secrets', label: t.tabSecrets, icon: <Key size={13} />, closable: false },
+    { id: 'ssh', label: 'SSH & Хосты', icon: <Server size={13} />, closable: false },
+    { id: 'plugins', label: t.tabPlugins, icon: <Package size={13} />, closable: false },
+    { id: 'plugin-settings', label: t.tabPluginSettings, icon: <Sliders size={13} />, closable: false },
+    { id: 'profile', label: t.tabProfile, icon: <Share2 size={13} />, closable: false },
+    { id: 'audit', label: t.tabAudit, icon: <ScrollText size={13} />, closable: false },
   ];
 
   return (
@@ -173,19 +209,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         title={t.settings}
         badge={
           <Badge variant="accent" size="sm">
-            v2.0.0
+            v2.3.0
           </Badge>
         }
       />
 
-      {/* Unified Tab Navigation Strip */}
-      <Tabs
-        items={tabItems}
-        activeId={activeTab}
-        onChange={(id) => setActiveTab(id as SettingsTab)}
-        accentColor={accentColor}
-        className="px-6"
-      />
+      {/* Unified PillTabs Navigation Strip with Centering & Wheel Scroll */}
+      <div
+        ref={tabsStripRef}
+        className="px-5 py-2.5 border-b border-base-border bg-base-surface shrink-0 overflow-x-auto no-scrollbar"
+      >
+        <div className="min-w-full w-max flex justify-center">
+          <PillTabs
+            items={tabItems}
+            activeId={activeTab}
+            onChange={(id) => setActiveTab(id as SettingsTab)}
+            variant="filters"
+            size="sm"
+            className="w-fit"
+          />
+        </div>
+      </div>
 
       {/* Active Tab Content Area - Zero Layout Shift */}
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">

@@ -16,9 +16,12 @@ import { pluginManager } from '../../../services/pluginLoader';
 import {
   Card,
   Input,
-  Select,
+  Dropdown,
+  DropdownOption,
   Toggle,
   Badge,
+  StatusDot,
+  StatusBadge,
   SearchInput,
   EmptyState,
   SectionHeader,
@@ -187,10 +190,9 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
                   }`}
                 >
                   {/* Status dot */}
-                  <span
-                    className={`w-2 h-2 rounded-full shrink-0 ${
-                      p.enabled ? 'bg-emerald-400 shadow-xs' : 'bg-gray-400 dark:bg-gray-600'
-                    }`}
+                  <StatusDot
+                    status={p.enabled ? 'online' : 'neutral'}
+                    size="sm"
                     title={p.enabled ? 'Включен' : 'Отключен'}
                   />
 
@@ -276,10 +278,10 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
                     {getPluginDescription(selectedPlugin, language)}
                   </p>
 
-                  <div className="flex items-center space-x-3 text-[11px] text-gray-500 dark:text-gray-400 mt-2">
+                  <div className="flex items-center space-x-3 text-[11px] text-gray-600 dark:text-gray-400 mt-2">
                     {selectedPlugin.author && (
                       <span>
-                        {t.author}: <strong className="text-gray-300">{selectedPlugin.author}</strong>
+                        {t.author}: <strong className="text-gray-800 dark:text-gray-200">{selectedPlugin.author}</strong>
                       </span>
                     )}
                     <span className="font-mono">ID: {selectedPlugin.id}</span>
@@ -290,16 +292,22 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
               {/* Autosave status indicator */}
               <div className="shrink-0 flex items-center space-x-2">
                 {isSaving && (
-                  <span className="text-[11px] text-accent flex items-center space-x-1 font-mono">
-                    <RefreshCw size={12} className="animate-spin" />
-                    <span>Сохранение...</span>
-                  </span>
+                  <StatusBadge
+                    status="warning"
+                    size="sm"
+                    icon={<RefreshCw size={11} className="animate-spin" />}
+                  >
+                    Сохранение...
+                  </StatusBadge>
                 )}
                 {saveSuccess && (
-                  <span className="text-[11px] text-emerald-400 flex items-center space-x-1 font-mono">
-                    <Check size={12} />
-                    <span>{t.pluginSettingsSaved || 'Сохранено'}</span>
-                  </span>
+                  <StatusBadge
+                    status="success"
+                    size="sm"
+                    icon={<Check size={11} />}
+                  >
+                    {t.pluginSettingsSaved || 'Сохранено'}
+                  </StatusBadge>
                 )}
               </div>
             </div>
@@ -311,10 +319,12 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
                   icon={<Sliders size={13} />}
                   title="Пользовательская панель параметров"
                 />
-                <div
-                  ref={customContainerRef}
-                  className="p-4 rounded-2xl bg-black/20 border border-base-border min-h-[120px]"
-                />
+                <Card className="p-4 bg-base-surface border border-base-border min-h-[120px]">
+                  <div
+                    ref={customContainerRef}
+                    className="w-full h-full text-[var(--text-primary)]"
+                  />
+                </Card>
               </div>
             )}
 
@@ -352,16 +362,17 @@ export const PluginSettingsTab: React.FC<PluginSettingsTabProps> = ({
                     if (field.type === 'select') {
                       return (
                         <Card key={field.id} className="p-3.5">
-                          <Select
+                          <Dropdown
                             label={field.label}
                             description={field.description}
                             value={val}
-                            onChange={(e) => handleUpdateSetting(field.id, e.target.value)}
+                            onChange={(v) => handleUpdateSetting(field.id, v)}
                             options={(field.options || []).map((opt: any) => {
                               const optVal = typeof opt === 'object' ? opt.value : opt;
                               const optLabel = typeof opt === 'object' ? opt.label : opt;
                               return { value: optVal, label: optLabel };
                             })}
+                            size="sm"
                           />
                         </Card>
                       );
