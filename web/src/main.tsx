@@ -14,7 +14,7 @@ const isDebugTelemetryActive =
   import.meta.env.VITE_DEBUG_TELEMETRY === 'true' ||
   (typeof window !== 'undefined' &&
     (new URLSearchParams(window.location.search).has('debug') ||
-     localStorage.getItem('cs_debug_telemetry') === 'true'));
+     localStorage.getItem('cs_debug_telemetry') !== 'false'));
 
 if (isDebugTelemetryActive) {
   import('./debug/debugRecorder').then((m) => m.initDebugRecorder());

@@ -1,6 +1,12 @@
 import { DebugEvent } from './types';
 
-const DEBUG_SERVER_URL = 'http://localhost:9998/events';
+function getDebugHost(): string {
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    return window.location.hostname;
+  }
+  return 'localhost';
+}
+
 let isServerOnline = false;
 let lastCheckTime = 0;
 
@@ -10,7 +16,8 @@ export async function checkDebugServerHealth(): Promise<boolean> {
   lastCheckTime = now;
 
   try {
-    const res = await fetch('http://localhost:9998/health', {
+    const host = getDebugHost();
+    const res = await fetch(`http://${host}:9998/health`, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
     });
@@ -24,9 +31,11 @@ export async function checkDebugServerHealth(): Promise<boolean> {
 export function sendDebugEvent(evt: DebugEvent) {
   try {
     const payload = JSON.stringify(evt);
+    const host = getDebugHost();
+    const url = `http://${host}:9998/events`;
 
     // Use direct fetch with keepalive and cors mode for reliable real-time transmission
-    fetch(DEBUG_SERVER_URL, {
+    fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: payload,

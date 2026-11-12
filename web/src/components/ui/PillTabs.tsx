@@ -54,14 +54,9 @@ export const PillTabs: React.FC<PillTabsProps> = ({
     const onWheel = (e: WheelEvent) => {
       if (e.deltaY !== 0 && e.deltaX === 0) {
         const maxScrollLeft = el.scrollWidth - el.clientWidth;
-        if (maxScrollLeft > 0) {
-          const canScrollLeft = e.deltaY < 0 && el.scrollLeft > 0;
-          const canScrollRight = e.deltaY > 0 && el.scrollLeft < maxScrollLeft;
-
-          if (canScrollLeft || canScrollRight) {
-            e.preventDefault();
-            el.scrollLeft += e.deltaY;
-          }
+        if (maxScrollLeft > 1) {
+          e.preventDefault();
+          el.scrollLeft += e.deltaY;
         }
       }
     };
@@ -71,6 +66,15 @@ export const PillTabs: React.FC<PillTabsProps> = ({
       el.removeEventListener('wheel', onWheel);
     };
   }, [enableWheelScroll, variant]);
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el || !activeId) return;
+    const activeBtn = el.querySelector('[aria-selected="true"]') as HTMLElement | null;
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+  }, [activeId]);
 
   const getBadgeColorClass = (color?: PillTabItem['badgeColor']) => {
     switch (color) {
@@ -88,16 +92,16 @@ export const PillTabs: React.FC<PillTabsProps> = ({
   };
 
   return (
-    <div className={`flex items-center justify-between gap-3 ${variant === 'segmented' ? 'w-full' : ''} ${className}`}>
+    <div className={`flex items-center justify-between gap-3 min-w-0 overflow-hidden ${variant === 'segmented' ? 'w-full' : ''} ${className}`}>
       {/* Recessed Segmented Track */}
       <div
         ref={trackRef}
-        className={`flex items-center select-none ${
+        className={`flex items-center select-none flex-1 min-w-0 max-w-full touch-pan-x ${
           variant === 'segmented'
             ? 'w-full p-1 rounded-2xl gap-1 bg-black/15 dark:bg-black/35 overflow-hidden border border-base-border shadow-inner'
             : variant === 'dock'
-            ? 'p-0.5 rounded-xl gap-0.5 bg-black/10 dark:bg-black/35 shrink-0 overflow-x-auto no-scrollbar border border-base-border shadow-inner'
-            : 'p-1 rounded-2xl gap-1 bg-black/15 dark:bg-black/35 shrink-0 overflow-x-auto no-scrollbar border border-base-border shadow-inner'
+            ? 'p-0.5 rounded-xl gap-0.5 bg-black/10 dark:bg-black/35 overflow-x-auto custom-scrollbar border border-base-border shadow-inner'
+            : 'p-1 rounded-2xl gap-1 bg-black/15 dark:bg-black/35 overflow-x-auto custom-scrollbar border border-base-border shadow-inner'
         } ${trackClassName}`}
         role="tablist"
       >
