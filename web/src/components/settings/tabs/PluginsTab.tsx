@@ -87,9 +87,20 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
     }
   };
 
-  const loadCatalog = async () => {
+  const loadCatalog = async (forceSync = false) => {
     setIsLoadingCatalog(true);
     try {
+      if (forceSync) {
+        try {
+          const syncRes = await api.syncSources();
+          if (syncRes && syncRes.items && syncRes.items.length > 0) {
+            setCatalogItems(syncRes.items);
+            return;
+          }
+        } catch (syncErr) {
+          console.warn('[PluginsTab] Force sync error, falling back to getCatalog:', syncErr);
+        }
+      }
       const items = await api.getCatalog();
       setCatalogItems(items);
     } catch (err) {
@@ -101,7 +112,7 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
 
   useEffect(() => {
     loadPlugins();
-    loadCatalog();
+    loadCatalog(false);
   }, []);
 
   const handleTogglePlugin = async (id: string, currentEnabled: boolean) => {
@@ -465,7 +476,7 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
             <IconButton
               variant="ghost"
               size="sm"
-              onClick={loadCatalog}
+              onClick={() => loadCatalog(true)}
               title={t.refreshCatalogTooltip}
               loading={isLoadingCatalog}
               icon={<RefreshCw size={13} />}

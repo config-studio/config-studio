@@ -102,10 +102,10 @@ var defaultFallbackCatalogJSON = []byte(`[
   {
     "id": "servers",
     "name": "Servers & Fleet Manager",
-    "version": "1.2.1",
+    "version": "1.2.4",
     "description": "Централизованное управление серверами, servers.yaml, нативный SSH/SFTP, встроенный агент, отправка файлов и автообнаружение LAN",
     "author": "Config Studio Team",
-    "downloadUrl": "https://raw.githubusercontent.com/config-studio/config-studio-plugins/main/packages/servers-1.2.1.cspkg",
+    "downloadUrl": "https://github.com/config-studio/config-studio-servers/releases/latest/download/servers.cspkg",
     "sourceId": "official",
     "official": true,
     "icon": "🖥️",
@@ -165,11 +165,13 @@ func NewSourcesManager(pluginsDir string) (*SourcesManager, error) {
 	// If catalog_cache.json doesn't exist, initialize with bundled fallback
 	if _, err := os.Stat(sm.cacheFile); os.IsNotExist(err) {
 		_ = os.WriteFile(sm.cacheFile, defaultFallbackCatalogJSON, 0644)
-		// And start background sync with upstream GitHub
-		go func() {
-			_, _ = sm.SyncSources(nil)
-		}()
 	}
+
+	// Always poll sources in the background on startup to ensure fresh catalog
+	go func() {
+		time.Sleep(1 * time.Second)
+		_, _ = sm.SyncSources(nil)
+	}()
 
 	return sm, nil
 }

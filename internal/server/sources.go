@@ -110,7 +110,19 @@ func (s *Server) handleSyncSources(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 	installed, _ := s.plugins.ListPlugins()
-	items := s.plugins.Sources().GetCatalog(installed)
+	forceRefresh := r.URL.Query().Get("refresh") == "1"
+
+	var items []plugin.CatalogItem
+	if forceRefresh {
+		if synced, err := s.plugins.Sources().SyncSources(installed); err == nil && len(synced) > 0 {
+			items = synced
+		}
+	}
+
+	if len(items) == 0 {
+		items = s.plugins.Sources().GetCatalog(installed)
+	}
+
 	if len(items) == 0 {
 		if synced, err := s.plugins.Sources().SyncSources(installed); err == nil && len(synced) > 0 {
 			items = synced
