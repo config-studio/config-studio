@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { PendingInstall, CatalogItem } from '../types';
 import { getPluginName, getPluginDescription } from '../utils/i18n';
-import { Modal, Button, Badge } from './ui';
+import { Modal, Button, Badge, Callout, Checkbox } from './ui';
 
 interface PluginConsentModalProps {
   pending: PendingInstall | null;
@@ -304,12 +304,9 @@ export const PluginConsentModal: React.FC<PluginConsentModalProps> = ({
               </span>
               <div className="flex flex-wrap gap-1">
                 {pending.manifest.fileMatches.map((m) => (
-                  <span
-                    key={m}
-                    className="px-1.5 py-0.5 bg-accent/10 border border-accent/20 text-accent rounded font-mono text-[10px]"
-                  >
+                  <Badge key={m} variant="accent" size="xs" className="font-mono">
                     {m}
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -320,12 +317,9 @@ export const PluginConsentModal: React.FC<PluginConsentModalProps> = ({
               <span className="text-gray-400">{isEn ? 'Dependencies:' : 'Зависимости:'}</span>
               <div className="flex flex-wrap gap-1">
                 {Object.entries(pending.manifest.dependencies).map(([depId, ver]) => (
-                  <span
-                    key={depId}
-                    className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-300 rounded font-mono text-[10px]"
-                  >
-                    <span className="inline-flex items-center"><Link2 className="w-2.5 h-2.5 text-blue-300 mr-1 shrink-0" />{depId} {ver ? `(${ver})` : ''}</span>
-                  </span>
+                  <Badge key={depId} variant="info" size="xs" className="font-mono">
+                    <span className="inline-flex items-center"><Link2 className="w-2.5 h-2.5 mr-1 shrink-0" />{depId} {ver ? `(${ver})` : ''}</span>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -336,12 +330,9 @@ export const PluginConsentModal: React.FC<PluginConsentModalProps> = ({
               <span className="text-gray-400">{isEn ? 'Optional extensions:' : 'Опциональные:'}</span>
               <div className="flex flex-wrap gap-1">
                 {Object.entries(pending.manifest.optionalDependencies).map(([depId, ver]) => (
-                  <span
-                    key={depId}
-                    className="px-1.5 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 rounded font-mono text-[10px]"
-                  >
-                    <span className="inline-flex items-center"><Layers className="w-2.5 h-2.5 text-purple-300 mr-1 shrink-0" />{depId} {ver ? `(${ver})` : ''}</span>
-                  </span>
+                  <Badge key={depId} variant="neutral" size="xs" className="font-mono text-purple-700 dark:text-purple-300">
+                    <span className="inline-flex items-center"><Layers className="w-2.5 h-2.5 mr-1 shrink-0" />{depId} {ver ? `(${ver})` : ''}</span>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -352,12 +343,9 @@ export const PluginConsentModal: React.FC<PluginConsentModalProps> = ({
               <span className="text-gray-400">{isEn ? 'Provides services:' : 'Предоставляет сервисы:'}</span>
               <div className="flex flex-wrap gap-1">
                 {pending.manifest.providesServices.map((svc) => (
-                  <span
-                    key={svc}
-                    className="px-1.5 py-0.5 bg-teal-500/10 border border-teal-500/20 text-teal-300 rounded font-mono text-[10px]"
-                  >
-                    <span className="inline-flex items-center"><Zap className="w-2.5 h-2.5 text-teal-300 mr-1 shrink-0" />{svc}</span>
-                  </span>
+                  <Badge key={svc} variant="accent" size="xs" className="font-mono">
+                    <span className="inline-flex items-center"><Zap className="w-2.5 h-2.5 mr-1 shrink-0" />{svc}</span>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -366,100 +354,91 @@ export const PluginConsentModal: React.FC<PluginConsentModalProps> = ({
 
         {/* Required Missing / Incompatible Dependencies Alert */}
         {hardIssues.length > 0 && (
-          <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-amber-300">
-              <AlertTriangle size={15} className="text-amber-400 shrink-0" />
-              <span>
-                {isEn ? 'Required plugin dependencies:' : 'Требуются обязательные зависимости:'}
-              </span>
-            </div>
-            <div className="space-y-1 pl-6 text-xs text-amber-200/90">
+          <Callout
+            variant="warning"
+            title={isEn ? 'Required plugin dependencies:' : 'Требуются обязательные зависимости:'}
+            icon={<AlertTriangle size={15} className="shrink-0" />}
+          >
+            <div className="space-y-1.5 mt-1">
               {hardIssues.map((issue) => (
                 <div key={issue.pluginId} className="flex items-center gap-2">
-                  <span className="font-mono text-[11px] text-amber-300 font-semibold">{issue.pluginId}</span>
-                  <span className="text-gray-400 text-[10px]">({issue.required || '*'})</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-medium">
+                  <span className="font-mono text-[11px] font-semibold text-[var(--text-primary)]">{issue.pluginId}</span>
+                  <span className="text-[10px] opacity-75">({issue.required || '*'})</span>
+                  <Badge variant="warning" size="xs">
                     {issue.status === 'missing'
                       ? (isEn ? 'Not installed' : 'Не установлен')
                       : issue.status === 'disabled'
                       ? (isEn ? 'Disabled' : 'Отключен')
                       : (isEn ? 'Incompatible version' : 'Несовместимая версия')}
-                  </span>
+                  </Badge>
                 </div>
               ))}
             </div>
-          </div>
+          </Callout>
         )}
 
         {/* Optional / Recommended Dependencies with 1-Click Install Checkboxes */}
         {optIssues.length > 0 && (
-          <div className="p-3.5 bg-purple-500/10 border border-purple-500/30 rounded-xl space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-semibold text-purple-300">
-                <Sparkles size={15} className="text-purple-400 shrink-0" />
-                <span>
-                  {isEn ? 'Recommended extensions (optional):' : 'Рекомендуемые расширения (опционально):'}
+          <Callout
+            variant="accent"
+            icon={<Sparkles size={15} className="text-purple-500 shrink-0" />}
+            title={
+              <div className="flex items-center justify-between w-full">
+                <span>{isEn ? 'Recommended extensions (optional):' : 'Рекомендуемые расширения (опционально):'}</span>
+                <span className="text-[10px] opacity-75 font-normal">
+                  {isEn ? 'Can be installed together' : 'Можно установить вместе'}
                 </span>
               </div>
-              <span className="text-[10px] text-purple-300/70">
-                {isEn ? 'Can be installed together' : 'Можно установить вместе'}
-              </span>
-            </div>
-
-            <div className="space-y-1.5 text-xs">
+            }
+          >
+            <div className="space-y-2 mt-2">
               {optIssues.map((issue) => {
-                const catItem = catalogItems.find((c) => c.id === issue.pluginId);
+                const catItem = catalogItems?.find((c) => c.id === issue.pluginId);
                 const canInstall = !!catItem?.downloadUrl || issue.status === 'disabled';
                 const isChecked = selectedOptionalDeps[issue.pluginId] ?? canInstall;
 
                 return (
-                  <label
+                  <div
                     key={issue.pluginId}
-                    className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition cursor-pointer select-none ${
+                    className={`p-2.5 rounded-xl border transition ${
                       isChecked
-                        ? 'bg-purple-500/15 border-purple-500/40 text-purple-200'
-                        : 'bg-black/20 border-base-border text-gray-400 hover:border-gray-500'
+                        ? 'bg-purple-500/15 border-purple-500/40'
+                        : 'bg-black/5 dark:bg-black/20 border-base-border opacity-80'
                     }`}
                   >
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={isChecked}
                       disabled={!canInstall}
-                      onChange={(e) =>
+                      onChange={(checked) =>
                         setSelectedOptionalDeps((prev) => ({
                           ...prev,
-                          [issue.pluginId]: e.target.checked,
+                          [issue.pluginId]: checked,
                         }))
                       }
-                      className="mt-0.5 rounded cursor-pointer accent-purple-500"
+                      label={
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-xs text-[var(--text-primary)]">
+                            {catItem?.name || issue.pluginId}
+                          </span>
+                          <span className="font-mono text-[10px] text-purple-600 dark:text-purple-300">
+                            ({issue.required || '*'})
+                          </span>
+                          <Badge variant="neutral" size="xs">
+                            {issue.status === 'disabled'
+                              ? (isEn ? 'Installed (disabled)' : 'Установлен (выключен)')
+                              : catItem
+                              ? (isEn ? 'Available in catalog' : 'Доступен в каталоге')
+                              : (isEn ? 'Not found in catalog' : 'Нет в каталоге')}
+                          </Badge>
+                        </div>
+                      }
+                      description={catItem?.description}
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-xs text-white">
-                          {catItem?.name || issue.pluginId}
-                        </span>
-                        <span className="font-mono text-[10px] text-purple-300">
-                          ({issue.required || '*'})
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-medium">
-                          {issue.status === 'disabled'
-                            ? (isEn ? 'Installed (disabled)' : 'Установлен (выключен)')
-                            : catItem
-                            ? (isEn ? 'Available in catalog' : 'Доступен в каталоге')
-                            : (isEn ? 'Not found in catalog' : 'Нет в каталоге')}
-                        </span>
-                      </div>
-                      {catItem?.description && (
-                        <p className="text-[11px] text-gray-300 mt-0.5 line-clamp-1">
-                          {catItem.description}
-                        </p>
-                      )}
-                    </div>
-                  </label>
+                  </div>
                 );
               })}
             </div>
-          </div>
+          </Callout>
         )}
 
         {/* Capabilities & Permissions Checklist */}
@@ -541,42 +520,36 @@ export const PluginConsentModal: React.FC<PluginConsentModalProps> = ({
 
         {/* Security notice for unknown / unrecognized permissions */}
         {hasUnknown && (
-          <div className="p-3.5 bg-rose-500/15 border border-rose-500/40 rounded-xl flex items-start gap-2.5">
-            <ShieldAlert size={16} className="text-rose-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-rose-200 leading-relaxed">
-              <span className="font-semibold text-rose-300">
-                {isEn ? 'Security Warning: Unknown Capabilities Requested' : 'Предупреждение безопасности: Неизвестные разрешения'}
-              </span>
-              <p className="mt-0.5 text-rose-300/90">
-                {isEn
-                  ? 'This plugin requests permissions outside the Config Studio specification. In accordance with Fail-Secure / Zero Trust principles, unrecognized permissions are treated as Critical Risk.'
-                  : 'Плагин запрашивает привилегии, отсутствующие в спецификации Config Studio. В соответствии с принципом Fail-Secure / Zero Trust любые неизвестные разрешения классифицируются как Критический риск.'}
-              </p>
-            </div>
-          </div>
+          <Callout
+            variant="critical"
+            title={isEn ? 'Security Warning: Unknown Capabilities Requested' : 'Предупреждение безопасности: Неизвестные разрешения'}
+          >
+            {isEn
+              ? 'This plugin requests permissions outside the Config Studio specification. In accordance with Fail-Secure / Zero Trust principles, unrecognized permissions are treated as Critical Risk.'
+              : 'Плагин запрашивает привилегии, отсутствующие в спецификации Config Studio. В соответствии с принципом Fail-Secure / Zero Trust любые неизвестные разрешения классифицируются как Критический риск.'}
+          </Callout>
         )}
 
         {/* Warning notice if high-risk permissions */}
         {hasCritical && !hasUnknown && (
-          <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-2.5">
-            <AlertTriangle size={16} className="text-rose-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-rose-300 leading-relaxed">
-              {isEn
-                ? 'This plugin requests elevated permissions to execute host commands. Only install if you trust the source.'
-                : 'Плагин запрашивает расширенные права на исполнение команд в системе хоста. Устанавливайте этот плагин только в том случае, если вы доверяете источнику и понимаете последствия.'}
-            </div>
-          </div>
+          <Callout
+            variant="error"
+            title={isEn ? 'Elevated Permissions Requested' : 'Запрос расширенных прав'}
+          >
+            {isEn
+              ? 'This plugin requests elevated permissions to execute host commands. Only install if you trust the source.'
+              : 'Плагин запрашивает расширенные права на исполнение команд в системе хоста. Устанавливайте этот плагин только в том случае, если вы доверяете источнику и понимаете последствия.'}
+          </Callout>
         )}
 
         {!pending.isOfficial && !hasCritical && (
-          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2 text-xs text-amber-300/90">
-            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-400" />
-            <span>
-              {isEn
-                ? 'This plugin is by a third-party author and is not in the verified official catalog.'
-                : 'Плагин разработан сторонним автором и не входит в официальный каталог верифицированных расширений.'}
-            </span>
-          </div>
+          <Callout
+            variant="warning"
+          >
+            {isEn
+              ? 'This plugin is by a third-party author and is not in the verified official catalog.'
+              : 'Плагин разработан сторонним автором и не входит в официальный каталог верифицированных расширений.'}
+          </Callout>
         )}
       </Modal.Body>
 

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { WorkspaceRoot, Settings } from '../types';
 import { translations } from '../utils/i18n';
-import { Modal, Input, Button, Toggle, Dropdown, DropdownOption } from './ui';
+import { Modal, Input, Button, Toggle, Dropdown, DropdownOption, Callout } from './ui';
 
 interface AddWorkspaceModalProps {
   isOpen: boolean;
@@ -128,10 +128,9 @@ export const AddWorkspaceModal: React.FC<AddWorkspaceModalProps> = ({
       <form onSubmit={handleSubmit}>
         <Modal.Body className="space-y-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500 flex items-center space-x-2">
-              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-              <span>{error}</span>
-            </div>
+            <Callout variant="error">
+              {error}
+            </Callout>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

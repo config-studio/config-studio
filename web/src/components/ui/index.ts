@@ -21,3 +21,8 @@ export * from './NumberInput';
 export * from './StatusDot';
 export * from './StatusBadge';
 export * from './StatusCard';
+export * from './Callout';
+export * from './IconButton';
+export * from './Dropzone';
+export * from './Checkbox';
+export * from './SplitPanel';

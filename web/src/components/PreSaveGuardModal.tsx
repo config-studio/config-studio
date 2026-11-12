@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldAlert, AlertTriangle, ArrowLeft, Save, Code } from 'lucide-react';
 import { GuardIssue } from '../types';
-import { Modal, Button, Badge, StatusDot } from './ui';
+import { Modal, Button, Badge, StatusDot, Callout } from './ui';
 
 interface PreSaveGuardModalProps {
   isOpen: boolean;
@@ -68,14 +68,13 @@ export const PreSaveGuardModal: React.FC<PreSaveGuardModalProps> = ({
         </div>
 
         {/* Error Message */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1.5">
-            <Code className="w-3.5 h-3.5 text-rose-500" /> Сообщение валидатора
-          </label>
-          <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 text-xs font-mono text-rose-900 dark:text-rose-200">
-            {issue.message}
-          </div>
-        </div>
+        <Callout
+          variant="error"
+          title="Сообщение валидатора"
+          icon={<Code className="w-4 h-4 text-rose-500" />}
+        >
+          <span className="font-mono">{issue.message}</span>
+        </Callout>
 
         {/* Snippet preview */}
         {issue.snippet && (

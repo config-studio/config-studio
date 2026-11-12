@@ -30,6 +30,10 @@ import {
   ConfirmModal,
   EmptyState,
   SectionHeader,
+  PillTabs,
+  Dropzone,
+  Callout,
+  IconButton,
 } from '../../ui';
 
 interface PluginsTabProps {
@@ -129,9 +133,8 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
     }
   };
 
-  const handleZipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0]) return;
-    const file = e.target.files[0];
+  const handleZipFile = async (file: File) => {
+    if (!file) return;
     setIsInstalling(true);
     setInstallMsg(null);
     try {
@@ -143,6 +146,11 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
       setIsInstalling(false);
       if (zipInputRef.current) zipInputRef.current.value = '';
     }
+  };
+
+  const handleZipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    await handleZipFile(e.target.files[0]);
   };
 
   const handleInstallFromUrl = async () => {
@@ -235,15 +243,22 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
   return (
     <div className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
       {/* Host Command Execution Security ("I know what I'm doing" mode) */}
-      <Card className="p-4 bg-amber-500/10 border-amber-500/30 space-y-2">
-        <Toggle
-          checked={pluginExecUnrestricted}
-          onChange={setPluginExecUnrestricted}
-          icon={<ShieldAlert className="w-4 h-4 text-amber-400" />}
-          label={<span className="text-amber-400 font-semibold uppercase tracking-wider">{t.unrestrictedMode}</span>}
-          description={<span className="text-gray-300">{t.unrestrictedHelp}</span>}
-        />
-      </Card>
+      <Callout
+        variant="warning"
+        icon={<ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />}
+        title={
+          <div className="flex items-center justify-between w-full">
+            <span className="uppercase tracking-wider">{t.unrestrictedMode}</span>
+            <Toggle
+              checked={pluginExecUnrestricted}
+              onChange={setPluginExecUnrestricted}
+              size="sm"
+            />
+          </div>
+        }
+      >
+        <p className="mt-1">{t.unrestrictedHelp}</p>
+      </Callout>
 
       {/* Installed Plugins List */}
       <div>
@@ -251,12 +266,13 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
           icon={<Package size={14} />}
           title={t.installedPlugins}
           rightElement={
-            <Button
+            <IconButton
               variant="ghost"
               size="sm"
               onClick={loadPlugins}
               title={t.refreshPluginsList}
-              icon={<RefreshCw size={13} className={isLoadingPlugins ? 'animate-spin' : ''} />}
+              loading={isLoadingPlugins}
+              icon={<RefreshCw size={13} />}
             />
           }
           className="mb-3"
@@ -397,9 +413,9 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                 </div>
 
                 {/* Right controls */}
-                <div className="flex items-center space-x-2 shrink-0 pt-0.5">
+                <div className="flex items-center space-x-1.5 shrink-0 pt-0.5">
                   {onNavigateToPluginSettings && (
-                    <Button
+                    <IconButton
                       variant="ghost"
                       size="sm"
                       onClick={() => onNavigateToPluginSettings(p.id)}
@@ -408,15 +424,15 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                     />
                   )}
 
-                  <div className="flex items-center space-x-1.5">
+                  <div className="flex items-center space-x-1.5 px-1">
                     <Toggle
                       checked={p.enabled}
                       onChange={() => handleTogglePlugin(p.id, p.enabled)}
                       size="sm"
                     />
                     <span
-                      className={`text-[10px] font-medium transition-colors ${
-                        p.enabled ? 'text-gray-200' : 'text-gray-500'
+                      className={`text-[10px] font-medium transition-colors select-none ${
+                        p.enabled ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-gray-500'
                       }`}
                     >
                       {p.enabled ? t.pluginEnabled : t.pluginDisabled}
@@ -424,7 +440,7 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                   </div>
 
                   {!p.builtin && (
-                    <Button
+                    <IconButton
                       variant="danger"
                       size="sm"
                       onClick={() => handleDeletePlugin(p.id, p.name)}
@@ -446,12 +462,13 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
           title={t.catalogTitle}
           subtitle={t.catalogSubtitle}
           rightElement={
-            <Button
+            <IconButton
               variant="ghost"
               size="sm"
               onClick={loadCatalog}
               title={t.refreshCatalogTooltip}
-              icon={<RefreshCw size={13} className={isLoadingCatalog ? 'animate-spin' : ''} />}
+              loading={isLoadingCatalog}
+              icon={<RefreshCw size={13} />}
             />
           }
         />
@@ -525,56 +542,29 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
           title={t.installPlugin}
         />
 
-        <div className="flex space-x-1 p-1 bg-black/20 rounded-xl border border-base-border">
-          <button
-            type="button"
-            onClick={() => setInstallTab('zip')}
-            className={`flex-1 py-1 px-2.5 rounded-lg text-xs font-medium flex items-center justify-center space-x-1.5 transition cursor-pointer ${
-              installTab === 'zip'
-                ? 'bg-base-surface text-accent shadow-xs'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <FileArchive size={13} />
-            <span>{t.installZipTab}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setInstallTab('url')}
-            className={`flex-1 py-1 px-2.5 rounded-lg text-xs font-medium flex items-center justify-center space-x-1.5 transition cursor-pointer ${
-              installTab === 'url'
-                ? 'bg-base-surface text-accent shadow-xs'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Link2 size={13} />
-            <span>{t.installUrlTab}</span>
-          </button>
+        <div className="pb-1">
+          <PillTabs
+            items={[
+              { id: 'zip', label: t.installZipTab, icon: <FileArchive size={13} /> },
+              { id: 'url', label: t.installUrlTab, icon: <Link2 size={13} /> },
+            ]}
+            activeId={installTab}
+            onChange={(id) => setInstallTab(id as 'zip' | 'url')}
+            variant="segmented"
+            size="sm"
+            className="w-full sm:w-auto"
+          />
         </div>
 
         {/* Method 1: Zip/CSPKG file dropzone */}
         {installTab === 'zip' && (
-          <div>
-            <input
-              type="file"
-              ref={zipInputRef}
-              onChange={handleZipUpload}
-              accept=".zip,.cspkg"
-              className="hidden"
-            />
-            <div
-              onClick={() => zipInputRef.current?.click()}
-              className="border-2 border-dashed border-base-border hover:border-accent p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition bg-black/10 hover:bg-accent/5 group"
-            >
-              <Upload size={22} className="text-gray-400 group-hover:text-accent mb-1 transition" />
-              <span className="text-xs font-medium text-gray-200">
-                {t.dropZipHere}
-              </span>
-              <span className="text-[10px] text-gray-500 mt-0.5">
-                {t.orClickToUploadZip}
-              </span>
-            </div>
-          </div>
+          <Dropzone
+            accept=".zip,.cspkg"
+            title={t.dropZipHere}
+            subtitle={t.orClickToUploadZip}
+            onFileSelected={handleZipFile}
+            loading={isInstalling}
+          />
         )}
 
         {/* Method 2: URL / GitHub input */}
@@ -612,16 +602,12 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
 
         {/* Feedback message */}
         {installMsg && (
-          <div
-            className={`p-2.5 rounded-xl text-xs flex items-center space-x-2 ${
-              installMsg.isError
-                ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-            }`}
+          <Callout
+            variant={installMsg.isError ? 'error' : 'success'}
+            onClose={() => setInstallMsg(null)}
           >
-            {installMsg.isError ? <AlertTriangle size={14} /> : <Check size={14} />}
-            <span>{installMsg.text}</span>
-          </div>
+            {installMsg.text}
+          </Callout>
         )}
       </Card>
 

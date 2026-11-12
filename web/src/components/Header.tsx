@@ -23,7 +23,7 @@ import { Settings, OpenFile, FileItem, HeaderItemDef } from '../types';
 import { translations, Language, getAvailableLanguages, subscribeLanguages, LanguageMeta } from '../utils/i18n';
 import { api } from '../services/api';
 import { formatBytes } from '../utils/color';
-import { TreeAsciiIcon, Badge, StatusDot } from './ui';
+import { TreeAsciiIcon, Badge, StatusDot, IconButton } from './ui';
 import { FileFormatIcon } from './icons/FileFormatIcon';
 
 interface HeaderProps {
@@ -573,14 +573,14 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* File info / hash / history button */}
-          <button
+          <IconButton
+            variant="ghost"
+            size="md"
+            icon={<Info className="w-4 h-4" />}
             onClick={onOpenProperties}
             disabled={!currentFile}
-            className="p-2 rounded-xl text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-30"
             title={t.fileProperties}
-          >
-            <Info className="w-4 h-4" />
-          </button>
+          />
 
           {/* Language switch */}
           {availableLanguages.length > 1 && (
@@ -599,13 +599,13 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           {/* Theme mode toggle */}
-          <button
+          <IconButton
+            variant="ghost"
+            size="md"
+            icon={settings.themeMode === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             onClick={onToggleTheme}
-            className="p-2 rounded-xl text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             title={`Switch to ${settings.themeMode === 'dark' ? t.themeLight : t.themeDark}`}
-          >
-            {settings.themeMode === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          />
 
           {/* Plugins quick toggle button */}
           {onOpenPlugins && (
@@ -625,23 +625,23 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           {/* Settings button */}
-          <button
+          <IconButton
+            variant="ghost"
+            size="md"
+            icon={<SettingsIcon className="w-4 h-4" />}
             onClick={onOpenSettings}
-            className="p-2 rounded-xl text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             title={t.settings}
-          >
-            <SettingsIcon className="w-4 h-4" />
-          </button>
+          />
 
           {/* Logout button if auth enabled */}
           {onLogout && (
-            <button
+            <IconButton
+              variant="danger"
+              size="md"
+              icon={<LogOut className="w-4 h-4" />}
               onClick={onLogout}
-              className="p-2 rounded-xl text-gray-500 hover:text-rose-500 dark:text-gray-400 dark:hover:text-rose-400 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title={t.signOut}
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            />
           )}
         </div>
 
