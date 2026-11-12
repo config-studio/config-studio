@@ -78,15 +78,108 @@ func (m *Manager) Get(id string) (*Host, error) {
 	return &cp, nil
 }
 
+func endpointKey(h *Host) string {
+	if h == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s@%s:%d", strings.ToLower(strings.TrimSpace(h.User)), strings.ToLower(strings.TrimSpace(h.Host)), h.NormalizedPort())
+}
+
+func (m *Manager) findExistingMatchLocked(target *Host) *Host {
+	if target == nil {
+		return nil
+	}
+	// 1. Exact ID match
+	if target.ID != "" {
+		if existing, ok := m.hosts[target.ID]; ok {
+			return existing
+		}
+		// Match between "alpine-01" and "host-alpine-01"
+		trimmedID := strings.TrimPrefix(target.ID, "host-")
+		if trimmedID != target.ID {
+			if existing, ok := m.hosts[trimmedID]; ok {
+				return existing
+			}
+		}
+		withHostPrefix := "host-" + target.ID
+		if existing, ok := m.hosts[withHostPrefix]; ok {
+			return existing
+		}
+	}
+
+	// 2. Exact Endpoint match (user@host:port)
+	targetKey := endpointKey(target)
+	if targetKey != "" && target.Host != "" {
+		for _, existing := range m.hosts {
+			if endpointKey(existing) == targetKey {
+				return existing
+			}
+		}
+	}
+
+	return nil
+}
+
+func mergeHost(dest, src *Host) {
+	if dest == nil || src == nil {
+		return
+	}
+	if src.Name != "" && (dest.Name == "" || dest.Name == dest.Host) {
+		dest.Name = src.Name
+	}
+	if src.DefaultPath != "" {
+		dest.DefaultPath = src.DefaultPath
+	}
+	if src.IdentityID != "" && dest.IdentityID == "" {
+		dest.IdentityID = src.IdentityID
+	}
+	if src.SecretID != "" && dest.SecretID == "" {
+		dest.SecretID = src.SecretID
+	}
+	if src.AuthType != "" && (dest.AuthType == "" || dest.AuthType == AuthTypePassword) {
+		dest.AuthType = src.AuthType
+	}
+	if src.Group != "" && dest.Group == "" {
+		dest.Group = src.Group
+	}
+	if src.Color != "" && dest.Color == "" {
+		dest.Color = src.Color
+	}
+	if src.Icon != "" && dest.Icon == "" {
+		dest.Icon = src.Icon
+	}
+	if src.Description != "" && dest.Description == "" {
+		dest.Description = src.Description
+	}
+	if src.ProxyJump != "" && dest.ProxyJump == "" {
+		dest.ProxyJump = src.ProxyJump
+	}
+	if src.TimeoutSec > 0 && dest.TimeoutSec <= 0 {
+		dest.TimeoutSec = src.TimeoutSec
+	}
+
+	if len(src.Tags) > 0 {
+		tagSet := make(map[string]bool)
+		for _, t := range dest.Tags {
+			tagSet[t] = true
+		}
+		for _, t := range src.Tags {
+			t = strings.TrimSpace(t)
+			if t != "" && !tagSet[t] {
+				tagSet[t] = true
+				dest.Tags = append(dest.Tags, t)
+			}
+		}
+	}
+	dest.Normalize()
+}
+
 func (m *Manager) Save(host *Host) (*Host, error) {
 	if host == nil {
 		return nil, ErrInvalidHost
 	}
 
 	host.Normalize()
-	if strings.TrimSpace(host.ID) == "" {
-		host.ID = fmt.Sprintf("host-%d", time.Now().UnixNano())
-	}
 	if strings.TrimSpace(host.Host) == "" {
 		return nil, fmt.Errorf("%w: host address cannot be empty", ErrInvalidHost)
 	}
@@ -95,17 +188,49 @@ func (m *Manager) Save(host *Host) (*Host, error) {
 	defer m.mu.Unlock()
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	existing, exists := m.hosts[host.ID]
-	if exists {
-		host.CreatedAt = existing.CreatedAt
-		host.UpdatedAt = now
-	} else {
-		host.CreatedAt = now
-		host.UpdatedAt = now
-		m.order = append(m.order, host.ID)
+	existing := m.findExistingMatchLocked(host)
+
+	if existing != nil {
+		mergeHost(existing, host)
+		existing.UpdatedAt = now
+		if host.Host != "" {
+			existing.Host = host.Host
+		}
+		if host.Port > 0 {
+			existing.Port = host.Port
+		}
+		if host.User != "" {
+			existing.User = host.User
+		}
+		if host.IdentityID != "" {
+			existing.IdentityID = host.IdentityID
+		}
+		if host.SecretID != "" {
+			existing.SecretID = host.SecretID
+		}
+		if host.AuthType != "" {
+			existing.AuthType = host.AuthType
+		}
+		if host.Name != "" {
+			existing.Name = host.Name
+		}
+		existing.Normalize()
+
+		if err := m.persistLocked(); err != nil {
+			return nil, err
+		}
+		cp := *existing
+		return &cp, nil
 	}
 
+	if strings.TrimSpace(host.ID) == "" {
+		host.ID = fmt.Sprintf("host-%d", time.Now().UnixNano())
+	}
+	host.CreatedAt = now
+	host.UpdatedAt = now
 	m.hosts[host.ID] = host
+	m.order = append(m.order, host.ID)
+
 	if err := m.persistLocked(); err != nil {
 		return nil, err
 	}
@@ -157,24 +282,23 @@ func (m *Manager) ImportBatch(items []*Host) (*OpenSSHImportResult, error) {
 			continue
 		}
 
-		if item.ID == "" {
-			item.ID = fmt.Sprintf("host-%d-%s", time.Now().UnixNano(), strings.ToLower(item.Name))
-		}
-
-		existing, exists := m.hosts[item.ID]
-		if exists {
-			item.CreatedAt = existing.CreatedAt
-			item.UpdatedAt = now
-			m.hosts[item.ID] = item
+		existing := m.findExistingMatchLocked(item)
+		if existing != nil {
+			mergeHost(existing, item)
+			existing.UpdatedAt = now
 			res.Updated++
+			res.HostIDs = append(res.HostIDs, existing.ID)
 		} else {
+			if item.ID == "" {
+				item.ID = fmt.Sprintf("host-%d-%s", time.Now().UnixNano(), strings.ToLower(item.Name))
+			}
 			item.CreatedAt = now
 			item.UpdatedAt = now
 			m.hosts[item.ID] = item
 			m.order = append(m.order, item.ID)
 			res.Imported++
+			res.HostIDs = append(res.HostIDs, item.ID)
 		}
-		res.HostIDs = append(res.HostIDs, item.ID)
 	}
 
 	if err := m.persistLocked(); err != nil {
@@ -241,7 +365,10 @@ func (m *Manager) AutoMigrateFromFleet(yamlPath string) error {
 		}
 		h.Normalize()
 
-		if _, exists := m.hosts[h.ID]; !exists {
+		existing := m.findExistingMatchLocked(h)
+		if existing != nil {
+			mergeHost(existing, h)
+		} else {
 			m.hosts[h.ID] = h
 			m.order = append(m.order, h.ID)
 		}
@@ -266,13 +393,38 @@ func (m *Manager) load() error {
 
 	m.hosts = make(map[string]*Host)
 	m.order = make([]string, 0, len(sf.Hosts))
+	hasDuplicates := false
 
 	for _, h := range sf.Hosts {
-		if h != nil && h.ID != "" {
-			h.Normalize()
+		if h == nil || h.ID == "" || strings.TrimSpace(h.Host) == "" {
+			continue
+		}
+		h.Normalize()
+
+		existing := m.findExistingMatchLocked(h)
+		if existing != nil {
+			hasDuplicates = true
+			mergeHost(existing, h)
+			// Prefer canonical ID (e.g. "alpine-01" instead of "host-alpine-01")
+			if strings.HasPrefix(existing.ID, "host-") && !strings.HasPrefix(h.ID, "host-") {
+				delete(m.hosts, existing.ID)
+				for i, id := range m.order {
+					if id == existing.ID {
+						m.order[i] = h.ID
+						break
+					}
+				}
+				existing.ID = h.ID
+				m.hosts[existing.ID] = existing
+			}
+		} else {
 			m.hosts[h.ID] = h
 			m.order = append(m.order, h.ID)
 		}
+	}
+
+	if hasDuplicates {
+		_ = m.persistLocked()
 	}
 
 	return nil

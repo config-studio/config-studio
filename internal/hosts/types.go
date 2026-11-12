@@ -41,6 +41,14 @@ type Host struct {
 	UpdatedAt   string    `json:"updatedAt"`
 }
 
+// NormalizedPort returns port with 22 as default.
+func (h *Host) NormalizedPort() int {
+	if h.Port <= 0 {
+		return 22
+	}
+	return h.Port
+}
+
 // Normalize ensures canonical fields are populated.
 func (h *Host) Normalize() {
 	if h.Host == "" && h.Address != "" {

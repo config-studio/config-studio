@@ -182,3 +182,79 @@ func TestOpenSSH_ExportAndParse(t *testing.T) {
 		t.Errorf("parsed[1] mismatch: %+v", parsed[1])
 	}
 }
+
+func TestHostsManager_Deduplication(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs_hosts_dedup_*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mgr, err := NewManager(tmpDir)
+	if err != nil {
+		t.Fatalf("NewManager failed: %v", err)
+	}
+
+	// 1. Save alpine-01 from fleet
+	_, err = mgr.Save(&Host{
+		ID:       "alpine-01",
+		Name:     "Alpine VM Test",
+		Host:     "192.168.0.161",
+		Port:     22,
+		User:     "root",
+		AuthType: AuthTypeVault,
+		SecretID: "id_123",
+	})
+	if err != nil {
+		t.Fatalf("first save failed: %v", err)
+	}
+
+	// 2. Save host-alpine-01 from localStorage (different ID, but same user@host:port)
+	_, err = mgr.Save(&Host{
+		ID:          "host-alpine-01",
+		Name:        "Alpine VM Test",
+		Host:        "192.168.0.161",
+		Port:        22,
+		User:        "root",
+		AuthType:    AuthTypeVault,
+		SecretID:    "id_123",
+		DefaultPath: "/etc",
+	})
+	if err != nil {
+		t.Fatalf("second save failed: %v", err)
+	}
+
+	// List should only have 1 host, not 2!
+	list := mgr.List()
+	if len(list) != 1 {
+		t.Fatalf("expected 1 host after saving duplicate endpoint, got %d: %+v", len(list), list)
+	}
+	if list[0].DefaultPath != "/etc" {
+		t.Errorf("expected merged DefaultPath /etc, got %q", list[0].DefaultPath)
+	}
+
+	// 3. Test deduplication on load of an existing duplicate file
+	dupJSON := `{
+		"version": 1,
+		"hosts": [
+			{"id": "h1", "name": "Debian", "host": "192.168.0.110", "port": 22, "user": "root"},
+			{"id": "host-h1", "name": "Debian Prod", "host": "192.168.0.110", "port": 22, "user": "root", "defaultPath": "/var/log"}
+		]
+	}`
+	dupFile := filepath.Join(tmpDir, "hosts.json")
+	if err := os.WriteFile(dupFile, []byte(dupJSON), 0644); err != nil {
+		t.Fatalf("failed to write duplicate json: %v", err)
+	}
+
+	mgr2, err := NewManager(tmpDir)
+	if err != nil {
+		t.Fatalf("NewManager with dup file failed: %v", err)
+	}
+	list2 := mgr2.List()
+	if len(list2) != 1 {
+		t.Fatalf("expected load() to clean duplicates to 1 host, got %d", len(list2))
+	}
+	if list2[0].DefaultPath != "/var/log" {
+		t.Errorf("expected load() to preserve DefaultPath /var/log, got %q", list2[0].DefaultPath)
+	}
+}

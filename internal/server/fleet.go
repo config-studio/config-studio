@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -24,11 +25,20 @@ func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
 		existingMap := make(map[string]bool)
 		for _, srv := range servers {
 			existingMap[srv.ID] = true
+			if srv.Connection.SSH != nil && srv.Connection.SSH.Host != "" {
+				port := srv.Connection.SSH.Port
+				if port <= 0 {
+					port = 22
+				}
+				key := fmt.Sprintf("%s@%s:%d", strings.ToLower(strings.TrimSpace(srv.Connection.SSH.User)), strings.ToLower(strings.TrimSpace(srv.Connection.SSH.Host)), port)
+				existingMap[key] = true
+			}
 		}
 
 		coreHosts := s.hosts.List()
 		for _, h := range coreHosts {
-			if !existingMap[h.ID] && h.ID != "localhost" && h.ID != "local" {
+			key := fmt.Sprintf("%s@%s:%d", strings.ToLower(strings.TrimSpace(h.User)), strings.ToLower(strings.TrimSpace(h.Host)), h.NormalizedPort())
+			if !existingMap[h.ID] && !existingMap[key] && h.ID != "localhost" && h.ID != "local" {
 				node := fleet.ServerNode{
 					ID:          h.ID,
 					Name:        h.Name,

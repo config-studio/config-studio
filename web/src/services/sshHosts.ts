@@ -74,6 +74,19 @@ class SSHHostService {
     return this.list().find((h) => h.id === id);
   }
 
+  private isSameHost(a: SSHHost, b: SSHHost): boolean {
+    if (!a || !b) return false;
+    if (a.id && b.id && (a.id === b.id || a.id === `host-${b.id}` || b.id === `host-${a.id}`)) return true;
+    const aHost = (a.host || (a as any).address || '').toLowerCase().trim();
+    const bHost = (b.host || (b as any).address || '').toLowerCase().trim();
+    if (!aHost || !bHost) return false;
+    const aUser = (a.user || (a as any).username || '').toLowerCase().trim();
+    const bUser = (b.user || (b as any).username || '').toLowerCase().trim();
+    const aPort = a.port || 22;
+    const bPort = b.port || 22;
+    return aHost === bHost && aUser === bUser && aPort === bPort;
+  }
+
   public async save(host: SSHHost): Promise<void> {
     if (!host.id) {
       host.id = 'host-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -84,7 +97,7 @@ class SSHHostService {
 
     // Optimistic local update
     const current = [...this.list()];
-    const index = current.findIndex((h) => h.id === host.id);
+    const index = current.findIndex((h) => this.isSameHost(h, host));
     if (index >= 0) {
       current[index] = { ...current[index], ...host };
     } else {
@@ -104,16 +117,7 @@ class SSHHostService {
         body: JSON.stringify(host),
       });
       if (res.ok) {
-        const saved: SSHHost = await res.json();
-        const updated = [...this.list()];
-        const idx = updated.findIndex((h) => h.id === saved.id);
-        if (idx >= 0) {
-          updated[idx] = saved;
-        } else {
-          updated.push(saved);
-        }
-        this.cachedHosts = updated;
-        this.notify();
+        await this.fetchFromServer();
       }
     } catch (e) {
       console.error('[SSHHostService] Server save failed:', e);
