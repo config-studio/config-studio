@@ -38,25 +38,25 @@ export interface ModalProps {
 
 // 20% Step System with responsive minimum bounds and 100% mobile fallback
 const sizeClasses: Record<ModalSize, string> = {
-  sm: 'w-[24vw] min-w-[360px] max-w-[24vw]',
-  md: 'w-[32vw] min-w-[420px] max-w-[32vw]',
-  lg: 'w-[45vw] min-w-[500px] max-w-[45vw]',
-  xl: 'w-[60vw] min-w-[620px] max-w-[60vw]',
-  xxl: 'w-[80vw] min-w-[780px] max-w-[80vw]',
-  fullscreen: 'w-full h-full max-w-none rounded-none border-none',
+  sm: 'w-full max-w-none min-w-0 sm:w-[24vw] sm:min-w-[360px] sm:max-w-[24vw]',
+  md: 'w-full max-w-none min-w-0 sm:w-[32vw] sm:min-w-[420px] sm:max-w-[32vw]',
+  lg: 'w-full max-w-none min-w-0 sm:w-[45vw] sm:min-w-[500px] sm:max-w-[45vw]',
+  xl: 'w-full max-w-none min-w-0 sm:w-[60vw] sm:min-w-[620px] sm:max-w-[60vw]',
+  xxl: 'w-full max-w-none min-w-0 sm:w-[80vw] sm:min-w-[780px] sm:max-w-[80vw]',
+  fullscreen: 'w-full h-full max-w-none rounded-none border-none min-w-0 min-h-0',
 };
 
 const heightClasses: Record<ModalHeight, string> = {
-  auto: 'max-h-[85vh] max-sm:h-full max-sm:max-h-none',
-  fixed: 'h-[75vh] min-h-[480px] max-h-[85vh] max-sm:h-full max-sm:min-h-0 max-sm:max-h-none',
-  full: 'h-[85vh] max-sm:h-full max-sm:max-h-none',
+  auto: 'max-h-[85vh] max-sm:h-full max-sm:min-h-0 max-sm:max-h-none',
+  fixed: 'sm:h-[75vh] sm:min-h-[480px] sm:max-h-[85vh] max-sm:h-full max-sm:min-h-0 max-sm:max-h-none',
+  full: 'sm:h-[85vh] max-sm:h-full max-sm:min-h-0 max-sm:max-h-none',
 };
 
 // Custom height presets for larger modal sizes when height is fixed or full
 const largeHeightClasses: Partial<Record<ModalSize, string>> = {
-  xxl: 'h-[80vh] min-h-[580px] max-h-[80vh]',
-  xl: 'h-[70vh] min-h-[480px] max-h-[70vh]',
-  lg: 'h-[60vh] min-h-[400px] max-h-[60vh]',
+  xxl: 'sm:h-[80vh] sm:min-h-[580px] sm:max-h-[80vh] max-sm:h-full max-sm:min-h-0 max-sm:max-h-none',
+  xl: 'sm:h-[70vh] sm:min-h-[480px] sm:max-h-[70vh] max-sm:h-full max-sm:min-h-0 max-sm:max-h-none',
+  lg: 'sm:h-[60vh] sm:min-h-[400px] sm:max-h-[60vh] max-sm:h-full max-sm:min-h-0 max-sm:max-h-none',
 };
 
 export const Modal: React.FC<ModalProps> & {
@@ -143,7 +143,7 @@ export const Modal: React.FC<ModalProps> & {
         <div
           role="dialog"
           aria-modal="true"
-          className={`bg-base-surface border border-base-border max-sm:border-none rounded-none sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 transition-all duration-300 ease-out max-sm:w-full max-sm:h-full max-sm:max-w-none max-sm:max-h-none max-sm:rounded-none max-sm:border-none ${dimensionClass} ${className}`}
+          className={`bg-base-surface border border-base-border max-sm:border-none rounded-none sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 transition-all duration-300 ease-out max-sm:fixed max-sm:inset-0 max-sm:w-full max-sm:h-full max-sm:min-w-0 max-sm:min-h-0 max-sm:max-w-none max-sm:max-h-none max-sm:rounded-none max-sm:border-none ${dimensionClass} ${className}`}
           style={{
             paddingTop: 'env(safe-area-inset-top, 0px)',
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',

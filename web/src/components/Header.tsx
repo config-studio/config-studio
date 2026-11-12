@@ -83,6 +83,17 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 640
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const mobileSearchContainerRef = useRef<HTMLDivElement>(null);
@@ -411,7 +422,7 @@ export const Header: React.FC<HeaderProps> = ({
           {isSearchOpen && renderSearchResults(true)}
         </div>
       )}
-      {/* Left: Mobile Hamburger, Branding & Path */}
+      {/* Left: Mobile Hamburger, Branding & Path on Desktop OR Mobile Plugin Header Items on Mobile */}
       <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 justify-self-start">
         {onToggleMobileFiles && (
           <button
@@ -424,7 +435,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        <div className="flex items-center space-x-2">
+        <div className="hidden sm:flex items-center space-x-2">
           {settings.hasCustomIcon ? (
             <img
               src={`/api/branding/icon?t=${Date.now()}`}
@@ -446,13 +457,22 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="h-4 w-px bg-gray-300 dark:bg-white/20 mx-1 hidden sm:block" />
 
-        {/* Breadcrumb Path */}
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 font-mono overflow-hidden text-ellipsis whitespace-nowrap max-w-[140px] sm:max-w-[200px] lg:max-w-[320px]">
+        {/* Breadcrumb Path - hidden on mobile to free space for plugin buttons */}
+        <div className="hidden sm:flex items-center text-xs text-gray-500 dark:text-gray-400 font-mono overflow-hidden text-ellipsis whitespace-nowrap max-w-[140px] sm:max-w-[200px] lg:max-w-[320px]">
           <FolderOpen className="w-3.5 h-3.5 mr-1.5 text-accent flex-shrink-0" />
           <span className="text-gray-800 dark:text-gray-300 font-medium truncate">
             {displayPath}
           </span>
         </div>
+
+        {/* Mobile Plugin Header Items (e.g. Servers Fleet button) in place of redundant path */}
+        {isMobile && (
+          <div className="flex sm:hidden items-center space-x-1.5 min-w-0">
+            {pluginHeaderItems.map((item) => (
+              <PluginHeaderItemMount key={item.id} item={item} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Center: Quick File Search with Autocomplete Dropdown - STRICTLY CENTERED (UI-001) */}
@@ -533,12 +553,14 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Plugin Header Items (e.g. Remote Agent Switcher) */}
-        <div className="hidden sm:flex items-center space-x-2">
-          {pluginHeaderItems.map((item) => (
-            <PluginHeaderItemMount key={item.id} item={item} />
-          ))}
-        </div>
+        {/* Plugin Header Items (Desktop - e.g. Remote Agent Switcher) */}
+        {!isMobile && (
+          <div className="hidden sm:flex items-center space-x-2">
+            {pluginHeaderItems.map((item) => (
+              <PluginHeaderItemMount key={item.id} item={item} />
+            ))}
+          </div>
+        )}
 
         {/* Save button (always visible) */}
         <button

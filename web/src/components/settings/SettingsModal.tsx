@@ -217,9 +217,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* Unified PillTabs Navigation Strip with Centering & Wheel Scroll */}
       <div
         ref={tabsStripRef}
-        className="px-5 py-2.5 border-b border-base-border bg-base-surface shrink-0 overflow-x-auto no-scrollbar"
+        className="px-3 sm:px-5 py-2 sm:py-2.5 border-b border-base-border bg-base-surface shrink-0 overflow-x-auto touch-pan-x custom-scrollbar"
       >
-        <div className="min-w-full w-max flex justify-center">
+        <div className="flex justify-start sm:justify-center min-w-full w-max">
           <PillTabs
             items={tabItems}
             activeId={activeTab}
