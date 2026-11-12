@@ -153,6 +153,13 @@ class SSHHostService {
 
   public subscribe(listener: HostChangeListener): () => void {
     this.listeners.add(listener);
+    if (this.cachedHosts !== null) {
+      try {
+        listener(this.cachedHosts);
+      } catch (err) {
+        console.error('[SSHHostService] Initial listener call error:', err);
+      }
+    }
     return () => {
       this.listeners.delete(listener);
     };

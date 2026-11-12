@@ -35,18 +35,30 @@ func (s *Server) handleSSHExec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve Config from Fleet if HostID is provided and Config is nil
-	if req.Config == nil && req.HostID != "" && s.fleet != nil {
+	// Resolve Config from Core Hosts or Fleet if HostID is provided and Config is nil
+	if req.Config == nil && req.HostID != "" {
 		if req.HostID != "localhost" && req.HostID != "local" {
-			node, err := s.fleet.GetServer(req.HostID)
-			if err == nil && node != nil {
-				node.Normalize()
-				if node.Connection.SSH != nil && node.Connection.SSH.Enabled {
+			if s.hosts != nil {
+				if h, err := s.hosts.Get(req.HostID); err == nil && h != nil {
 					req.Config = &ssh.Config{
-						Host:       node.Connection.SSH.Host,
-						Port:       node.Connection.SSH.Port,
-						User:       node.Connection.SSH.User,
-						IdentityID: node.Connection.SSH.Identity,
+						Host:       h.Host,
+						Port:       h.Port,
+						User:       h.User,
+						IdentityID: h.IdentityID,
+					}
+				}
+			}
+			if req.Config == nil && s.fleet != nil {
+				node, err := s.fleet.GetServer(req.HostID)
+				if err == nil && node != nil {
+					node.Normalize()
+					if node.Connection.SSH != nil && node.Connection.SSH.Enabled {
+						req.Config = &ssh.Config{
+							Host:       node.Connection.SSH.Host,
+							Port:       node.Connection.SSH.Port,
+							User:       node.Connection.SSH.User,
+							IdentityID: node.Connection.SSH.Identity,
+						}
 					}
 				}
 			}
