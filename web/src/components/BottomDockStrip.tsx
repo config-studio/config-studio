@@ -20,6 +20,7 @@ import {
   Check,
   CheckCircle2,
   Server,
+  HardDrive,
 } from 'lucide-react';
 import { BottomPanelDef } from '../services/pluginLoader';
 import { OpenFile, GuardValidationResult, GuardIssue, AuditEvent, SSHHost } from '../types';
@@ -27,7 +28,8 @@ import { api } from '../services/api';
 import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
 import { sshHostService } from '../services/sshHosts';
-import { SysInfoBar } from './sysinfo/SysInfoBar';
+import { sysinfoService, SysInfoState, formatBytes, formatUptime, getLoadStatus } from '../services/sysinfo';
+import { SysInfoPanel } from './sysinfo/SysInfoPanel';
 import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem, ConfirmModal, DiagnosticsCountBadge, StatusBadge, Badge, EmptyState } from '@config-studio/ui';
 import { TerminalHostLauncher } from './terminal/TerminalHostLauncher';
 import { EditHostModal } from './terminal/EditHostModal';
@@ -100,11 +102,21 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
   const mountContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  const [sysInfoState, setSysInfoState] = useState<SysInfoState>(() => sysinfoService.getState());
+
   useEffect(() => {
     return sshHostService.subscribe((updated) => {
       setSshHosts(updated);
     });
   }, []);
+
+  useEffect(() => {
+    return sysinfoService.subscribe((updated) => {
+      setSysInfoState(updated);
+    });
+  }, []);
+
+  const { metrics: sysMetrics, error: sysError, activeNodeName: sysNodeName } = sysInfoState;
 
   const handleSelectHost = useCallback((host: SSHHost) => {
     setSessions((prev) => {
@@ -362,8 +374,70 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
       closable: false,
     });
 
+    // 4. SysInfo Hardware Monitoring Tab (Compact on mobile, full-size sensors on PC)
+    const primaryDisk = sysMetrics && sysMetrics.disks && sysMetrics.disks.length > 0 ? sysMetrics.disks[0] : null;
+
+    const getLoadColor = (pct: number) => {
+      const status = getLoadStatus(pct);
+      if (status === 'critical') return 'text-rose-600 dark:text-rose-400 font-bold';
+      if (status === 'warning') return 'text-amber-600 dark:text-amber-400 font-semibold';
+      return 'text-slate-700 dark:text-slate-300 font-medium';
+    };
+
+    items.push({
+      id: 'sysinfo',
+      label: (
+        <div className="flex items-center space-x-2 font-mono text-[11px]">
+          <span className="font-semibold text-slate-900 dark:text-slate-100 max-w-[80px] sm:max-w-none truncate">
+            {sysNodeName}
+          </span>
+          {sysMetrics && (
+            <>
+              {/* Mobile: compact CPU % badge */}
+              <div className={`flex items-center space-x-1 ${getLoadColor(sysMetrics.cpuPercent ?? 0)}`}>
+                <Cpu size={12} className="shrink-0 text-blue-600 dark:text-blue-400" />
+                <span>{(sysMetrics.cpuPercent ?? 0).toFixed(0)}%</span>
+              </div>
+
+              {/* Desktop / PC: full sensors from Screenshot 1 */}
+              <div
+                className={`hidden sm:flex items-center space-x-1 ${getLoadColor(sysMetrics.memory?.usedPercent ?? 0)}`}
+                title={`RAM: ${formatBytes(sysMetrics.memory?.usedBytes ?? 0)} / ${formatBytes(sysMetrics.memory?.totalBytes ?? 0)}`}
+              >
+                <Layers size={12} className="shrink-0 text-purple-600 dark:text-purple-400" />
+                <span>{(sysMetrics.memory?.usedPercent ?? 0).toFixed(0)}%</span>
+              </div>
+
+              {primaryDisk && (
+                <div
+                  className={`hidden md:flex items-center space-x-1 ${getLoadColor(primaryDisk.usedPercent ?? 0)}`}
+                  title={`Disk ${primaryDisk.mountPoint || ''}: ${formatBytes(primaryDisk.availableBytes ?? 0)} free`}
+                >
+                  <HardDrive size={12} className="shrink-0 text-cyan-600 dark:text-cyan-400" />
+                  <span>{formatBytes(primaryDisk.availableBytes ?? 0)}</span>
+                </div>
+              )}
+
+              <div
+                className="hidden lg:flex items-center space-x-1 text-slate-700 dark:text-slate-300 font-medium"
+                title={`Uptime: ${sysMetrics.uptimeSec ?? 0}s`}
+              >
+                <Clock size={12} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>{formatUptime(sysMetrics.uptimeSec ?? 0)}</span>
+              </div>
+            </>
+          )}
+          {sysError && (
+            <span className="text-rose-500 text-[10px]">offline</span>
+          )}
+        </div>
+      ),
+      statusDot: sysError ? 'error' : sysMetrics ? 'online' : 'connecting',
+      closable: false,
+    });
+
     return items;
-  }, [t, panels, criticalIssuesCount]);
+  }, [t, panels, criticalIssuesCount, sysInfoState]);
 
   return (
     <div
@@ -401,6 +475,19 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                     variant="dock"
                     size="sm"
                   />
+                </div>
+              ) : activePanelId === 'sysinfo' ? (
+                <div className="flex items-center space-x-2 text-[var(--text-primary)] font-semibold truncate">
+                  <Server size={14} className="text-emerald-500 shrink-0" />
+                  <span>{t.sysinfoTitle || 'Мониторинг узла'}</span>
+                  <Badge variant="neutral" size="sm" className="font-mono text-emerald-500">
+                    {sysInfoState.activeNodeName}
+                  </Badge>
+                  {sysMetrics && (
+                    <span className="hidden md:inline text-[11px] text-[var(--text-muted)] font-mono font-normal truncate">
+                      • {sysMetrics.hostname} • {sysMetrics.os}/{sysMetrics.arch} • {sysMetrics.numCpu} {t.sysinfoCores || 'cores'}
+                    </span>
+                  )}
                 </div>
               ) : (
                 <span className="font-semibold text-[var(--text-primary)] truncate">
@@ -465,6 +552,18 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                     <RefreshCw size={13} className={auditLoading ? 'animate-spin' : ''} />
                   </button>
                 </>
+              )}
+
+              {activePanelId === 'sysinfo' && (
+                <button
+                  type="button"
+                  onClick={() => sysinfoService.refresh()}
+                  disabled={sysInfoState.loading}
+                  className="p-1 hover:text-[var(--text-primary)] hover:bg-base-surface-hover/80 rounded transition cursor-pointer"
+                  title={t.sysinfoRefresh || 'Обновить'}
+                >
+                  <RefreshCw size={12} className={sysInfoState.loading ? 'animate-spin text-emerald-500' : ''} />
+                </button>
               )}
 
               <button
@@ -783,11 +882,45 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                 className={`h-full w-full ${p.id === activePanelId ? 'block' : 'hidden'}`}
               />
             ))}
+
+            {/* 5. SysInfo Hardware Monitoring Target (Screenshot 2 as Dock Tab) */}
+            {activePanelId === 'sysinfo' && (
+              <div className="h-full w-full overflow-y-auto custom-scrollbar p-3 sm:p-4 bg-base">
+                <SysInfoPanel
+                  state={sysInfoState}
+                  onRefresh={() => sysinfoService.refresh()}
+                  language={language}
+                  accentColor={accentColor}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* The Always-Visible Strip Bar */}
+      {/* Mobile Top Sub-bar (Sandwich Tier 1): Cursor info & dock toggle placed directly above the pill tabs */}
+      {currentFile && (
+        <div className="sm:hidden h-6 min-h-[24px] max-h-[24px] px-2.5 bg-base-surface border-t border-base-border flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)] select-none shrink-0">
+          <div className="flex items-center space-x-2">
+            <span className="text-[var(--text-primary)] font-medium">
+              Ln {cursorPos.line}, Col {cursorPos.col}
+            </span>
+            <span className="text-gray-400 dark:text-gray-600 select-none">|</span>
+            <span>UTF-8</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onToggleOpen(!isOpen)}
+            className="flex items-center space-x-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition cursor-pointer"
+            title={t.dockToggleTooltip}
+          >
+            <span>Ctrl+~</span>
+            {isOpen ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
+          </button>
+        </div>
+      )}
+
+      {/* The Always-Visible Strip Bar (Sandwich Tier 2: PillTabs) */}
       <div className="min-h-[32px] sm:min-h-[28px] h-8 sm:h-7 px-2 bg-base-surface border-t border-base-border flex items-center justify-between text-xs select-none shrink-0 pb-[env(safe-area-inset-bottom)]">
         {/* Left: Tab Buttons (Option 2: PillTabs) */}
         <div className="flex-1 min-w-0 pr-2 overflow-x-auto custom-scrollbar">
@@ -800,19 +933,17 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
           />
         </div>
 
-        {/* Right: SysInfo & File Status & Hotkey Hint */}
-        <div className="flex items-center space-x-2.5 sm:space-x-3 text-[11px] font-mono shrink-0 pl-2">
-          {/* SysInfo Hardware Telemetry (CPU / RAM / Disks / Uptime) */}
-          <SysInfoBar language={language} accentColor={accentColor} />
-
+        {/* Right (Desktop only): File Status & Hotkey Hint */}
+        <div className="hidden sm:flex items-center space-x-2.5 sm:space-x-3 text-[11px] font-mono shrink-0 pl-2">
           {currentFile && (
             <div className="flex items-center space-x-2.5 sm:space-x-3 text-[var(--text-muted)]">
-              <span className="hidden sm:inline text-gray-400 dark:text-gray-600 select-none">|</span>
               <span>
                 Ln {cursorPos.line}, Col {cursorPos.col}
               </span>
-              <span className="hidden sm:inline">UTF-8</span>
-              <span className="hidden sm:inline">Spaces: 2</span>
+              <span className="text-gray-400 dark:text-gray-600 select-none">|</span>
+              <span>UTF-8</span>
+              <span className="text-gray-400 dark:text-gray-600 select-none">|</span>
+              <span>Spaces: 2</span>
             </div>
           )}
           <button
