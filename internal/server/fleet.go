@@ -7,6 +7,7 @@ import (
 
 	"config-studio/internal/audit"
 	"config-studio/internal/fleet"
+	"config-studio/internal/hosts"
 )
 
 // handleListServers returns all configured fleet servers.
@@ -17,6 +18,39 @@ func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	servers := s.fleet.ListServers()
+
+	// Merge with Core Hosts if any host is present in Core but not yet in Fleet
+	if s.hosts != nil {
+		existingMap := make(map[string]bool)
+		for _, srv := range servers {
+			existingMap[srv.ID] = true
+		}
+
+		coreHosts := s.hosts.List()
+		for _, h := range coreHosts {
+			if !existingMap[h.ID] && h.ID != "localhost" && h.ID != "local" {
+				node := fleet.ServerNode{
+					ID:          h.ID,
+					Name:        h.Name,
+					Description: h.Description,
+					Group:       h.Group,
+					Tags:        h.Tags,
+					Color:       h.Color,
+					Icon:        h.Icon,
+				}
+				node.Connection.SSH = &fleet.SSHConnectionConfig{
+					Enabled:   true,
+					Host:      h.Host,
+					Port:      h.Port,
+					User:      h.User,
+					Identity:  h.IdentityID,
+					ProxyJump: h.ProxyJump,
+				}
+				servers = append(servers, node)
+			}
+		}
+	}
+
 	jsonResponse(w, http.StatusOK, map[string]any{
 		"servers": servers,
 		"count":   len(servers),
@@ -44,6 +78,26 @@ func (s *Server) handleAddOrUpdateServer(w http.ResponseWriter, r *http.Request)
 	if err := s.fleet.AddOrUpdateServer(srv); err != nil {
 		jsonError(w, http.StatusBadRequest, "failed to save server: "+err.Error())
 		return
+	}
+
+	// Mirror SSH config to Core Host Storage
+	if s.hosts != nil && srv.ID != "localhost" && srv.ID != "local" {
+		if srv.Connection.SSH != nil && srv.Connection.SSH.Enabled && strings.TrimSpace(srv.Connection.SSH.Host) != "" {
+			_, _ = s.hosts.Save(&hosts.Host{
+				ID:          srv.ID,
+				Name:        srv.Name,
+				Host:        srv.Connection.SSH.Host,
+				Port:        srv.Connection.SSH.Port,
+				User:        srv.Connection.SSH.User,
+				IdentityID:  srv.Connection.SSH.Identity,
+				ProxyJump:   srv.Connection.SSH.ProxyJump,
+				Group:       srv.Group,
+				Tags:        srv.Tags,
+				Color:       srv.Color,
+				Icon:        srv.Icon,
+				Description: srv.Description,
+			})
+		}
 	}
 
 	if s.audit != nil {
@@ -91,6 +145,10 @@ func (s *Server) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
 	if err := s.fleet.DeleteServer(id); err != nil {
 		jsonError(w, http.StatusNotFound, err.Error())
 		return
+	}
+
+	if s.hosts != nil && id != "localhost" && id != "local" {
+		_ = s.hosts.Delete(id)
 	}
 
 	if s.audit != nil {

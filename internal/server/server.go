@@ -26,6 +26,7 @@ import (
 	"config-studio/internal/fleet"
 	appfs "config-studio/internal/fs"
 	"config-studio/internal/guard"
+	"config-studio/internal/hosts"
 	"config-studio/internal/plugin"
 	"config-studio/internal/secrets"
 	"config-studio/internal/ssh"
@@ -47,6 +48,7 @@ type Server struct {
 	secrets      *secrets.Manager
 	ssh          *ssh.ClientManager
 	fleet        *fleet.Manager
+	hosts        *hosts.Manager
 	handler      http.Handler
 	sessionsMu   sync.RWMutex
 	sessions     map[string]time.Time
@@ -68,6 +70,11 @@ func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *p
 		fleetMgr, _ = fleet.NewManager(cfgMgr.DataDir())
 	}
 
+	var hostsMgr *hosts.Manager
+	if cfgMgr != nil {
+		hostsMgr, _ = hosts.NewManager(cfgMgr.DataDir())
+	}
+
 	s := &Server{
 		cfg:          cfg,
 		config:       cfgMgr,
@@ -78,6 +85,7 @@ func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *p
 		secrets:      secMgr,
 		ssh:          ssh.NewClientManager(secMgr),
 		fleet:        fleetMgr,
+		hosts:        hostsMgr,
 		sessions:     make(map[string]time.Time),
 	}
 	s.setupRoutes()
@@ -192,6 +200,21 @@ func (s *Server) setupRoutes() {
 	mux.HandleFunc("POST /api/servers/ping/{id}", s.handlePingServer)
 	mux.HandleFunc("POST /api/servers/install-agent/{id}", s.handleInstallAgent)
 	mux.HandleFunc("GET /api/servers/{id}/sysinfo", s.handleServerSysInfo)
+
+	// Core Host Inventory & OpenSSH Interoperability
+	mux.HandleFunc("GET /api/hosts", s.handleListHosts)
+	mux.HandleFunc("POST /api/hosts", s.handleCreateHost)
+	mux.HandleFunc("GET /api/hosts/{id}", s.handleGetHost)
+	mux.HandleFunc("PUT /api/hosts/{id}", s.handleUpdateHost)
+	mux.HandleFunc("DELETE /api/hosts/{id}", s.handleDeleteHost)
+	mux.HandleFunc("POST /api/hosts/{id}/test", s.handleTestHost)
+	mux.HandleFunc("GET /api/hosts/export/openssh", s.handleExportOpenSSH)
+	mux.HandleFunc("POST /api/hosts/import/openssh", s.handleImportOpenSSH)
+
+	// Portable Secrets Vault & Full Migration
+	mux.HandleFunc("POST /api/secrets/export-portable", s.handleExportPortableSecrets)
+	mux.HandleFunc("POST /api/secrets/import-portable", s.handleImportPortableSecrets)
+	mux.HandleFunc("POST /api/migration/export-full", s.handleExportFullMigration)
 
 	// SysInfo & Hardware Telemetry (Localhost & Fleet Nodes)
 	mux.HandleFunc("GET /api/sysinfo", s.handleSysInfo)

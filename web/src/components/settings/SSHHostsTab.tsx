@@ -12,11 +12,15 @@ import {
   Check,
   Shield,
   Terminal,
+  Download,
+  Upload,
+  FileCode,
+  Lock,
 } from 'lucide-react';
 import { SSHHost, SSHKeyPair, SecretMeta } from '../../types';
 import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
-import { ConfirmModal, EmptyState, Dropdown, DropdownOption, Badge, StatusBadge, Button, Input, Textarea, Card } from '../ui';
+import { Modal, ConfirmModal, EmptyState, Dropdown, DropdownOption, Badge, StatusBadge, Button, Input, Textarea, Card } from '../ui';
 
 interface SSHHostsTabProps {
   accentColor?: string;
@@ -49,6 +53,23 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
   const [generatedKey, setGeneratedKey] = useState<SSHKeyPair | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // OpenSSH Modal
+  const [isOpenSSHModalOpen, setIsOpenSSHModalOpen] = useState(false);
+  const [openSSHTab, setOpenSSHTab] = useState<'export' | 'import'>('export');
+  const [openSSHConfigText, setOpenSSHConfigText] = useState('');
+  const [importOpenSSHText, setImportOpenSSHText] = useState('');
+  const [openSSHStatus, setOpenSSHStatus] = useState<string | null>(null);
+  const [isImportingSSH, setIsImportingSSH] = useState(false);
+
+  // Migration & Vault Backup Modal
+  const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
+  const [migrationTab, setMigrationTab] = useState<'export' | 'import'>('export');
+  const [exportPassphrase, setExportPassphrase] = useState('');
+  const [importPassphrase, setImportPassphrase] = useState('');
+  const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(null);
+  const [migrationStatus, setMigrationStatus] = useState<string | null>(null);
+  const [isMigrating, setIsMigrating] = useState(false);
 
   // Delete Confirm Modal
   const [hostToDelete, setHostToDelete] = useState<SSHHost | null>(null);
@@ -174,17 +195,121 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
     setTimeout(() => setCopiedKey(false), 2000);
   };
 
+  const handleOpenSSHModal = async () => {
+    setOpenSSHStatus(null);
+    try {
+      const text = await sshHostService.exportOpenSSH();
+      setOpenSSHConfigText(text);
+    } catch (e: any) {
+      setOpenSSHConfigText('# Ошибка экспорта: ' + e.message);
+    }
+    setIsOpenSSHModalOpen(true);
+  };
+
+  const handleDownloadOpenSSH = () => {
+    const blob = new Blob([openSSHConfigText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'config';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportOpenSSH = async () => {
+    if (!importOpenSSHText.trim()) return;
+    setIsImportingSSH(true);
+    setOpenSSHStatus(null);
+    try {
+      const res = await sshHostService.importOpenSSH(importOpenSSHText);
+      setOpenSSHStatus(`Успешно! Импортировано: ${res.imported || 0}, обновлено: ${res.updated || 0}`);
+      setImportOpenSSHText('');
+      setTimeout(() => setIsOpenSSHModalOpen(false), 1500);
+    } catch (err: any) {
+      setOpenSSHStatus(`Ошибка импорта: ${err.message}`);
+    } finally {
+      setIsImportingSSH(false);
+    }
+  };
+
+  const handleExportPortableBackup = async () => {
+    if (!exportPassphrase.trim()) {
+      alert('Пожалуйста, введите пароль для шифрования архива');
+      return;
+    }
+    setIsMigrating(true);
+    setMigrationStatus(null);
+    try {
+      const blob = await sshHostService.exportPortableSecrets(exportPassphrase);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `config-studio-backup-${new Date().toISOString().slice(0, 10)}.csenc`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMigrationStatus('Архив успешно создан и скачан!');
+      setExportPassphrase('');
+    } catch (err: any) {
+      setMigrationStatus(`Ошибка создания бэкапа: ${err.message}`);
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
+  const handleImportPortableBackup = async () => {
+    if (!selectedBackupFile) {
+      alert('Пожалуйста, выберите файл бэкапа (.csenc)');
+      return;
+    }
+    if (!importPassphrase.trim()) {
+      alert('Пожалуйста, введите пароль архива');
+      return;
+    }
+    setIsMigrating(true);
+    setMigrationStatus(null);
+    try {
+      const res = await sshHostService.importPortableSecrets(selectedBackupFile, importPassphrase);
+      setMigrationStatus(`Успешно восстановлено! Секретов: ${(res.imported || 0) + (res.updated || 0)}`);
+      setTimeout(() => setIsMigrationModalOpen(false), 1800);
+    } catch (err: any) {
+      setMigrationStatus(`Ошибка восстановления: ${err.message}`);
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header action bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Управление SSH-хостами и ключами</h3>
           <p className="text-xs text-gray-400">
-            Сохраненные серверы для терминала, SFTP и управления конфигурациями
+            Единое ядровое хранилище серверов, терминала, SFTP и Vault
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleOpenSSHModal}
+            icon={<FileCode size={13} />}
+          >
+            OpenSSH
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setMigrationStatus(null);
+              setIsMigrationModalOpen(true);
+            }}
+            icon={<Lock size={13} />}
+          >
+            Бэкап Vault
+          </Button>
           <Button
             type="button"
             variant="secondary"
@@ -193,7 +318,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
             disabled={isGenerating}
             icon={<Key size={13} />}
           >
-            {isGenerating ? 'Генерация...' : 'Создать ED25519 ключ'}
+            {isGenerating ? 'Генерация...' : 'ED25519 ключ'}
           </Button>
           <Button
             type="button"
@@ -505,6 +630,250 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
         confirmText="Удалить"
         variant="danger"
       />
+
+      {/* OpenSSH Interoperability Modal */}
+      <Modal
+        isOpen={isOpenSSHModalOpen}
+        onClose={() => setIsOpenSSHModalOpen(false)}
+        size="lg"
+      >
+        <Modal.Header
+          title="Интероперабельность со стандартом OpenSSH"
+          subtitle="Синхронизация с ~/.ssh/config для использования в терминале ОС и скриптах"
+          icon={<FileCode className="w-5 h-5 text-accent" />}
+        />
+        <Modal.Body className="p-5 space-y-4">
+          <div className="flex space-x-2 border-b border-base-border pb-3">
+            <button
+              type="button"
+              onClick={() => setOpenSSHTab('export')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                openSSHTab === 'export'
+                  ? 'bg-accent/20 text-accent font-semibold'
+                  : 'text-gray-400 hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+            >
+              Экспорт в ~/.ssh/config
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpenSSHTab('import')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                openSSHTab === 'import'
+                  ? 'bg-accent/20 text-accent font-semibold'
+                  : 'text-gray-400 hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+            >
+              Импорт из ~/.ssh/config
+            </button>
+          </div>
+
+          {openSSHTab === 'export' ? (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-400">
+                Скопируйте этот блок в ваш файл <code className="text-accent bg-black/20 px-1 py-0.5 rounded">~/.ssh/config</code> для быстрого подключения к любому серверу командой <code className="text-accent">ssh &lt;имя_хоста&gt;</code>:
+              </p>
+              <textarea
+                readOnly
+                value={openSSHConfigText}
+                rows={12}
+                className="w-full font-mono text-xs p-3 bg-black/40 border border-base-border rounded-xl text-emerald-400 focus:outline-none select-all"
+              />
+              <div className="flex items-center justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(openSSHConfigText);
+                    setOpenSSHStatus('Скопировано в буфер обмена!');
+                    setTimeout(() => setOpenSSHStatus(null), 2000);
+                  }}
+                  icon={<Copy size={13} />}
+                >
+                  Копировать
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={handleDownloadOpenSSH}
+                  icon={<Download size={13} />}
+                >
+                  Скачать config
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-400">
+                Вставьте содержимое файла <code className="text-accent bg-black/20 px-1 py-0.5 rounded">~/.ssh/config</code> для пакетного импорта хостов в ядро:
+              </p>
+              <textarea
+                value={importOpenSSHText}
+                onChange={(e) => setImportOpenSSHText(e.target.value)}
+                placeholder={'Host my-vps\n    HostName 10.0.0.5\n    User root\n    Port 22\n'}
+                rows={12}
+                className="w-full font-mono text-xs p-3 bg-black/40 border border-base-border rounded-xl text-gray-200 focus:outline-none focus:border-accent"
+              />
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-medium text-emerald-400">
+                  {openSSHStatus}
+                </div>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={handleImportOpenSSH}
+                  disabled={isImportingSSH || !importOpenSSHText.trim()}
+                  icon={<Upload size={13} />}
+                >
+                  {isImportingSSH ? 'Импорт...' : 'Импортировать хосты'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer justify="end">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsOpenSSHModalOpen(false)}
+          >
+            Закрыть
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Migration & Vault Backup Modal */}
+      <Modal
+        isOpen={isMigrationModalOpen}
+        onClose={() => setIsMigrationModalOpen(false)}
+        size="lg"
+      >
+        <Modal.Header
+          title="Портативный бэкап и миграция Vault"
+          subtitle="Безопасный перенос ключей и паролей на другой сервер с защитой мастер-паролем"
+          icon={<Lock className="w-5 h-5 text-accent" />}
+        />
+        <Modal.Body className="p-5 space-y-4">
+          <div className="flex space-x-2 border-b border-base-border pb-3">
+            <button
+              type="button"
+              onClick={() => {
+                setMigrationTab('export');
+                setMigrationStatus(null);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                migrationTab === 'export'
+                  ? 'bg-accent/20 text-accent font-semibold'
+                  : 'text-gray-400 hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+            >
+              Создать бэкап (Экспорт)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMigrationTab('import');
+                setMigrationStatus(null);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                migrationTab === 'import'
+                  ? 'bg-accent/20 text-accent font-semibold'
+                  : 'text-gray-400 hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+            >
+              Восстановить из бэкапа (Импорт)
+            </button>
+          </div>
+
+          {migrationTab === 'export' ? (
+            <div className="space-y-4">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
+                Архив шифруется по стандарту <b>AES-256-GCM</b> с выводом ключа через <b>PBKDF2 (100 000 итераций)</b>. Сохраните этот пароль: он понадобится при восстановлении на новом сервере.
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-300">Мастер-пароль для шифрования архива</label>
+                <input
+                  type="password"
+                  value={exportPassphrase}
+                  onChange={(e) => setExportPassphrase(e.target.value)}
+                  placeholder="Введите надежный пароль..."
+                  className="w-full text-xs px-3 py-2 bg-black/30 border border-base-border rounded-xl text-white focus:outline-none focus:border-accent"
+                />
+              </div>
+              {migrationStatus && (
+                <div className="text-xs font-semibold text-emerald-400">
+                  {migrationStatus}
+                </div>
+              )}
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={handleExportPortableBackup}
+                  disabled={isMigrating || !exportPassphrase.trim()}
+                  icon={<Download size={13} />}
+                >
+                  {isMigrating ? 'Шифрование...' : 'Скачать зашифрованный бэкап (.csenc)'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-300">Файл бэкапа (.csenc)</label>
+                <input
+                  type="file"
+                  accept=".csenc,application/octet-stream"
+                  onChange={(e) => setSelectedBackupFile(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-accent/20 file:text-accent hover:file:bg-accent/30 cursor-pointer"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-300">Мастер-пароль от архива</label>
+                <input
+                  type="password"
+                  value={importPassphrase}
+                  onChange={(e) => setImportPassphrase(e.target.value)}
+                  placeholder="Пароль, заданный при экспорте..."
+                  className="w-full text-xs px-3 py-2 bg-black/30 border border-base-border rounded-xl text-white focus:outline-none focus:border-accent"
+                />
+              </div>
+              {migrationStatus && (
+                <div className={`text-xs font-semibold ${migrationStatus.includes('Ошибка') ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {migrationStatus}
+                </div>
+              )}
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={handleImportPortableBackup}
+                  disabled={isMigrating || !selectedBackupFile || !importPassphrase.trim()}
+                  icon={<Upload size={13} />}
+                >
+                  {isMigrating ? 'Расшифровка...' : 'Восстановить секреты'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer justify="end">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsMigrationModalOpen(false)}
+          >
+            Закрыть
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
