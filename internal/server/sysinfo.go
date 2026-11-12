@@ -10,7 +10,7 @@ import (
 	"config-studio/internal/sysinfo"
 )
 
-const coreSysInfoVersion = "2.0.0"
+const coreSysInfoVersion = "2.3.0"
 
 // handleSysInfo returns system metrics for Localhost or an active/requested server node.
 func (s *Server) handleSysInfo(w http.ResponseWriter, r *http.Request) {

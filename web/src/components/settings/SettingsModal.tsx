@@ -209,7 +209,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         title={t.settings}
         badge={
           <Badge variant="accent" size="sm">
-            v2.0.0
+            v2.3.0
           </Badge>
         }
       />

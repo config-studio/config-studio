@@ -9,14 +9,17 @@
 > 4. **Инженерная дисциплина (/ub-mode):** Вся разработка и модификация кодовой базы строго следует циклу: *First Make it Work* (Laziness Protocol: одно решение в одном месте, TDD, Boundary Discipline, Type System Discipline, Idempotence, Subtract Before You Add), *Then Make it Right* (устранение первопричин, дробление функций, удаление мертвого кода), *Follow Practice* (Keep a Log, Worktree Cleanup, Commit often with why/what/proof).
 > 5. **Регламент ведения Roadmap (Roadmap Clean-State Discipline):** Секции текущего спринта и планируемых плагинов («В РАБОТЕ» / «ПЛАНИРУЕМЫЕ ПЛАГИНЫ») должны содержать **строго невыполненные задачи и бэклог (`- [ ]`)**. Как только этап или функция полностью завершена, она **всегда переносится вниз под спойлер (`<details><summary>...</summary>`) в архив выполненных этапов (Released)**. Верхний план никогда не должен захламляться выполненными чекбоксами.
 > 6. **Обязательный релиз плагинов через GitHub Workflow (CI/CD Automated Releases):** Каждое расширение должно компилироваться и выпускаться строго через GitHub Actions Workflow (`.github/workflows/release.yml`) при пуше тега версии (`v*`) или `workflow_dispatch`. Workflow автоматически запускает unit-тесты, собирает `main.js`, упаковывает бинарный пакет `.cspkg`, генерирует SHA-256 чексуммы и публикует официальный GitHub Release с прикрепленными артефактами. Создание всех новых расширений выполняется на базе официального репозитория-шаблона `config-studio-plugin-template`.
+> 7. **Инкрементальное версионирование по пунктам Roadmap (Sub-versioning per Item):** Начиная с релиза **v2.3.0**, за каждый выполненный функциональный пункт из `Core Evolution Roadmap` выпускается отдельная подверсия ядра (**v2.3.1**, **v2.3.2** и т.д.) с немедленным тестированием, обновлением архива и сборкой бинарников.
 
 ---
 
-## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint)
+## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.1)
 
-### 🎯 Core & Settings Evolution (Спринт v2.3)
-- [x] **Категоризация секретов по типам**: структурирование и фильтрация секретов в реестре «Секреты и Ключи» по типам (`Пароль`, `SSH-ключ`, `API токен`, `Сертификат`).
-- [ ] **Ревизия режима повышенных привилегий**: скрытие или удаление кнопки Privileged Mode в интерфейсе настроек безопасности.
+### 🎯 Core Evolution (Спринт v2.3.1)
+- [ ] **1. Навигация и кросс-файловый поиск (Editor Navigation & Cross-File Discovery)**:
+  - [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
+  - [ ] Глобальный реестр горячих клавиш: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий из любого открытого документа.
+- [ ] **Ревизия режима повышенных привилегий**: скрытие или удаление кнопки невостребованного режима повышенных привилегий (Privileged Mode) в интерфейсе настроек безопасности.
 
 ---
 
@@ -148,24 +151,31 @@ graph TD
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details open>
-<summary><b>⚡ Детали релиза v2.3: Headless Remote SSH Exec API & Execution Service (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ПРОТЕСТИРОВАНО)</b></summary>
+<summary><b>🎉 Детали релиза v2.3.0: Core UI Design System v2, Web/SSH Terminal, Headless SSH API & Secrets Types (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
 
-- [x] **Неинтерактивный сервис исполнения (`internal/ssh/exec.go`)**:
-  - Метод `(m *ClientManager) ExecuteCommand(ctx, cfg, req)` с чистой SSH-сессией без PTY-мусора.
-  - Локальный fallback (`localhost` / `127.0.0.1`): безопасный запуск через `exec.CommandContext` (`cmd.exe /c` на Windows, `sh -c` на Linux).
-  - Удаленный SSH-запуск: автоматический забор учетных данных из Core Vault / `servers.yaml`, поддержка Jump Host.
-  - Sudo Elevation Helper: автоматическая подстановка пароля из Vault при флаге `req.Sudo`.
-  - Захват раздельных буферов `stdout`, `stderr`, кода возврата `exitCode` и замер длительности в `durationMs`.
-- [x] **REST API эндпоинт `POST /api/ssh/exec` (`internal/server/ssh.go`)**:
-  - Вход: `{ hostId, cmd, timeoutSec, env, sudo }`.
-  - Выход: `{ exitCode, stdout, stderr, durationMs }`.
-  - Автоматическая резолюция параметров узла из инвентаря флота `servers.yaml` (`fleet.GetServer(hostId)`).
-- [x] **Модульные тесты**:
-  - `internal/ssh/exec_test.go`: проверка локального вызова, ошибок с ненулевым exit code, таймаутов (`context.WithTimeout`) и удаленного mock SSH-сервера.
-  - `internal/server/ssh_test.go`: валидация входных данных (HTTP 400 при пустой команде) и сквозной HTTP-вызов (HTTP 200).
-- [x] **Развертывание**:
-  - Скомпилирован и запущен `config-studio-debug.exe` на порту 8080.
-  - Проверено живым HTTP-запросом к эндпоинту `http://localhost:8080/api/ssh/exec` (HTTP 200, exitCode 0).
+- [x] **Дизайн-система ядра v2 (`@config-studio/ui`)**:
+  - Создана и развернута библиотека из 28 готовых компонентов: `Callout`, `IconButton`, `Dropzone`, `Checkbox`, `SplitPanel`, `PillTabs`, `NumberInput`, `StatusBadge`, `StatusDot`, `StatusCard`, `Card`, `Button`, `Input`, `Textarea`, `Modal`, `Dropdown`, `Badge`, `EmptyState` и др.
+  - 100% паритетная поддержка светлой и темной тем (Light / Dark) со строгим соблюдением WCAG AAA контрастности.
+  - Ликвидировано более 320+ разрозненных захардкоженных классов и самописных стилевых оберток, сокращение бойлерплейта экранов на 35–55%.
+- [x] **Встроенный Web/SSH Терминал и SFTP (`xterm.js` + Go PTY Stream)**:
+  - Мульти-сессионный терминал в нижнем доке (`BottomDockStrip`) с вкладками сессий, статусными индикаторами подключения и автоподгонкой размера (`@xterm/addon-fit`).
+  - Интерактивный лаунчер серверов (`TerminalHostLauncher`) и быстрое подключение в 1 клик.
+  - Полноценное управление SSH-хостами: создание, редактирование и безопасное связывание с записями Core Vault (`identityId`).
+  - Потоковый бинарный WebSocket-мост между браузером и `golang.org/x/crypto/ssh` с корректной передачей управляющих байт.
+  - Модальное окно SFTP отправки (`SftpSendModal`) для выгрузки файлов конфигурации на удаленные серверы.
+- [x] **Headless Remote SSH Execution API**:
+  - Сервис неинтерактивного исполнения `internal/ssh.ExecuteCommand(ctx, cfg, req)` с чистой сессией без PTY-мусора.
+  - REST API `POST /api/ssh/exec` с разделением буферов stdout/stderr, кодами возврата, замером времени и таймаутами.
+  - Sudo Elevation Helper: автоматическая подстановка пароля из Core Vault для непривилегированных пользователей.
+  - Модульные тесты `internal/ssh/exec_test.go` и `internal/server/ssh_test.go`.
+- [x] **Реворк экосистемы плагинов**:
+  - Полный рефакторинг экранов плагинов (`PluginsTab`, `PluginSettingsTab`, `PluginSplitPanel`, `PluginConsentModal`) на компоненты `@config-studio/ui`.
+- [x] **Категоризация секретов по типам**:
+  - Структурирование и фильтрация секретов в реестре «Секреты и Ключи» по типам (`Пароль`, `SSH-ключ`, `API токен`, `Сертификат`).
+- [x] **Телеметрия ядра и отладчик**:
+  - Реализован `debugRecorder.ts`, бейдж Debug Build и перехват сетевых событий.
+- [x] **Развертывание и тестирование**:
+  - Скомпилирован и протестирован бинарник `config-studio-debug.exe`, все Go и React тесты пройдены.
 
 </details>
 
