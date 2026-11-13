@@ -49,10 +49,6 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; success: boolean; latencyMs?: number; error?: string } | null>(null);
 
-  // Key generator modal
-  const [generatedKey, setGeneratedKey] = useState<SSHKeyPair | null>(null);
-  const [copiedKey, setCopiedKey] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   // OpenSSH Modal
   const [isOpenSSHModalOpen, setIsOpenSSHModalOpen] = useState(false);
@@ -176,24 +172,6 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
     }
   };
 
-  const handleGenerateKey = async () => {
-    setIsGenerating(true);
-    try {
-      const kp = await api.generateSSHKey('config-studio-core');
-      setGeneratedKey(kp);
-    } catch (err) {
-      console.error('Failed to generate key:', err);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleCopyPublicKey = () => {
-    if (!generatedKey) return;
-    navigator.clipboard.writeText(generatedKey.publicKey);
-    setCopiedKey(true);
-    setTimeout(() => setCopiedKey(false), 2000);
-  };
 
   const handleOpenSSHModal = async () => {
     setOpenSSHStatus(null);
@@ -310,16 +288,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
           >
             Бэкап Vault
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={handleGenerateKey}
-            disabled={isGenerating}
-            icon={<Key size={13} />}
-          >
-            {isGenerating ? 'Генерация...' : 'ED25519 ключ'}
-          </Button>
+
           <Button
             type="button"
             variant="primary"
@@ -342,46 +311,6 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
         </div>
       </div>
 
-      {/* Generated Key Modal / Card */}
-      {generatedKey && (
-        <Card className="p-4 space-y-3">
-          <div className="flex items-center justify-between border-b border-base-border pb-2.5">
-            <div className="flex items-center space-x-2">
-              <Shield size={15} className="text-emerald-500 dark:text-emerald-400" />
-              <span className="text-xs font-semibold text-[var(--text-primary)]">
-                Новая ключевая пара ED25519 сгенерирована
-              </span>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              onClick={() => setGeneratedKey(null)}
-            >
-              Закрыть
-            </Button>
-          </div>
-          <div>
-            <Input
-              label="Публичный ключ (добавьте в ~/.ssh/authorized_keys на сервере):"
-              readOnly
-              value={generatedKey.publicKey}
-              className="font-mono text-emerald-600 dark:text-emerald-300 select-all"
-              rightElement={
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="secondary"
-                  onClick={handleCopyPublicKey}
-                  icon={copiedKey ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                >
-                  {copiedKey ? 'Скопировано' : 'Копировать'}
-                </Button>
-              }
-            />
-          </div>
-        </Card>
-      )}
 
       {/* Host Editing Form */}
       {isEditing && (

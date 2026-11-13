@@ -23,8 +23,9 @@ import {
   Search,
   Filter,
 } from 'lucide-react';
-import { SecretMeta, SecretsStatus, SecretType, SecretScope } from '../../../types';
+import { SecretMeta, SecretsStatus, SecretType, SecretScope, SSHKeyPair } from '../../../types';
 import { api } from '../../../services/api';
+import { SSHKeyGeneratedModal } from '../modals/SSHKeyGeneratedModal';
 import {
   Modal,
   Card,
@@ -88,6 +89,24 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
   // Delete Confirm Modal
   const [secretToDelete, setSecretToDelete] = useState<SecretMeta | null>(null);
   const [isDeletingSecret, setIsDeletingSecret] = useState(false);
+
+  // SSH Key Generation Modal
+  const [isGeneratingSSHKey, setIsGeneratingSSHKey] = useState(false);
+  const [generatedSSHKey, setGeneratedSSHKey] = useState<SSHKeyPair | null>(null);
+  const [isSSHKeyModalOpen, setIsSSHKeyModalOpen] = useState(false);
+
+  const handleGenerateSSHKey = async () => {
+    setIsGeneratingSSHKey(true);
+    try {
+      const kp = await api.generateSSHKey('config-studio-core');
+      setGeneratedSSHKey(kp);
+      setIsSSHKeyModalOpen(true);
+    } catch (err: any) {
+      console.error('Failed to generate SSH key:', err);
+    } finally {
+      setIsGeneratingSSHKey(false);
+    }
+  };
 
   const categories = useMemo(() => [
     { id: 'all' as const, label: t.filterAll || 'Все', icon: <Layers size={12} /> },
@@ -637,13 +656,34 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
           icon={<Key size={14} />}
           title={`${t.tabSecrets} (${secretsList.length})`}
           rightElement={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={loadSecrets}
-              title={t.refresh}
-              icon={<RefreshCw size={13} className={isLoadingSecrets ? 'animate-spin' : ''} />}
-            />
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleGenerateSSHKey}
+                disabled={isGeneratingSSHKey}
+                icon={<Shield size={13} className="text-emerald-500" />}
+              >
+                {isGeneratingSSHKey ? 'Генерация...' : (language === 'ru' ? 'Создать SSH-ключ' : 'New SSH Key')}
+              </Button>
+              {(!authEnabled || secretsStatus?.privilegedActive) && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleOpenCreateSecret}
+                  icon={<Plus size={13} />}
+                >
+                  {t.addSecretBtn}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={loadSecrets}
+                title={t.refresh}
+                icon={<RefreshCw size={13} className={isLoadingSecrets ? 'animate-spin' : ''} />}
+              />
+            </div>
           }
         />
 
@@ -916,6 +956,14 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
         cancelText={t.cancel || 'Отмена'}
         variant="danger"
         loading={isDeletingSecret}
+      />
+
+      {/* Generated SSH Key Modal */}
+      <SSHKeyGeneratedModal
+        isOpen={isSSHKeyModalOpen}
+        onClose={() => setIsSSHKeyModalOpen(false)}
+        keyPair={generatedSSHKey}
+        onSavedToVault={loadSecrets}
       />
     </div>
   );

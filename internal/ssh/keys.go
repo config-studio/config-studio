@@ -12,8 +12,13 @@ import (
 
 // KeyPair holds generated private and public keys.
 type KeyPair struct {
+	Type          string `json:"type"`
 	PrivateKeyPEM string `json:"privateKeyPEM"`
+	PrivateKey    string `json:"privateKey"`
 	PublicKeyAuth string `json:"publicKeyAuth"`
+	PublicKey     string `json:"publicKey"`
+	Fingerprint   string `json:"fingerprint"`
+	Comment       string `json:"comment"`
 }
 
 // GenerateEd25519KeyPair generates a brand new Ed25519 SSH keypair.
@@ -43,9 +48,15 @@ func GenerateEd25519KeyPair(comment string) (*KeyPair, error) {
 	if !strings.HasSuffix(pubAuth, comment) {
 		pubAuth = pubAuth + " " + comment
 	}
+	fp := gossh.FingerprintSHA256(sshPubKey)
 
 	return &KeyPair{
+		Type:          "ed25519",
 		PrivateKeyPEM: privPEM,
+		PrivateKey:    privPEM,
 		PublicKeyAuth: pubAuth,
+		PublicKey:     pubAuth,
+		Fingerprint:   fp,
+		Comment:       comment,
 	}, nil
 }
