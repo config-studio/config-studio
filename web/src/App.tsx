@@ -103,7 +103,13 @@ export const App: React.FC = () => {
     tab.fullRelPath || (tab.root ? `${tab.root}:${tab.path}` : tab.path);
 
   const currentFile = useMemo(
-    () => tabs.find((t) => getTabKey(t) === activeTabKey || t.path === activeTabKey) || null,
+    () =>
+      tabs.find(
+        (t) =>
+          getTabKey(t) === activeTabKey ||
+          (t.fullRelPath && t.fullRelPath === activeTabKey) ||
+          (!t.root && t.path === activeTabKey)
+      ) || null,
     [tabs, activeTabKey]
   );
 
@@ -341,7 +347,7 @@ export const App: React.FC = () => {
       (t) =>
         getTabKey(t) === targetKey ||
         (root && t.root === root && t.path === cleanPath) ||
-        t.path === cleanPath ||
+        (!root && !t.root && t.path === cleanPath) ||
         t.fullRelPath === targetKey
     );
     if (existing) {
@@ -356,15 +362,16 @@ export const App: React.FC = () => {
 
     try {
       const fileData = await api.getFile(cleanPath, root === 'default' ? '' : root);
+      const tabRoot = fileData.root || root;
       const fullRelPath =
-        fileData.fullRelPath || targetKey;
+        fileData.fullRelPath || (tabRoot ? `${tabRoot}:${cleanPath}` : cleanPath);
 
       const savedRevisions = revisionHistoryService.getRevisions(fullRelPath);
-      const tabId = `tab-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+      const tabId = `tab-${tabRoot ? tabRoot + '-' : ''}${cleanPath.replace(/[^a-zA-Z0-9_-]/g, '_')}-${Date.now().toString(36)}`;
       const newTab: OpenFile = {
         id: tabId,
         path: fileData.path,
-        root: fileData.root || root,
+        root: tabRoot,
         fullRelPath,
         name: fileData.name,
         content: fileData.content,
@@ -379,7 +386,8 @@ export const App: React.FC = () => {
         const isAlreadyOpen = prev.some(
           (t) =>
             getTabKey(t) === fullRelPath ||
-            (t.root === (fileData.root || root) && t.path === fileData.path) ||
+            (tabRoot && t.root === tabRoot && t.path === fileData.path) ||
+            (!tabRoot && !t.root && t.path === fileData.path) ||
             t.fullRelPath === fullRelPath
         );
         if (isAlreadyOpen) {
@@ -479,7 +487,7 @@ export const App: React.FC = () => {
 
   const handleCloseTab = (tabKey: string) => {
     const idx = tabs.findIndex(
-      (t) => (t.id && t.id === tabKey) || getTabKey(t) === tabKey || t.path === tabKey
+      (t) => (t.id && t.id === tabKey) || getTabKey(t) === tabKey || (t.fullRelPath && t.fullRelPath === tabKey)
     );
     if (idx === -1) return;
 

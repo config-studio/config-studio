@@ -99,8 +99,12 @@ export const Editor: React.FC<EditorProps> = ({
     tab.fullRelPath || (tab.root ? `${tab.root}:${tab.path}` : tab.path);
 
   const currentFile =
-    tabs.find((t) => getTabKey(t) === activeFilePath || t.path === activeFilePath) ||
-    null;
+    tabs.find(
+      (t) =>
+        getTabKey(t) === activeFilePath ||
+        (t.fullRelPath && t.fullRelPath === activeFilePath) ||
+        (!t.root && t.path === activeFilePath)
+    ) || null;
 
   const pillTabItems: PillTabItem[] = useMemo(() => {
     return tabs.map((tab) => {
