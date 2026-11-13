@@ -72,7 +72,7 @@ func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *p
 
 	var hostsMgr *hosts.Manager
 	if cfgMgr != nil {
-		hostsMgr, _ = hosts.NewManager(cfgMgr.DataDir())
+		hostsMgr, _ = hosts.NewManager(cfgMgr.DataDir(), secMgr)
 	}
 
 	s := &Server{

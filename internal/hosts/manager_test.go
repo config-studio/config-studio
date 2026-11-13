@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"config-studio/internal/secrets"
 )
 
 func TestHostsManager_CRUD(t *testing.T) {
@@ -256,5 +258,120 @@ func TestHostsManager_Deduplication(t *testing.T) {
 	}
 	if list2[0].DefaultPath != "/var/log" {
 		t.Errorf("expected load() to preserve DefaultPath /var/log, got %q", list2[0].DefaultPath)
+	}
+}
+
+func TestHostsManager_AutoVaultCredentials(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs_hosts_vault_test_*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	secMgr, err := secrets.NewManager(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to create secrets manager: %v", err)
+	}
+
+	mgr, err := NewManager(tmpDir, secMgr)
+	if err != nil {
+		t.Fatalf("failed to create hosts manager: %v", err)
+	}
+
+	// 1. Save host with plaintext password
+	h1 := &Host{
+		Name:     "Test Password Host",
+		Host:     "192.168.1.50",
+		User:     "root",
+		Password: "super-secret-password-123",
+	}
+
+	saved, err := mgr.Save(h1)
+	if err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	// Plaintext password should be wiped from host object
+	if saved.Password != "" {
+		t.Errorf("expected saved.Password to be empty, got %q", saved.Password)
+	}
+	if saved.AuthType != AuthTypeVault {
+		t.Errorf("expected AuthType %q, got %q", AuthTypeVault, saved.AuthType)
+	}
+	if saved.SecretID == "" {
+		t.Fatalf("expected non-empty SecretID")
+	}
+
+	// Secret must exist and be decryptable from Vault
+	val, err := secMgr.Get(saved.SecretID)
+	if err != nil {
+		t.Fatalf("failed to retrieve secret from vault: %v", err)
+	}
+	if val != "super-secret-password-123" {
+		t.Errorf("expected vault secret to be 'super-secret-password-123', got %q", val)
+	}
+
+	// 2. Save host with plaintext private key
+	pemKey := "-----BEGIN OPENSSH PRIVATE KEY-----\ntest-key\n-----END OPENSSH PRIVATE KEY-----"
+	h2 := &Host{
+		Name:       "Test Key Host",
+		Host:       "192.168.1.60",
+		User:       "admin",
+		PrivateKey: pemKey,
+	}
+
+	saved2, err := mgr.Save(h2)
+	if err != nil {
+		t.Fatalf("Save key host failed: %v", err)
+	}
+	if saved2.PrivateKey != "" {
+		t.Errorf("expected saved2.PrivateKey to be empty, got %q", saved2.PrivateKey)
+	}
+	if saved2.AuthType != AuthTypeVault {
+		t.Errorf("expected AuthType %q, got %q", AuthTypeVault, saved2.AuthType)
+	}
+
+	val2, err := secMgr.Get(saved2.SecretID)
+	if err != nil {
+		t.Fatalf("failed to retrieve key from vault: %v", err)
+	}
+	if val2 != pemKey {
+		t.Errorf("expected vault key to match original, got %q", val2)
+	}
+
+	// 3. Test startup migration of existing legacy plaintext hosts
+	legacyJSON := `{
+		"version": 1,
+		"hosts": [
+			{"id": "legacy-1", "name": "Legacy Plain", "host": "10.0.0.1", "port": 22, "user": "ubuntu", "password": "legacy-plain-password"}
+		]
+	}`
+	legacyFile := filepath.Join(tmpDir, "hosts.json")
+	if err := os.WriteFile(legacyFile, []byte(legacyJSON), 0644); err != nil {
+		t.Fatalf("failed to write legacy json: %v", err)
+	}
+
+	mgrMigrated, err := NewManager(tmpDir, secMgr)
+	if err != nil {
+		t.Fatalf("NewManager with legacy file failed: %v", err)
+	}
+
+	migratedHost, err := mgrMigrated.Get("legacy-1")
+	if err != nil {
+		t.Fatalf("Get legacy host failed: %v", err)
+	}
+	if migratedHost.Password != "" {
+		t.Errorf("expected migratedHost.Password to be wiped, got %q", migratedHost.Password)
+	}
+	if migratedHost.AuthType != AuthTypeVault || migratedHost.SecretID == "" {
+		t.Errorf("expected migratedHost to have AuthTypeVault and SecretID, got %+v", migratedHost)
+	}
+
+	migratedVal, err := secMgr.Get(migratedHost.SecretID)
+	if err != nil {
+		t.Fatalf("failed to retrieve migrated secret: %v", err)
+	}
+	if migratedVal != "legacy-plain-password" {
+		t.Errorf("expected migratedVal to be 'legacy-plain-password', got %q", migratedVal)
 	}
 }

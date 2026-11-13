@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"config-studio/internal/secrets"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,11 +25,17 @@ type Manager struct {
 	mu       sync.RWMutex
 	hosts    map[string]*Host
 	order    []string
+	secrets  *secrets.Manager
 }
 
-func NewManager(dataDir string) (*Manager, error) {
+func NewManager(dataDir string, optSec ...*secrets.Manager) (*Manager, error) {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create hosts data directory: %w", err)
+	}
+
+	var secMgr *secrets.Manager
+	if len(optSec) > 0 {
+		secMgr = optSec[0]
 	}
 
 	filePath := filepath.Join(dataDir, "hosts.json")
@@ -37,6 +44,7 @@ func NewManager(dataDir string) (*Manager, error) {
 		filePath: filePath,
 		hosts:    make(map[string]*Host),
 		order:    make([]string, 0),
+		secrets:  secMgr,
 	}
 
 	if err := m.load(); err != nil {
@@ -49,7 +57,20 @@ func NewManager(dataDir string) (*Manager, error) {
 		}
 	}
 
+	if m.secrets != nil {
+		m.mu.Lock()
+		m.migrateCredentialsToVaultLocked()
+		m.mu.Unlock()
+	}
+
 	return m, nil
+}
+
+func (m *Manager) SetSecretsManager(sec *secrets.Manager) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.secrets = sec
+	m.migrateCredentialsToVaultLocked()
 }
 
 func (m *Manager) List() []*Host {
@@ -174,6 +195,98 @@ func mergeHost(dest, src *Host) {
 	dest.Normalize()
 }
 
+func (m *Manager) autoVaultHostCredentialsLocked(h *Host) bool {
+	if m.secrets == nil || h == nil {
+		return false
+	}
+	changed := false
+
+	// Case 1: Plaintext password provided
+	if strings.TrimSpace(h.Password) != "" {
+		secID := h.SecretID
+		if secID == "" {
+			secID = h.IdentityID
+		}
+		if secID == "" {
+			secID = fmt.Sprintf("sec-host-%d", time.Now().UnixNano())
+		}
+		title := fmt.Sprintf("SSH: %s@%s:%d", h.User, h.Host, h.NormalizedPort())
+		_ = m.secrets.Set(secrets.SecretItem{
+			SecretMeta: secrets.SecretMeta{
+				ID:    secID,
+				Title: title,
+				Type:  secrets.TypePassword,
+				Scope: secrets.ScopeShared,
+			},
+			Value: h.Password,
+		})
+		h.SecretID = secID
+		h.IdentityID = secID
+		h.AuthType = AuthTypeVault
+		h.Password = ""
+		changed = true
+	}
+
+	// Case 2: Plaintext private key provided
+	if strings.TrimSpace(h.PrivateKey) != "" {
+		secID := h.SecretID
+		if secID == "" {
+			secID = h.IdentityID
+		}
+		if secID == "" {
+			secID = fmt.Sprintf("sec-host-%d", time.Now().UnixNano())
+		}
+		title := fmt.Sprintf("SSH Key: %s@%s:%d", h.User, h.Host, h.NormalizedPort())
+
+		var secVal string
+		if strings.TrimSpace(h.Passphrase) != "" {
+			data, _ := json.Marshal(map[string]string{
+				"privateKey": h.PrivateKey,
+				"passphrase": h.Passphrase,
+			})
+			secVal = string(data)
+			h.Passphrase = ""
+		} else {
+			secVal = h.PrivateKey
+		}
+
+		_ = m.secrets.Set(secrets.SecretItem{
+			SecretMeta: secrets.SecretMeta{
+				ID:    secID,
+				Title: title,
+				Type:  secrets.TypeSSHKey,
+				Scope: secrets.ScopeShared,
+			},
+			Value: secVal,
+		})
+		h.SecretID = secID
+		h.IdentityID = secID
+		h.AuthType = AuthTypeVault
+		h.PrivateKey = ""
+		changed = true
+	}
+
+	return changed
+}
+
+func (m *Manager) migrateCredentialsToVaultLocked() {
+	if m.secrets == nil {
+		return
+	}
+	migrated := false
+	for _, h := range m.hosts {
+		if h == nil {
+			continue
+		}
+		if m.autoVaultHostCredentialsLocked(h) {
+			migrated = true
+		}
+	}
+	if migrated {
+		_ = m.persistLocked()
+	}
+}
+
 func (m *Manager) Save(host *Host) (*Host, error) {
 	if host == nil {
 		return nil, ErrInvalidHost
@@ -186,6 +299,9 @@ func (m *Manager) Save(host *Host) (*Host, error) {
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	// SEC-002: Auto-save plaintext credentials directly into encrypted Vault
+	m.autoVaultHostCredentialsLocked(host)
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	existing := m.findExistingMatchLocked(host)
@@ -282,6 +398,8 @@ func (m *Manager) ImportBatch(items []*Host) (*OpenSSHImportResult, error) {
 			continue
 		}
 
+		m.autoVaultHostCredentialsLocked(item)
+
 		existing := m.findExistingMatchLocked(item)
 		if existing != nil {
 			mergeHost(existing, item)
@@ -364,6 +482,9 @@ func (m *Manager) AutoMigrateFromFleet(yamlPath string) error {
 			Description: srv.Description,
 		}
 		h.Normalize()
+		if m.secrets != nil {
+			m.autoVaultHostCredentialsLocked(h)
+		}
 
 		existing := m.findExistingMatchLocked(h)
 		if existing != nil {
@@ -400,6 +521,9 @@ func (m *Manager) load() error {
 			continue
 		}
 		h.Normalize()
+		if m.secrets != nil && m.autoVaultHostCredentialsLocked(h) {
+			hasDuplicates = true
+		}
 
 		existing := m.findExistingMatchLocked(h)
 		if existing != nil {
