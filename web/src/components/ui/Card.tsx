@@ -2,16 +2,20 @@ import React from 'react';
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   interactive?: boolean;
+  overflowHidden?: boolean;
 }
 
 export const Card: React.FC<CardProps> & {
   Header: React.FC<React.HTMLAttributes<HTMLDivElement>>;
   Body: React.FC<React.HTMLAttributes<HTMLDivElement>>;
   Footer: React.FC<React.HTMLAttributes<HTMLDivElement>>;
-} = ({ children, interactive = false, className = '', ...props }) => {
+} = ({ children, interactive = false, overflowHidden = true, className = '', ...props }) => {
+  const hasCustomOverflow = className.includes('overflow-');
   return (
     <div
-      className={`bg-base-surface border border-base-border rounded-2xl overflow-hidden transition-all ${
+      className={`bg-base-surface border border-base-border rounded-2xl ${
+        !hasCustomOverflow && overflowHidden ? 'overflow-hidden' : ''
+      } transition-all ${
         interactive
           ? 'cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 active:scale-[0.99]'
           : ''

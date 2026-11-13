@@ -97,21 +97,36 @@ export const Header: React.FC<HeaderProps> = ({
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const mobileSearchContainerRef = useRef<HTMLDivElement>(null);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
-  // Close mobile more menu on outside click
+  // Close mobile more menu on outside click or touch
   useEffect(() => {
-    const handleOutside = (e: MouseEvent) => {
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+    if (!isMobileMoreMenuOpen) return;
+
+    const handleOutside = (e: Event) => {
+      const target = e.target as Node;
+      if (mobileMenuContainerRef.current && !mobileMenuContainerRef.current.contains(target)) {
         setIsMobileMoreMenuOpen(false);
       }
     };
-    if (isMobileMoreMenuOpen) {
-      document.addEventListener('mousedown', handleOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleOutside);
+
+    const handleDismiss = () => {
+      setIsMobileMoreMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside, { passive: true });
+    window.addEventListener('resize', handleDismiss);
+    window.addEventListener('scroll', handleDismiss, { passive: true, capture: true });
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+      window.removeEventListener('resize', handleDismiss);
+      window.removeEventListener('scroll', handleDismiss, { capture: true });
+    };
   }, [isMobileMoreMenuOpen]);
 
   const t = translations[settings.language] || translations.ru;
@@ -668,7 +683,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Mobile More Options Dropdown [⋮] */}
-        <div className="relative md:hidden">
+        <div ref={mobileMenuContainerRef} className="relative md:hidden">
           <button
             onClick={() => setIsMobileMoreMenuOpen((prev) => !prev)}
             className="p-2 rounded-xl text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
@@ -679,7 +694,6 @@ export const Header: React.FC<HeaderProps> = ({
 
           {isMobileMoreMenuOpen && (
             <div
-              ref={mobileMenuRef}
               className="absolute right-0 top-full mt-2 w-52 bg-base-surface border border-base-border rounded-2xl shadow-2xl p-1.5 space-y-0.5 z-50 text-xs animate-in zoom-in-95 duration-100"
             >
               <button

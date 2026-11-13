@@ -202,6 +202,7 @@ export interface OpenFileOptions {
 }
 
 export interface OpenFile {
+  id?: string;
   path: string;
   root?: string;
   fullRelPath?: string;

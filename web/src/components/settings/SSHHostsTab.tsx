@@ -385,7 +385,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
 
       {/* Host Editing Form */}
       {isEditing && (
-        <Card className="p-4">
+        <Card className="p-4 overflow-visible">
           <form onSubmit={handleSaveHost} className="space-y-4">
             <div className="flex items-center justify-between border-b border-base-border pb-2.5">
               <span className="text-xs font-semibold text-[var(--text-primary)]">

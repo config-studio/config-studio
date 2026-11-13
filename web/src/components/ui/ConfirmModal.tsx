@@ -28,26 +28,35 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 }) => {
   const icon =
     variant === 'danger' ? (
-      <div className="p-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 shrink-0">
+      <div className="p-2 rounded-xl bg-red-500/20 text-red-400 shrink-0">
         <Trash2 size={18} />
       </div>
     ) : variant === 'warning' ? (
-      <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 shrink-0">
+      <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
         <AlertTriangle size={18} />
       </div>
     ) : (
-      <div className="p-2 rounded-xl bg-accent/10 border border-accent/30 text-accent shrink-0">
+      <div className="p-2 rounded-xl bg-accent/20 text-accent shrink-0">
         <HelpCircle size={18} />
       </div>
     );
 
+  const bannerBg =
+    variant === 'danger'
+      ? 'bg-red-500/10 border-red-500/25 text-red-200'
+      : variant === 'warning'
+      ? 'bg-amber-500/10 border-amber-500/25 text-amber-200'
+      : 'bg-accent/10 border-accent/25 text-gray-200';
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm" allowMaximize={false}>
       <Modal.Header title={title} />
-      <Modal.Body className="p-5 flex items-start space-x-3.5">
-        {icon}
-        <div className="text-xs text-gray-300 leading-relaxed pt-0.5">
-          {message}
+      <Modal.Body scrollable={false} className="p-5">
+        <div className={`flex items-start space-x-3.5 p-3.5 rounded-xl border ${bannerBg}`}>
+          {icon}
+          <div className="text-xs text-gray-200 leading-relaxed pt-0.5 min-w-0 flex-1">
+            {message}
+          </div>
         </div>
       </Modal.Body>
       <Modal.Footer justify="end">

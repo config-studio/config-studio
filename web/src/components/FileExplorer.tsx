@@ -97,7 +97,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   const sidebarTabItems = useMemo<PillTabItem[]>(() => [
     {
       id: 'workspaces',
-      label: t.workspaces || 'Рабочие области',
+      label: (t as any).workspacesShort || 'Среды',
       icon: <Folder className="w-3.5 h-3.5 shrink-0" />,
       closable: false,
     },
@@ -109,7 +109,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       badgeColor: 'gray',
       closable: false,
     },
-  ], [t.workspaces, hostsCount]);
+  ], [(t as any).workspacesShort, hostsCount]);
   const [isDragging, setIsDragging] = useState(false);
   const [collapsedRoots, setCollapsedRoots] = useState<Record<string, boolean>>({});
   const [contextMenuState, setContextMenuState] = useState<{

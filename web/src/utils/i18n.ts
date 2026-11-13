@@ -298,6 +298,7 @@ const builtInTranslations = {
 
     // Workspaces
     workspaces: 'Рабочие области',
+    workspacesShort: 'Среды',
     addWorkspace: 'Добавить папку',
     addWorkspaceTitle: 'Добавить рабочую папку в проект',
     editWorkspaceTitle: 'Настройки рабочей папки',
@@ -645,6 +646,7 @@ const builtInTranslations = {
 
     // Workspaces
     workspaces: 'Workspaces',
+    workspacesShort: 'Envs',
     addWorkspace: 'Add Folder',
     addWorkspaceTitle: 'Add Workspace Folder',
     editWorkspaceTitle: 'Workspace Settings',

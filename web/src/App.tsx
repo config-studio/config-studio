@@ -96,6 +96,7 @@ export const App: React.FC = () => {
   }, []);
 
   const editorRef = useRef<any>(null);
+  const hasAutoOpenedRef = useRef(false);
   const t = translations[settings.language] || translations.ru;
 
   const getTabKey = (tab: { root?: string; path: string; fullRelPath?: string }) =>
@@ -171,24 +172,28 @@ export const App: React.FC = () => {
         badge?: string;
         onSave?: (content: string) => Promise<void>;
       }) => {
-        const existing = tabs.find((t) => t.path === customTab.path);
-        if (existing) {
-          setActiveTabKey(getTabKey(existing));
-          return;
-        }
-        const newTab: OpenFile = {
-          path: customTab.path,
-          name: customTab.name,
-          content: customTab.content,
-          initialContent: customTab.content,
-          isDirty: false,
-          readOnly: customTab.readOnly,
-          badge: customTab.badge,
-          language: customTab.language || customTab.name.split('.').pop() || '',
-          revisions: [],
-          onCustomSave: customTab.onSave,
-        };
-        setTabs((prev) => [...prev, newTab]);
+        setTabs((prev) => {
+          const isAlreadyOpen = prev.some(
+            (t) => t.path === customTab.path || getTabKey(t) === customTab.path
+          );
+          if (isAlreadyOpen) {
+            return prev;
+          }
+          const newTab: OpenFile = {
+            id: `tab-custom-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`,
+            path: customTab.path,
+            name: customTab.name,
+            content: customTab.content,
+            initialContent: customTab.content,
+            isDirty: false,
+            readOnly: customTab.readOnly,
+            badge: customTab.badge,
+            language: customTab.language || customTab.name.split('.').pop() || '',
+            revisions: [],
+            onCustomSave: customTab.onSave,
+          };
+          return [...prev, newTab];
+        });
         setActiveTabKey(customTab.path);
       },
     });
@@ -284,8 +289,8 @@ export const App: React.FC = () => {
         setDirItems(targetItems);
       }
 
-      // Auto-open first yaml/json file if no tabs open
-      if (tabs.length === 0 && targetItems.length > 0) {
+      // Auto-open first yaml/json file once if no tabs open
+      if (!hasAutoOpenedRef.current && tabs.length === 0 && targetItems.length > 0) {
         const first = targetItems.find(
           (i) =>
             !i.isDir &&
@@ -294,6 +299,7 @@ export const App: React.FC = () => {
               i.extension === '.json')
         );
         if (first) {
+          hasAutoOpenedRef.current = true;
           openFile(first.path, root);
         }
       }
@@ -354,7 +360,9 @@ export const App: React.FC = () => {
         fileData.fullRelPath || targetKey;
 
       const savedRevisions = revisionHistoryService.getRevisions(fullRelPath);
+      const tabId = `tab-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
       const newTab: OpenFile = {
+        id: tabId,
         path: fileData.path,
         root: fileData.root || root,
         fullRelPath,
@@ -366,7 +374,19 @@ export const App: React.FC = () => {
         language: fileData.name.split('.').pop() || '',
         revisions: savedRevisions,
       };
-      setTabs((prev) => [...prev, newTab]);
+
+      setTabs((prev) => {
+        const isAlreadyOpen = prev.some(
+          (t) =>
+            getTabKey(t) === fullRelPath ||
+            (t.root === (fileData.root || root) && t.path === fileData.path) ||
+            t.fullRelPath === fullRelPath
+        );
+        if (isAlreadyOpen) {
+          return prev;
+        }
+        return [...prev, newTab];
+      });
       setActiveTabKey(fullRelPath);
       if (options?.line) {
         setTimeout(() => {
@@ -404,7 +424,9 @@ export const App: React.FC = () => {
       }
 
       const savedRevisions = revisionHistoryService.getRevisions(sftpKey);
+      const tabId = `tab-sftp-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
       const newTab: OpenFile = {
+        id: tabId,
         path: remotePath,
         root: `sftp:${host.id || host.host}`,
         fullRelPath: sftpKey,
@@ -432,7 +454,15 @@ export const App: React.FC = () => {
         },
       };
 
-      setTabs((prev) => [...prev, newTab]);
+      setTabs((prev) => {
+        const isAlreadyOpen = prev.some(
+          (t) => getTabKey(t) === sftpKey || t.fullRelPath === sftpKey
+        );
+        if (isAlreadyOpen) {
+          return prev;
+        }
+        return [...prev, newTab];
+      });
       setActiveTabKey(sftpKey);
       showGlobalToast(
         settings.language === 'ru'
@@ -448,7 +478,12 @@ export const App: React.FC = () => {
   };
 
   const handleCloseTab = (tabKey: string) => {
-    const tabToClose = tabs.find((t) => getTabKey(t) === tabKey || t.path === tabKey);
+    const idx = tabs.findIndex(
+      (t) => (t.id && t.id === tabKey) || getTabKey(t) === tabKey || t.path === tabKey
+    );
+    if (idx === -1) return;
+
+    const tabToClose = tabs[idx];
     if (tabToClose?.isDirty) {
       const msg = t.unsavedWarning.replace('{name}', tabToClose.name);
       if (!confirm(msg)) {
@@ -456,12 +491,11 @@ export const App: React.FC = () => {
       }
     }
 
-    const keyToClose = tabToClose ? getTabKey(tabToClose) : tabKey;
-    const idx = tabs.findIndex((t) => getTabKey(t) === keyToClose);
-    const nextTabs = tabs.filter((t) => getTabKey(t) !== keyToClose);
+    const keyToClose = getTabKey(tabToClose);
+    const nextTabs = tabs.filter((_, i) => i !== idx);
     setTabs(nextTabs);
 
-    if (activeTabKey === keyToClose || (tabToClose && activeTabKey === tabToClose.path)) {
+    if (activeTabKey === keyToClose || activeTabKey === tabToClose.path || activeTabKey === tabKey) {
       if (nextTabs.length === 0) {
         setActiveTabKey(null);
       } else {
@@ -497,6 +531,7 @@ export const App: React.FC = () => {
   // Listen for remote endpoint changes (switching between Localhost and Fleet Agents)
   useEffect(() => {
     const handleRemoteEndpointChanged = async (e: any) => {
+      hasAutoOpenedRef.current = false;
       const { endpoint } = e.detail || {};
       if (endpoint) {
         // Switched to Remote Agent: load remote files
