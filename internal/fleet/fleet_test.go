@@ -238,4 +238,21 @@ func TestFleetManager_V2_SingleSourceOfTruth(t *testing.T) {
 	if srvUpdated.Connection.Agent.URL != "http://10.0.0.55:8085" {
 		t.Errorf("expected dynamic agent URL to update to http://10.0.0.55:8085, got %q", srvUpdated.Connection.Agent.URL)
 	}
+
+	// 4. Server exists ONLY in Core Hosts (not yet in servers.yaml)
+	mockHosts["debian-core-only"] = &HostInfo{
+		ID:         "debian-core-only",
+		Name:       "Debian Core Only",
+		Host:       "10.0.0.99",
+		Port:       22,
+		User:       "root",
+		IdentityID: "main",
+	}
+	srvCoreOnly, err := m.GetServer("debian-core-only")
+	if err != nil {
+		t.Fatalf("expected GetServer to dynamically resolve core host: %v", err)
+	}
+	if srvCoreOnly.Host != "10.0.0.99" || srvCoreOnly.SSHHostRef != "debian-core-only" {
+		t.Errorf("expected resolved core host, got %+v", srvCoreOnly)
+	}
 }

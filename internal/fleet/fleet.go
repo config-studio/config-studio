@@ -417,12 +417,31 @@ func (m *Manager) GetServer(id string) (*ServerNode, error) {
 	defer m.mu.RUnlock()
 
 	for _, s := range m.servers {
-		if s.ID == id {
+		if s.ID == id || s.SSHHostRef == id {
 			copy := s
 			m.resolveNodeLocked(&copy)
 			return &copy, nil
 		}
 	}
+
+	// Dynamic fallback: resolve from Core Hosts via HostResolver if node is in Core but not yet in servers.yaml
+	if m.hostResolver != nil {
+		if resolved, err := m.hostResolver(id); err == nil && resolved != nil {
+			node := ServerNode{
+				ID:          resolved.ID,
+				Name:        resolved.Name,
+				Description: resolved.Description,
+				Group:       resolved.Group,
+				Tags:        resolved.Tags,
+				Color:       resolved.Color,
+				Icon:        resolved.Icon,
+				SSHHostRef:  resolved.ID,
+			}
+			m.resolveNodeLocked(&node)
+			return &node, nil
+		}
+	}
+
 	return nil, fmt.Errorf("server %q not found", id)
 }
 
