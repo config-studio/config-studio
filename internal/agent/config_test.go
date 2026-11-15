@@ -3,6 +3,7 @@ package agent
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -20,6 +21,12 @@ func TestConfigInitAndTokens(t *testing.T) {
 	}
 	if cfg.Master.KeyID == "" || cfg.Master.Secret == "" {
 		t.Errorf("Master credentials should not be empty")
+	}
+	if !strings.HasPrefix(cfg.Master.KeyID, "cs_key_") {
+		t.Errorf("Expected Master.KeyID to start with 'cs_key_', got %s", cfg.Master.KeyID)
+	}
+	if len(cfg.Master.KeyID) < 32 {
+		t.Errorf("Expected Master.KeyID to be a cryptographically secure random token, got length %d", len(cfg.Master.KeyID))
 	}
 
 	// 2. Add scoped token

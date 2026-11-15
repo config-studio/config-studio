@@ -2,8 +2,6 @@ package fleet
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base32"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"config-studio/internal/agent"
 	"config-studio/internal/cspkg"
 	"config-studio/internal/secrets"
 	"config-studio/internal/ssh"
@@ -157,10 +156,8 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	addLog("Выбрана система инициализации службы: %s", serviceType)
 
 	// 6. Generate Master Key & TOTP Secret and store in Core Vault
-	keyID := fmt.Sprintf("cs_master_%d", time.Now().Unix())
-	secretBytes := make([]byte, 20)
-	_, _ = rand.Read(secretBytes)
-	totpSecret := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(secretBytes)
+	keyID := agent.GenerateRandomToken("cs_key")
+	totpSecret := agent.GenerateBase32Secret(20)
 
 	credsJSON, _ := json.Marshal(map[string]string{
 		"keyId":  keyID,

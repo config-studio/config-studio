@@ -5,8 +5,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
+
+	"config-studio/internal/agent"
 )
 
 func TestBatchInstallAgents_ValidationAndSkipping(t *testing.T) {
@@ -177,5 +180,20 @@ func TestBatchInstallAgents_DynamicHostResolverFallback(t *testing.T) {
 	}
 	if res.Statuses[0].Host != "192.168.0.101" {
 		t.Errorf("expected Host '192.168.0.101', got %q", res.Statuses[0].Host)
+	}
+}
+
+func TestAgentCredentials_KeyFormat(t *testing.T) {
+	keyID := agent.GenerateRandomToken("cs_key")
+	if !strings.HasPrefix(keyID, "cs_key_") {
+		t.Errorf("expected keyID to start with 'cs_key_', got %s", keyID)
+	}
+	hexPart := strings.TrimPrefix(keyID, "cs_key_")
+	if len(hexPart) != 32 {
+		t.Errorf("expected 32 hex chars (16 bytes entropy), got %d (%s)", len(hexPart), hexPart)
+	}
+	totpSecret := agent.GenerateBase32Secret(20)
+	if len(totpSecret) != 32 {
+		t.Errorf("expected 32 base32 chars for 20 bytes secret, got %d", len(totpSecret))
 	}
 }

@@ -1248,7 +1248,7 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 								KeyID  string `json:"keyId"`
 								Secret string `json:"secret"`
 							}
-							keyID := "cs_master"
+							keyID := "cs_key"
 							totpSecret := secVal
 							if json.Unmarshal([]byte(secVal), &creds) == nil && creds.KeyID != "" {
 								keyID = creds.KeyID

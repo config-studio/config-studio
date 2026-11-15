@@ -51,7 +51,7 @@ func DefaultConfig(configPath string) *Config {
 			Enabled: false,
 		},
 		Master: MasterAuth{
-			KeyID:  GenerateRandomToken("cs_master"),
+			KeyID:  GenerateRandomToken("cs_key"),
 			Secret: GenerateBase32Secret(20),
 		},
 		Sandbox: SandboxConfig{
