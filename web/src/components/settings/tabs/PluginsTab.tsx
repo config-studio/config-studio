@@ -311,13 +311,13 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                           <Button
                             variant="primary"
                             size="sm"
-                            className="h-5 px-1.5 text-[9px] gap-1 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white border-0 shadow-sm"
+                            className="h-5 px-2 text-[10px] gap-1 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white border-0 shadow-sm leading-none whitespace-nowrap"
                             loading={installingCatalogId === cat.id}
+                            icon={<RefreshCw size={9} className={`shrink-0 ${installingCatalogId === cat.id ? 'animate-spin' : ''}`} />}
                             onClick={() => handleInspectCatalogItem(cat)}
                             title={language === 'en' ? `Update to v${cat.version}` : `Обновить до v${cat.version}`}
                           >
-                            <RefreshCw size={9} className={installingCatalogId === cat.id ? 'animate-spin' : ''} />
-                            <span>{language === 'en' ? `Update to v${cat.version}` : `Обновить до v${cat.version}`}</span>
+                            {language === 'en' ? `Update to v${cat.version}` : `Обновить до v${cat.version}`}
                           </Button>
                         );
                       }
@@ -544,11 +544,11 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                             <Button
                               variant="primary"
                               size="sm"
-                              className="h-7 px-2.5 text-xs gap-1.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white border-0 shadow-sm"
+                              className="h-7 px-2.5 text-xs gap-1.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white border-0 shadow-sm leading-none whitespace-nowrap"
                               onClick={() => handleInspectCatalogItem(catItem)}
                               disabled={isInstallingThis || isInstalling}
                               loading={isInstallingThis}
-                              icon={<RefreshCw size={12} className={isInstallingThis ? 'animate-spin' : ''} />}
+                              icon={<RefreshCw size={12} className={`shrink-0 ${isInstallingThis ? 'animate-spin' : ''}`} />}
                             >
                               {isInstallingThis
                                 ? t.installing
