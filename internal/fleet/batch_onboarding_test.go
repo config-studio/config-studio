@@ -129,3 +129,53 @@ func TestBatchInstallAgents_ValidationAndSkipping(t *testing.T) {
 		t.Errorf("expected progress events to be emitted, got 0")
 	}
 }
+
+func TestBatchInstallAgents_DynamicHostResolverFallback(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-fleet-batch-dynamic-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	m, err := NewManager(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to initialize fleet manager: %v", err)
+	}
+
+	// Configure HostResolver for core hosts that are NOT yet in servers.yaml
+	m.SetHostResolver(func(id string) (*HostInfo, error) {
+		if id == "core-host-1" {
+			return &HostInfo{
+				ID:   "core-host-1",
+				Name: "Core Dynamic Node 1",
+				Host: "192.168.0.101",
+				Port: 22,
+				User: "root",
+			}, nil
+		}
+		return nil, os.ErrNotExist
+	})
+
+	ctx := context.Background()
+	opts := BatchInstallOptions{
+		ServerIDs: []string{"core-host-1"},
+	}
+
+	res, err := m.BatchInstallAgents(ctx, opts, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("BatchInstallAgents failed: %v", err)
+	}
+
+	if res.Total != 1 {
+		t.Fatalf("expected Total 1, got %d", res.Total)
+	}
+	if len(res.Statuses) != 1 {
+		t.Fatalf("expected 1 status, got %d", len(res.Statuses))
+	}
+	if res.Statuses[0].ServerID != "core-host-1" {
+		t.Errorf("expected ServerID 'core-host-1', got %q", res.Statuses[0].ServerID)
+	}
+	if res.Statuses[0].Host != "192.168.0.101" {
+		t.Errorf("expected Host '192.168.0.101', got %q", res.Statuses[0].Host)
+	}
+}

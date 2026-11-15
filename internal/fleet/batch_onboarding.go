@@ -52,21 +52,29 @@ func (m *Manager) BatchInstallAgents(
 	secMgr *secrets.Manager,
 	onProgress BatchInstallProgressFunc,
 ) (*BatchInstallResult, error) {
-	allServers := m.ListServers()
-
 	var targets []*ServerNode
-	targetMap := make(map[string]bool)
-	for _, id := range opts.ServerIDs {
-		targetMap[id] = true
-	}
+	seen := make(map[string]bool)
 
-	for _, srv := range allServers {
-		if srv.ID == "localhost" {
-			continue // localhost is never remote-installed
+	if len(opts.ServerIDs) > 0 {
+		for _, id := range opts.ServerIDs {
+			id = strings.TrimSpace(id)
+			if id == "" || id == "localhost" || seen[id] {
+				continue
+			}
+			seen[id] = true
+			srv, err := m.GetServer(id)
+			if err == nil && srv != nil {
+				targets = append(targets, srv)
+			}
 		}
-		if len(opts.ServerIDs) == 0 || targetMap[srv.ID] {
-			copied := srv
-			targets = append(targets, &copied)
+	} else {
+		for _, srv := range m.ListServers() {
+			if srv.ID == "localhost" || seen[srv.ID] {
+				continue
+			}
+			seen[srv.ID] = true
+			cp := srv
+			targets = append(targets, &cp)
 		}
 	}
 
