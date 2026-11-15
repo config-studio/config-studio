@@ -259,6 +259,10 @@ const builtInTranslations = {
     // Bottom Dock Strip
     dockTerminal: 'Терминал',
     dockTerminalTitle: 'SSH / Shell Терминал',
+    dockLogs: 'Логи',
+    dockLogsTitle: 'Потоковый журнал логов',
+    dockLogsLauncher: 'Стримы',
+    dockLogsNewStream: 'Запустить новый стрим логов',
     dockProblems: 'Проблемы',
     dockOutput: 'Вывод',
     dockOutputTitle: 'Журнал вывода и аудита',
@@ -618,6 +622,10 @@ const builtInTranslations = {
     // Bottom Dock Strip
     dockTerminal: 'Terminal',
     dockTerminalTitle: 'SSH / Shell Terminal',
+    dockLogs: 'Logs',
+    dockLogsTitle: 'Streaming Log Viewer',
+    dockLogsLauncher: 'Streams',
+    dockLogsNewStream: 'Launch new log stream',
     dockProblems: 'Problems',
     dockOutput: 'Output',
     dockOutputTitle: 'Core Output & Audit Stream',

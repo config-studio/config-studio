@@ -27,6 +27,7 @@ import (
 	appfs "config-studio/internal/fs"
 	"config-studio/internal/guard"
 	"config-studio/internal/hosts"
+	"config-studio/internal/logs"
 	"config-studio/internal/plugin"
 	"config-studio/internal/secrets"
 	"config-studio/internal/ssh"
@@ -49,6 +50,7 @@ type Server struct {
 	ssh          *ssh.ClientManager
 	fleet        *fleet.Manager
 	hosts        *hosts.Manager
+	logs         *logs.StreamService
 	handler      http.Handler
 	sessionsMu   sync.RWMutex
 	sessions     map[string]time.Time
@@ -109,6 +111,7 @@ func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *p
 		ssh:          ssh.NewClientManager(secMgr),
 		fleet:        fleetMgr,
 		hosts:        hostsMgr,
+		logs:         logs.NewStreamService(),
 		sessions:     make(map[string]time.Time),
 	}
 	s.setupRoutes()
@@ -217,6 +220,10 @@ func (s *Server) setupRoutes() {
 	mux.HandleFunc("POST /api/ssh/sftp/rename", s.handleSFTPRename)
 	mux.HandleFunc("POST /api/ssh/sftp/batch-read", s.handleSFTPBatchRead)
 	mux.HandleFunc("POST /api/sftp/batch-read", s.handleSFTPBatchRead)
+
+	// Log Streaming Service (v2.3.5)
+	mux.HandleFunc("GET /api/logs/stream", s.handleLogsStream)
+	mux.HandleFunc("POST /api/logs/stream", s.handleLogsStream)
 
 	// Fleet Inventory APIs
 	mux.HandleFunc("GET /api/servers", s.handleListServers)

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback, Suspense, laz
 import {
   Terminal,
   FileText,
+  ScrollText,
   AlertCircle,
   User,
   Globe,
@@ -28,10 +29,12 @@ import { api } from '../services/api';
 import { translations } from '../utils/i18n';
 import { telemetry } from '../services/telemetry';
 import { sshHostService } from '../services/sshHosts';
+import { logStreamService, LogStreamSession } from '../services/logStream';
 import { sysinfoService, SysInfoState, formatBytes, formatUptime, getLoadStatus } from '../services/sysinfo';
 import { SysInfoPanel } from './sysinfo/SysInfoPanel';
-import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem, ConfirmModal, DiagnosticsCountBadge, StatusBadge, Badge, EmptyState } from '@config-studio/ui';
+import { Dropdown, DropdownOption, ScrollArea, PillTabs, PillTabItem, ConfirmModal, DiagnosticsCountBadge, StatusBadge, Badge, EmptyState, LogViewer } from '@config-studio/ui';
 import { TerminalHostLauncher } from './terminal/TerminalHostLauncher';
+import { LogStreamLauncher } from './logs/LogStreamLauncher';
 import { EditHostModal } from './terminal/EditHostModal';
 import type { XTerminalHandle } from './terminal/XTerminal';
 
@@ -98,6 +101,10 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingHost, setEditingHost] = useState<SSHHost | null>(null);
   const [hostToDelete, setHostToDelete] = useState<SSHHost | null>(null);
+
+  // Streaming Log Sessions State
+  const [logSessions, setLogSessions] = useState<LogStreamSession[]>(() => logStreamService.getSessions());
+  const [activeLogSessionId, setActiveLogSessionId] = useState<string>(() => logStreamService.getActiveSessionId());
   const termRefs = useRef<Record<string, XTerminalHandle | null>>({});
 
   const mountContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -226,6 +233,30 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
     return () => window.removeEventListener('cs:open-ssh-terminal', handleOpenSSH);
   }, [handleSelectHost]);
 
+  // Subscribe to Log Stream Service
+  useEffect(() => {
+    return logStreamService.subscribe((updatedSessions, activeId) => {
+      setLogSessions([...updatedSessions]);
+      setActiveLogSessionId(activeId);
+    });
+  }, []);
+
+  // Handle cs:open-log-stream global event
+  useEffect(() => {
+    const handleOpenLogStream = (e: any) => {
+      const detail = e.detail;
+      if (detail && detail.cmd) {
+        logStreamService.openStream(detail);
+      } else {
+        logStreamService.setActiveSessionId('launcher');
+      }
+      onSelectPanel('logs');
+      if (!isOpen) onToggleOpen(true);
+    };
+    window.addEventListener('cs:open-log-stream', handleOpenLogStream);
+    return () => window.removeEventListener('cs:open-log-stream', handleOpenLogStream);
+  }, [isOpen, onSelectPanel, onToggleOpen]);
+
   const terminalSessionTabs = useMemo<PillTabItem[]>(() => {
     const items: PillTabItem[] = [
       {
@@ -253,6 +284,34 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
     return items;
   }, [sessions]);
+
+  const logSessionTabs = useMemo<PillTabItem[]>(() => {
+    const items: PillTabItem[] = [
+      {
+        id: 'launcher',
+        label: t.dockLogsLauncher || 'Стримы',
+        icon: <ScrollText size={12} />,
+        closable: false,
+      },
+    ];
+
+    logSessions.forEach((s) => {
+      let statusDot: PillTabItem['statusDot'] = 'amber';
+      if (s.status === 'connected') statusDot = 'green';
+      else if (s.status === 'connecting') statusDot = 'amber';
+      else if (s.status === 'closed' || s.status === 'error') statusDot = 'red';
+
+      items.push({
+        id: s.id,
+        label: s.title,
+        icon: <FileText size={12} />,
+        statusDot,
+        closable: true,
+      });
+    });
+
+    return items;
+  }, [logSessions, t]);
 
   // Load audit events for Output tab
   const loadRecentAudit = async (category = auditCategory) => {
@@ -338,6 +397,14 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
         id: 'terminal',
         label: t.dockTerminal || 'Терминал',
         icon: <Terminal size={12} />,
+        closable: false,
+      },
+      {
+        id: 'logs',
+        label: t.dockLogs || 'Логи',
+        icon: <ScrollText size={12} />,
+        badge: logSessions.length > 0 ? logSessions.length : undefined,
+        badgeColor: 'accent',
         closable: false,
       },
     ];
@@ -437,7 +504,7 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
     });
 
     return items;
-  }, [t, panels, criticalIssuesCount, sysInfoState]);
+  }, [t, panels, criticalIssuesCount, sysInfoState, logSessions]);
 
   return (
     <div
@@ -472,6 +539,19 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                     onClose={(id) => handleCloseSession(id)}
                     onAdd={() => setActiveSessionId('launcher')}
                     addTooltip="Выбор хостов / Новый терминал"
+                    variant="dock"
+                    size="sm"
+                  />
+                </div>
+              ) : activePanelId === 'logs' ? (
+                <div className="flex items-center space-x-2 min-w-0 flex-1 pr-2">
+                  <PillTabs
+                    items={logSessionTabs}
+                    activeId={activeLogSessionId}
+                    onChange={(id) => logStreamService.setActiveSessionId(id)}
+                    onClose={(id) => logStreamService.closeStream(id)}
+                    onAdd={() => logStreamService.setActiveSessionId('launcher')}
+                    addTooltip={t.dockLogsNewStream || 'Запустить новый стрим логов'}
                     variant="dock"
                     size="sm"
                   />
@@ -524,6 +604,29 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                     onClick={handleClearActive}
                     className="p-1 hover:text-[var(--text-primary)] hover:bg-base-surface-hover/80 rounded transition cursor-pointer"
                     title="Очистить терминал"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                  <span className="w-px h-3 bg-base-border mx-1" />
+                </>
+              )}
+
+              {/* Logs session action buttons */}
+              {activePanelId === 'logs' && activeLogSessionId !== 'launcher' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => logStreamService.reconnect(activeLogSessionId)}
+                    className="p-1 hover:text-[var(--text-primary)] hover:bg-base-surface-hover/80 rounded transition cursor-pointer"
+                    title="Перезапустить стрим логов"
+                  >
+                    <RefreshCw size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => logStreamService.clear(activeLogSessionId)}
+                    className="p-1 hover:text-[var(--text-primary)] hover:bg-base-surface-hover/80 rounded transition cursor-pointer"
+                    title="Очистить буфер логов"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -651,6 +754,54 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
                         onClose={() => handleCloseSession(sess.id)}
                       />
                     </Suspense>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Built-in: Logs Tab with Multi-Session & Launcher */}
+            {activePanelId === 'logs' && (
+              <div className="h-full w-full bg-base flex flex-col overflow-hidden relative">
+                {/* View A: Launcher */}
+                <div
+                  className={`h-full w-full ${
+                    activeLogSessionId === 'launcher' ? 'block' : 'hidden'
+                  }`}
+                >
+                  <LogStreamLauncher
+                    hosts={sshHosts}
+                    onStartStream={(options) => {
+                      logStreamService.openStream(options);
+                    }}
+                    accentColor={accentColor}
+                  />
+                </div>
+
+                {/* View B: Active Log Stream Sessions */}
+                {logSessions.map((sess) => (
+                  <div
+                    key={sess.id}
+                    className={`h-full w-full ${
+                      activeLogSessionId === sess.id ? 'block' : 'hidden'
+                    }`}
+                  >
+                    <LogViewer
+                      entries={sess.entries}
+                      isConnected={sess.status === 'connected'}
+                      statusText={
+                        sess.status === 'connected'
+                          ? 'CONNECTED'
+                          : sess.status === 'connecting'
+                          ? 'CONNECTING'
+                          : sess.status === 'error'
+                          ? 'ERROR'
+                          : 'CLOSED'
+                      }
+                      title={sess.title}
+                      source={sess.source}
+                      onClear={() => logStreamService.clear(sess.id)}
+                      onReconnect={() => logStreamService.reconnect(sess.id)}
+                    />
                   </div>
                 ))}
               </div>

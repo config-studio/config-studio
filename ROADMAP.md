@@ -15,15 +15,17 @@
 
 ---
 
-## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.5)
+## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.6)
 
-### 🎯 Core Evolution (Спринт v2.3.5)
-- [ ] **1. Структурированный потоковый логгер (Log Streaming Service)**:
-  - [ ] Потоковый канал логов на бэкенде (Server-Sent Events / WebSocket) без ANSI-мусора PTY для надежной интеграции с `journalctl -f` и `docker compose logs -f`.
-  - [ ] Компонент Log Viewer в `@config-studio/ui` с поиском, паузой автоскролла и цветовой дифференциацией уровней (ERROR/WARN/INFO).
+### 🎯 Core Evolution & Fleet Provisioning (Спринт v2.3.6)
+- [ ] **1. Массовая установка агента (Fleet Batch Onboarding / Multi-Node Provisioning)**:
+  - [ ] Пакетная параллельная установка удаленного агента `config-studio-agent` на группу выбранных серверов флота с индикацией прогресса.
+  - [ ] Автоматическое связывание ключей Vault и валидация `/api/health` каждого развернутого агента.
 
 ### 💡 Отложенные задачи и бэклог (Backlog)
 - [ ] **Глобальный реестр горячих клавиш плагинов**: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий с клавиатуры (отложено до расширения каталога плагинов; текущее управление полностью закрывается верхним тулбаром и клавишей `F5`).
+- [ ] **Массовая раскатка конфигов (Safe Rollout Engine)**: Двухэтапная раскатка Canary-first с Diff & Approve и автоматическим rollback (отложено до масштабирования флота).
+- [ ] **Fleet CLI (Массовое исполнение сервисных команд)**: Параллельный запуск сервисных команд на группе узлов (отложено в бэклог).
 
 ---
 
@@ -40,7 +42,7 @@ graph TD
     C3["3. Smart Embedded Agent Distribution<br/>(Выпущено в v2.3.1)"]
     C4["4. Batch File Read & Discovery<br/>(Выпущено в v2.3.3)"]
     C5["5. Split-Screen Layout<br/>(Выпущено в v2.3.4)"]
-    C6["6. Log Streaming Service<br/>(SSE / WebSocket без PTY-мусора)"]
+    C6["6. Log Streaming Service<br/>(Выпущено в v2.3.5)"]
     C7["7. Fleet Worker Pool & Diff Engine<br/>('fleet.ExecBatch')"]
     C8["8. Goja Code Mode Sandbox<br/>(Безопасный JS фасад 'cs.*')"]
     
@@ -71,9 +73,11 @@ graph TD
 - [x] Плагинное API: `window.ConfigStudio.registerSplitWebview({ id, title, url, refreshOnSave?: boolean })`.
 
 ### 3. Структурированный потоковый логгер (Log Streaming Service)
-*Необходимо для: `config-studio-journal` (journalctl -f), `config-studio-docker` (compose logs -f).*
-- [ ] Потоковый канал логов на бэкенде (Server-Sent Events / WebSocket) без ANSI-мусора PTY.
-- [ ] Компонент Log Viewer в `@config-studio/ui` с поиском, паузой автоскролла и цветовой дифференциацией уровней (ERROR/WARN/INFO).
+*(Выпущено в v2.3.5)*
+- [x] Потоковый канал логов на бэкенде (Server-Sent Events) без ANSI-мусора PTY (`GET /api/logs/stream`).
+- [x] Компонент Log Viewer в `@config-studio/ui` с поиском, паузой автоскролла и цветовой дифференциацией уровней (CRIT/ERROR/WARN/INFO/DEBUG).
+- [x] Мульти-сессионная панель в `BottomDockStrip` с лаунчером быстрых пресетов (Docker, Journalctl, Syslog, Dmesg).
+- [x] Плагинное API `window.ConfigStudio.logs` (`openStream`, `closeStream`, `getSessions`, `clear`, `reconnect`).
 
 ### 4. Параллельный воркер-пул флота и Diff Engine
 *Необходимо для: `config-studio-servers` (Safe Rollout).*
@@ -95,10 +99,10 @@ graph TD
 |---|---|:---:|---|---|
 | **`config-studio-servers`** | Инфраструктура & Флот | ⚡ **Частично реализован** (v1.4.0) | Инвентарь `servers.yaml`, Universal Fleet Switcher, SSH Auto-Onboarding агента, Zero-Secret Vault, Embedded Agent Distribution (.cspkg), Массовая установка агента (Fleet Batch Onboarding / Multi-Node Provisioning). *(Отложено: Safe Rollout Diff & Approve / Canary-first, Fleet CLI).* | **Выполнено (v1.4.0):** Инвентарь, переключатель, SSH онбординг одиночного узла, стриминг бинарников агента из .cspkg, Vault, кастомные Dropdown.<br/>**В фокусе (Этап 5):** Массовая параллельная установка агентов на группу узлов (Fleet Batch Provisioning), монитор прогресса, автоподхват ключей.<br/>**Отложено в бэклог:** Массовая раскатка конфигов (Safe Rollout Engine) и Fleet CLI. |
 | **`config-studio-glance`** | Дашборды & Закладки | 📋 **Запланирован** | 1-Click Baremetal Binary Updater (`glanceapp/glance`), каталог Community Widgets, архитектура `$include`, Any-Document Bookmark Generator (`Alt+B`), 1-Click Traefik Sync, Live Split-Screen предпросмотр (:8080) с авторелоадом. | **Выполнено:** Ядро подготовило `batchRead` (v2.3.3) и Split Layout (v2.3.4).<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
-| **`config-studio-docker`** | Контейнеризация | 📋 **Запланирован** | Визуальный конструктор Compose, библиотека Blueprints (Postgres, Redis, Traefik), Pre-Save удаленная проверка (`docker compose config`), тулбар (`Up -d`, `Down`, `Pull`), SSE-стриминг логов в нижний док, дашборд статусов контейнеров/портов. | **Выполнено:** Базовый синтаксический guard YAML в ядре.<br/>**Осталось:** Полная реализация плагина и Log Streaming Service (v2.3.5) ядра. |
+| **`config-studio-docker`** | Контейнеризация | 📋 **Запланирован** | Визуальный конструктор Compose, библиотека Blueprints (Postgres, Redis, Traefik), Pre-Save удаленная проверка (`docker compose config`), тулбар (`Up -d`, `Down`, `Pull`), SSE-стриминг логов в нижний док, дашборд статусов контейнеров/портов. | **Выполнено:** Базовый синтаксический guard YAML и Log Streaming Service (v2.3.5) ядра.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-nginx`** | Веб-серверы & Прокси | 📋 **Запланирован** | Конструктор блоков `server`/`location`/`proxy_pass`, архитектурные шаблоны (SPA, WebSocket, SSL), Pre-Save удаленный синтаксический чекер `nginx -t`, 1-Click менеджер `sites-available` ➔ `sites-enabled`, монитор истечения SSL-сертификатов. | **Выполнено:** Поддержка подсветки `.conf` в ядре и SSH Headless API.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-systemd`** | Системные службы | 📋 **Запланирован** | Генератор Unit-файлов (.service, .timer, .mount) с изоляцией ресурсов, удаленная валидация `systemd-analyze verify`, контекстная автодетекция службы по открытому конфигу, кнопки тулбара (daemon-reload, restart, status), превью логов. | **Выполнено:** Поддержка синтаксиса INI/Conf и Headless SSH.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
-| **`config-studio-journal`** | Логи & Наблюдаемость | 📋 **Запланирован** | Потоковый просмотр `/var/log/*` и `journalctl -f -u <service>` в Bottom Dock без ANSI-мусора, фильтрация по severity (Emerg...Debug), PID, временным окнам, пауза автопрокрутки, полнотекстовый поиск. | **Выполнено:** Нижняя док-панель ядра (Bottom Dock Strip).<br/>**Осталось:** Потоковый сервис ядра (Log Streaming v2.3.5) и сам плагин. |
+| **`config-studio-journal`** | Логи & Наблюдаемость | 📋 **Запланирован** | Потоковый просмотр `/var/log/*` и `journalctl -f -u <service>` в Bottom Dock без ANSI-мусора, фильтрация по severity (Emerg...Debug), PID, временным окнам, пауза автопрокрутки, полнотекстовый поиск. | **Выполнено:** Нижняя док-панель ядра (Bottom Dock Strip) и Log Streaming Service (v2.3.5).<br/>**Осталось:** Реализация самого плагина (спецификация готова). |
 | **`config-studio-crontab`** | Планировщик задач | 📋 **Запланирован** | Визуальный редактор `/etc/crontab`, `/etc/cron.d/*` и пользовательских crontab, конструктор интервалов, человекочитаемый перевод расписания на русский язык, расчет 5 следующих запусков, тестовый запуск команды в песочнице. | **Выполнено:** Базовое ядро редактора и SSH-интеграция.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-wireguard`** | VPN & Безопасность | 📋 **Запланирован** | Визуальный конфигуратор `wg0.conf` (сеть, интерфейс, routing NAT), табличный менеджер пиров с автовыделением IP, локальная генерация Curve25519 ключей и QR-кодов для смартфонов, монитор рукопожатий и байт трафика. | **Выполнено:** Хранение секретов в Core Vault и Split-Screen для QR.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-singbox`** | Прокси & Маршрутизация | 📋 **Запланирован** | Редактор сложных деревьев JSON/JSON5, конструктор протоколов (VLESS Reality, Shadowsocks, Trojan, Hysteria 2), визуальная матрица правил маршрутизации по `geosite`/`geoip`, Pre-Save валидация `sing-box check`. | **Выполнено:** Поддержка JSON/JSONC в ядре и Monaco Editor.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
@@ -476,6 +480,28 @@ graph TD
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details open>
+<summary><b>📜 Детали релиза v2.3.5: Структурированный потоковый логгер (Log Streaming Service) (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
+
+- [x] **Go Core Backend (`internal/logs` & `internal/server`)**:
+  - Модель `LogEntry`: структурированная запись с полями `id`, `timestamp`, `level` (`crit`, `error`, `warn`, `info`, `debug`), `source`, `message`, `raw`, `stream`.
+  - Удаление ANSI-мусора (`StripANSI`): надежная очистка 8-bit, 24-bit SGR цветов, кодов перемещения курсора и управляющих последовательностей терминала.
+  - Автоопределение уровня важности (`DetectLevel`): анализ ключевых слов (FATAL, CRIT, ERROR, WARN, INFO, DEBUG), парсинг JSON-логов (Zap, Logrus, Zerolog, Bunyan) и фоллбек на поток `stderr`.
+  - Потоковый сервис `StreamService`: поддержка локального исполнения (`os/exec`) и удаленного исполнения через Headless SSH (`ssh.ClientManager`).
+  - Протокол Server-Sent Events (SSE): события `ready`, `log`, `ping`, `end` с немедленным флашингом буферов (`http.Flusher`) и отменой контекста процесса при отключении клиента.
+  - HTTP эндпоинты `GET /api/logs/stream` (для нативного браузерного `EventSource`) и `POST /api/logs/stream` с валидацией прав доступа и заголовком `X-ConfigStudio-Web: 1`.
+- [x] **Frontend UI & Сервисы (`web/src/components/ui/LogViewer.tsx`, `logStream.ts`, `BottomDockStrip.tsx`)**:
+  - Компонент `LogViewer`: потоковый терминал с поиском, подсветкой совпадений, выпадающим списком фильтрации по уровням (Все, CRIT, ERROR, WARN, INFO, DEBUG), счетчиком строк, заморозкой автоскролла и плавающей кнопкой возобновления, копированием очищенного текста и экспортом в `.log`.
+  - Сервис `logStreamService`: реактивная шина подписки, нативное подключение к `/api/logs/stream`, кольцевой буфер на 2000 строк (Ring Buffer) для защиты от зависания браузера, переподключение и очистка.
+  - Мульти-сессионная панель в `BottomDockStrip`: системная вкладка «Логи» рядом с Терминалом, Проблемами и Выводом с динамическими вкладками сессий (`PillTabs`), статусной индикацией и кнопками перезапуска/очистки.
+  - Лаунчер `LogStreamLauncher`: выбор хоста (локальный или SSH флот), быстрые пресеты в 1 клик (Docker Compose, Systemd Journalctl, Syslog, Dmesg) и кастомная команда с поддержкой sudo.
+- [x] **Плагинное API (`window.ConfigStudio.logs`)**:
+  - Методы `openStream(options)`, `closeStream(id)`, `getSessions()`, `clear(id)`, `reconnect(id)`, `subscribe(fn)`.
+  - Синхронизированы типы TypeScript в `config-studio-plugin-docs/types/config-studio.d.ts` (`LogEntryItem`, `OpenLogStreamOptions`, `LogStreamSession`, `LogsAPI`).
+  - Добавлена интерактивная демонстрационная секция 20 в витрину компонентов `config-studio-plugins/ui.html` с эмуляцией записей Nginx, Docker, Systemd, Redis и фильтрацией.
+
+</details>
+
+<details>
 <summary><b>🚀 Детали релиза v2.3.4: Split-Screen Workspace Layout & Live Webview (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
 
 - [x] **Перетаскиваемый разделитель (Draggable Resizer) в `@config-studio/ui`**:

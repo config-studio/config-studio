@@ -2,6 +2,7 @@ import { api, setRemoteEndpoint } from './api';
 import { sshHostService } from './sshHosts';
 import { sysinfoService, formatBytes, formatUptime } from './sysinfo';
 import { telemetry } from './telemetry';
+import { logStreamService, OpenLogStreamOptions } from './logStream';
 import { mountDropdown } from '../components/ui/vanillaDropdown';
 import {
   PluginItem,
@@ -703,6 +704,18 @@ class PluginLoader {
         captureError: (err: Error, context?: Record<string, any>) => telemetry.captureError(err, context),
         log: (action: string, details?: Record<string, any>, severity?: 'info' | 'warn' | 'critical') =>
           telemetry.record({ action, details, severity: severity as any, source: 'plugin' }),
+      },
+      logs: {
+        openStream: (opts: OpenLogStreamOptions) => {
+          const id = logStreamService.openStream(opts);
+          window.dispatchEvent(new CustomEvent('cs:open-log-stream', { detail: opts }));
+          return id;
+        },
+        closeStream: (id: string) => logStreamService.closeStream(id),
+        getSessions: () => logStreamService.getSessions(),
+        clear: (id: string) => logStreamService.clear(id),
+        reconnect: (id: string) => logStreamService.reconnect(id),
+        subscribe: (cb: (sessions: any[], activeId: string) => void) => logStreamService.subscribe(cb),
       },
     };
   }

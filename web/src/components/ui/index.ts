@@ -26,3 +26,4 @@ export * from './IconButton';
 export * from './Dropzone';
 export * from './Checkbox';
 export * from './SplitPanel';
+export * from './LogViewer';
