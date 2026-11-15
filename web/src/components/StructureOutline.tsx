@@ -370,7 +370,7 @@ export const StructureOutline: React.FC<StructureOutlineProps> = ({
           }}
           onDoubleClick={handleResetWidth}
           title={t.resizeWidthHelp}
-          className="absolute top-0 bottom-0 -left-1.5 w-3 cursor-col-resize z-30 group flex items-center justify-center select-none"
+          className="absolute top-0 bottom-0 -left-1.5 w-3 cursor-col-resize z-10 group flex items-center justify-center select-none"
         >
           <div
             className={`absolute inset-y-0 w-0.5 transition-opacity ${

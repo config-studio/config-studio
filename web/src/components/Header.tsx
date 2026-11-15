@@ -385,7 +385,7 @@ export const Header: React.FC<HeaderProps> = ({
   );
 
   return (
-    <header className="relative h-14 bg-base-surface border-b border-base-border px-3 sm:px-4 flex md:grid md:grid-cols-[1fr_auto_1fr] items-center justify-between select-none z-30">
+    <header className="relative h-14 bg-base-surface border-b border-base-border px-3 sm:px-4 flex md:grid md:grid-cols-[1fr_auto_1fr] items-center justify-between select-none z-40">
       {/* Mobile Search Overlay Bar */}
       {isMobileSearchOpen && (
         <div
