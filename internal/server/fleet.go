@@ -175,10 +175,6 @@ func (s *Server) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.hosts != nil && id != "localhost" && id != "local" {
-		_ = s.hosts.Delete(id)
-	}
-
 	if s.audit != nil {
 		_ = s.audit.Log(audit.Event{
 			User:     s.getAuditUser(r),

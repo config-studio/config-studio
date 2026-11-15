@@ -13,6 +13,7 @@ import (
 	"config-studio/internal/config"
 	"config-studio/internal/fleet"
 	appfs "config-studio/internal/fs"
+	"config-studio/internal/hosts"
 	"config-studio/internal/plugin"
 	"config-studio/internal/secrets"
 )
@@ -177,5 +178,74 @@ func TestFleetServerEndpoints(t *testing.T) {
 	}
 	if !strings.Contains(recBatchGetSSE.Body.String(), "event: done") {
 		t.Errorf("expected SSE event: done for GET, got: %s", recBatchGetSSE.Body.String())
+	}
+}
+
+func TestDeleteServer_PreservesSSHHost(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-fleet-del-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	cfgMgr, _ := config.NewManager(tmpDir)
+	wsMgr, _ := appfs.NewWorkspaceManager(tmpDir, tmpDir)
+	fsSvc, _ := appfs.NewServiceWithManager(wsMgr)
+	runner := plugin.NewRunner()
+	pMgr, _ := plugin.NewManager(tmpDir, runner)
+	auditLogger, _ := audit.NewLogger(tmpDir)
+	secMgr, _ := secrets.NewManager(tmpDir)
+	fleetMgr, _ := fleet.NewManager(tmpDir)
+
+	srv := NewServer(Config{}, cfgMgr, fsSvc, pMgr, runner, auditLogger, secMgr, fleetMgr)
+
+	// Create an SSH host in Core Hosts database
+	hostID := "host-production-vps"
+	_, err = srv.hosts.Save(&hosts.Host{
+		ID:   hostID,
+		Name: "Production VPS",
+		Host: "192.168.0.50",
+		Port: 22,
+		User: "root",
+	})
+	if err != nil {
+		t.Fatalf("failed to save SSH host: %v", err)
+	}
+
+	// Add node to fleet with same ID or linked to that host
+	err = fleetMgr.AddOrUpdateServer(fleet.ServerNode{
+		ID:         hostID,
+		Name:       "Production VPS Fleet Node",
+		SSHHostRef: hostID,
+	})
+	if err != nil {
+		t.Fatalf("failed to add server to fleet: %v", err)
+	}
+
+	// Now delete server from fleet via DELETE /api/servers/{id}
+	reqDel := httptest.NewRequest("DELETE", "/api/servers/"+hostID, nil)
+	reqDel.Header.Set("X-ConfigStudio-Web", "1")
+	recDel := httptest.NewRecorder()
+	srv.ServeHTTP(recDel, reqDel)
+	if recDel.Code != http.StatusOK {
+		t.Fatalf("expected 200 on DELETE /api/servers, got %d: %s", recDel.Code, recDel.Body.String())
+	}
+
+	// Verify server node is deleted from servers.yaml
+	raw, err := fleetMgr.GetRawYAML()
+	if err != nil {
+		t.Fatalf("failed to read raw servers.yaml: %v", err)
+	}
+	if strings.Contains(raw, hostID) {
+		t.Errorf("expected server %q to be deleted from servers.yaml, got raw: %s", hostID, raw)
+	}
+
+	// CRITICAL: Verify SSH host STILL EXISTS in Core Hosts!
+	sshHost, err := srv.hosts.Get(hostID)
+	if err != nil || sshHost == nil {
+		t.Fatalf("CRITICAL REGRESSION: SSH host was deleted from hosts.json when deleting server from fleet!")
+	}
+	if sshHost.Host != "192.168.0.50" {
+		t.Errorf("expected SSH host IP 192.168.0.50, got %s", sshHost.Host)
 	}
 }
