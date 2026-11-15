@@ -263,31 +263,38 @@ html:not(.dark) .tree-line::before {
   box-shadow: 0 0 22px var(--save-dirty-glow), inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
-/* FEAT-005: Monaco Long Hex/Base64 Folding */
-.monaco-folded-hex-middle {
+/* FEAT-005: Monaco Long Hex/Base64 Folding (Single Injected Badge & Collapsed Middle) */
+.monaco-folded-hex-hidden {
   font-size: 0px !important;
-  letter-spacing: -1px;
-  user-select: all;
+  line-height: 0 !important;
+  letter-spacing: -1px !important;
+  visibility: hidden !important;
+  display: inline-block !important;
+  width: 0px !important;
+  max-width: 0px !important;
+  overflow: hidden !important;
+  user-select: all !important;
 }
 
-.monaco-folded-hex-middle::after {
-  content: " ··· ";
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-accent, #00d2b4);
-  background: color-mix(in srgb, var(--color-accent, #00d2b4) 15%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-accent, #00d2b4) 35%, transparent);
-  padding: 0 4px;
-  border-radius: 9999px;
-  cursor: pointer;
-  display: inline-block;
-  margin: 0 2px;
-  vertical-align: middle;
-  user-select: none;
-  transition: all 0.15s ease;
+.monaco-folded-hex-badge {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+  color: var(--color-accent, #00d2b4) !important;
+  background: color-mix(in srgb, var(--color-accent, #00d2b4) 15%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--color-accent, #00d2b4) 35%, transparent) !important;
+  padding: 0 5px !important;
+  border-radius: 9999px !important;
+  cursor: pointer !important;
+  display: inline-block !important;
+  margin: 0 3px !important;
+  vertical-align: middle !important;
+  user-select: none !important;
+  line-height: 1.2 !important;
+  transition: all 0.15s ease !important;
 }
 
-.monaco-folded-hex-middle:hover::after {
-  background: color-mix(in srgb, var(--color-accent, #00d2b4) 25%, transparent);
-  border-color: color-mix(in srgb, var(--color-accent, #00d2b4) 60%, transparent);
+.monaco-folded-hex-badge:hover {
+  background: color-mix(in srgb, var(--color-accent, #00d2b4) 28%, transparent) !important;
+  border-color: color-mix(in srgb, var(--color-accent, #00d2b4) 65%, transparent) !important;
 }

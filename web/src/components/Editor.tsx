@@ -197,11 +197,16 @@ export const Editor: React.FC<EditorProps> = ({
 
     const lineCount = model.getLineCount();
     const newDecorations: any[] = [];
-    const tokenRegex = /(0x[a-fA-F0-9]{4}|[a-zA-Z0-9+/]{6})([a-zA-Z0-9+/=_-]{36,})([a-zA-Z0-9+/=_-]{2})/g;
+    const tokenRegex = /(0x[a-fA-F0-9]{4}|[a-zA-Z0-9+/]{6})([a-zA-Z0-9+/]{32,})([a-zA-Z0-9+/=]{2,4})/g;
 
     for (let line = 1; line <= lineCount; line++) {
       const lineContent = model.getLineContent(line);
-      if (lineContent.trim().startsWith('#') || lineContent.trim().startsWith('//')) {
+      if (
+        lineContent.trim().startsWith('#') ||
+        lineContent.trim().startsWith('//') ||
+        lineContent.includes('http://') ||
+        lineContent.includes('https://')
+      ) {
         continue;
       }
 
@@ -222,7 +227,11 @@ export const Editor: React.FC<EditorProps> = ({
         newDecorations.push({
           range: new monaco.Range(line, startCol, line, endCol),
           options: {
-            inlineClassName: 'monaco-folded-hex-middle',
+            inlineClassName: 'monaco-folded-hex-hidden',
+            after: {
+              content: ' ··· ',
+              inlineClassName: 'monaco-folded-hex-badge',
+            },
             hoverMessage: { value: 'FEAT-005: Длинный ключ свернут. Кликните, чтобы развернуть.' },
           },
         });
@@ -254,23 +263,36 @@ export const Editor: React.FC<EditorProps> = ({
 
     // FEAT-005: Toggle folded hex tokens on click
     editor.onMouseDown((e: any) => {
-      const pos = e.target?.position;
-      if (!pos) return;
+      const target = e.target;
+      const targetElement = target?.element;
+      const isBadgeClick = Boolean(
+        targetElement && (
+          targetElement.classList?.contains('monaco-folded-hex-badge') ||
+          targetElement.closest?.('.monaco-folded-hex-badge')
+        )
+      );
+
+      const pos = target?.position;
+      if (!pos && !isBadgeClick) return;
+
+      const lineNumber = pos ? pos.lineNumber : target?.range?.startLineNumber;
+      if (!lineNumber) return;
 
       const model = editor.getModel();
       if (!model) return;
 
-      const lineContent = model.getLineContent(pos.lineNumber);
-      const tokenRegex = /(0x[a-fA-F0-9]{4}|[a-zA-Z0-9+/]{6})([a-zA-Z0-9+/=_-]{36,})([a-zA-Z0-9+/=_-]{2})/g;
+      const lineContent = model.getLineContent(lineNumber);
+      if (lineContent.includes('http://') || lineContent.includes('https://')) return;
+
+      const tokenRegex = /(0x[a-fA-F0-9]{4}|[a-zA-Z0-9+/]{6})([a-zA-Z0-9+/]{32,})([a-zA-Z0-9+/=]{2,4})/g;
       let match: RegExpExecArray | null;
       while ((match = tokenRegex.exec(lineContent)) !== null) {
-        const prefix = match[1];
-        const middle = match[2];
-        const startCol = match.index + 1 + prefix.length;
-        const endCol = startCol + middle.length;
+        const fullToken = match[0];
+        const tokenStartCol = match.index + 1;
+        const tokenEndCol = tokenStartCol + fullToken.length;
 
-        if (pos.column >= startCol && pos.column <= endCol) {
-          const keyId = `${pos.lineNumber}:${match.index}`;
+        if (isBadgeClick || (pos && pos.column >= tokenStartCol && pos.column <= tokenEndCol)) {
+          const keyId = `${lineNumber}:${match.index}`;
           if (expandedKeysRef.current.has(keyId)) {
             expandedKeysRef.current.delete(keyId);
           } else {
