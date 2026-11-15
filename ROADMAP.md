@@ -106,7 +106,7 @@ graph TD
 | **`config-studio-mcp`** | AI & Автоматизация | 📋 **Запланирован** | Официальный сервер Model Context Protocol для Claude/Cursor/Antigravity, стандартные инструменты (`read_config`, `validate_structure`, `diff_config`, `deploy_remote`), Human-in-the-loop Approve Guard, Code Mode песочница Goja (`cs.*`). | **Выполнено:** Архитектурная спецификация Goja в Core Evolution.<br/>**Осталось:** Пакет ядра `internal/sandbox` и сам MCP-плагин. |
 | **`config-studio-explorer-plus`** | Файловый менеджер | 📋 **Запланирован** | Продвинутый буфер обмена (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`), дублирование файлов в 1 клик, создание быстрых снимков `.bak` перед правками, множественный выбор файлов (Multi-select), расширение контекстного меню. | **Выполнено:** Нативное контекстное меню SFTP и Time Machine в ядре.<br/>**Осталось:** Реализация плагинного расширения файлового дерева. |
 | **`config-studio-traefik`** | Reverse Proxy | 🚀 **Выпущен** (v1.0.0, v1.1.0, v1.1.2) | Многофайловый провайдер `/etc/traefik/rules/` (`mw-*.yml` + `ser-*.yml`), автокомплит, Go to Definition с импульсной подсветкой, Матрица правил, Linter коллизий, Мастер сервисов, Каталог Blueprints (7 рецептов), Traefik Doctor, пакетный опрос `batchRead`. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Репозиторий изолирован, пакет `traefik-1.1.2.cspkg` опубликован на GitHub Releases и в каталоге `registry.json`. |
-| **`config-studio-web-devkit`** | Веб-разработка | 🚀 **Выпущен** (v1.0.0, v1.3.3) | Live Preview HTML/PHP, локальный веб-сервер, Monaco сниппеты, отображение `<head>`, переход в браузер, интеграция в дизайн-систему Core UI v2. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Пакет `web-devkit-1.3.3.cspkg` опубликован на GitHub Releases и интегрирован со Split API. |
+| **`config-studio-web-devkit`** | Веб-разработка | ⚡ **Частично реализован** (v1.3.3) | Live Preview HTML/PHP, Chrome Browser Bar, ресайзер устройств, сервер :8085, AST Outline; Словари HTML5 (110+ тегов, атрибуты), словари PHP (функции, суперглобалы `$_GET`, `$_POST`, `$_SERVER`), Auto-Closing Tags (`<...></...>`, `;`), DOM-валидация парности тегов, библиотека веб-шаблонов Blueprints. | **Выполнено (v1.3.3):** Live Preview с Split Layout, Chrome Bar, сервер :8085, базовые сниппеты, AST Outline.<br/>**Осталось (v1.4.0):** Полные словари HTML5/PHP, автозакрытие тегов `<...></...>`, автодополнение `;`, DOM-валидация разметки, библиотека Blueprints. |
 | **`config-studio-sysinfo`** | Телеметрия | 🚀 **Выпущен** (v1.2.0) | Сбор метрик CPU/RAM/диска/сети, REST API `/api/sysinfo`, стриминг системной информации, анимированные графики в карточках серверов. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Вынесен в автономный модуль телеметрии ядра и UI-индикаторы. |
 | **`config-studio-terminal`** | Веб-терминал | 🚀 **Выпущен** (v1.1.0) | Полноценный эмулятор xterm.js в нижнем доке, мультисессии, бинарный WebSocket PTY мост, SSH авто-сессии, интеграция с инвентарем. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Интегрирован непосредственно в нижний док ядра `BottomDockStrip`. |
 | **`config-studio-vault`** | Безопасность | 🛡️ **Поглощен ядром** (v1.9.0) | Хранение паролей, SSH-ключей, токенов и сертификатов с AES-256-GCM шифрованием и мастер-паролем. | **Поглощен ядром.** Реализован как фундаментальный сервис Core Secrets Store & Vault API. |
@@ -118,7 +118,7 @@ graph TD
 
 ## 📜 ПОЛНЫЕ СПЕЦИФИКАЦИИ ПЛАНИРУЕМЫХ И ЧАСТИЧНО РЕАЛИЗОВАННЫХ ПЛАГИНОВ
 
-Ниже зафиксированы детальные архитектурные и функциональные спецификации для всех 12 плагинов, находящихся в стадии разработки или планирования:
+Ниже зафиксированы детальные архитектурные и функциональные спецификации для всех 13 плагинов, находящихся в стадии разработки или планирования:
 
 ---
 
@@ -420,6 +420,43 @@ graph TD
   - [ ] Выделение группы файлов через `Shift` / `Ctrl` для массового копирования, перемещения или удаления.
 - [ ] **Расширение контекстного меню проводника**:
   - [ ] Интеграция со слотом Context Menu Provider: вызов внешних плагинных действий (например, «Compose Up» для `docker-compose.yml`, «Nginx Test» для `nginx.conf`).
+
+---
+
+### 13. `config-studio-web-devkit` (Web DevKit & Live Environment — Этап v1.4.0)
+*Полноценная среда веб-верстки и PHP-разработки: словари тегов, автозакрытие парных тегов, DOM-валидация и веб-шаблоны.*
+
+- **Текущее состояние:** Выпущены версии v1.0.0 — v1.3.3 (Live Preview в iframe со Split API v2.3.4, имитация панели Chrome Browser, выбор устройств Desktop 1280px / Tablet 768px / Mobile 375px, запуск встроенного сервера `php -S` / `python -m http.server` на порту 8085, базовый AST Outline для HTML и PHP, стартовые кнопки index.html / index.php в Launchpad, 7 простейших сниппетов).
+- **Файловые ассоциации (`fileMatches`):** `[".html", ".htm", ".xhtml", ".php", ".phtml", ".svg", ".vue", ".css", ".js"]`.
+- **Требуемые разрешения ядра (`permissions`):** `ui.splitWebview`, `ui.panels`, `ui.toolbar`, `ui.contextMenu`, `terminal.exec`, `network.bind`.
+
+#### Полная функциональная спецификация Этапа v1.4.0:
+- [ ] **Словари тегов и атрибутов HTML5 (HTML5 Dictionaries & Completions)**:
+  - [ ] Полный словарь всех стандартных 110+ тегов HTML5 с описанием и сниппетами: структурные (`header`, `nav`, `main`, `footer`, `section`, `article`, `aside`), медиа (`video`, `audio`, `picture`, `source`, `canvas`, `figure`, `figcaption`), формы (`form`, `input`, `textarea`, `select`, `option`, `button`, `label`, `fieldset`, `legend`), интерактивные (`details`, `summary`, `dialog`, `template`, `slot`), таблицы (`table`, `thead`, `tbody`, `tfoot`, `tr`, `th`, `td`).
+  - [ ] Контекстный словарь HTML-атрибутов: общие (`id`, `class`, `style`, `title`, `hidden`, `tabindex`), атрибуты форм (`action`, `method`, `type`, `name`, `value`, `placeholder`, `required`, `disabled`, `readonly`, `pattern`), ссылки и медиа (`href`, `target`, `rel`, `src`, `alt`, `loading="lazy"`), доступность (`aria-*`, `role`).
+- [ ] **Словари функций и суперглобалов PHP (PHP Dictionaries & IntelliSense)**:
+  - [ ] Справочник и автодополнение всех суперглобальных массивов PHP с документацией: `$_GET`, `$_POST`, `$_SERVER`, `$_SESSION`, `$_COOKIE`, `$_FILES`, `$_ENV`, `$_REQUEST`, `$GLOBALS`.
+  - [ ] Словарь ключевых встроенных функций PHP по категориям:
+    - Строковые: `strlen`, `str_contains`, `str_starts_with`, `str_ends_with`, `substr`, `trim`, `explode`, `implode`, `str_replace`, `sprintf`.
+    - Массивы: `count`, `in_array`, `array_key_exists`, `array_map`, `array_filter`, `array_merge`, `array_push`, `array_column`.
+    - JSON & HTTP: `json_encode`, `json_decode`, `header`, `http_response_code`, `setcookie`.
+    - Дата & Время: `date`, `time`, `strtotime`, `DateTimeImmutable`.
+    - Базы данных & PDO: `new PDO(...)`, `prepare`, `execute`, `fetch`, `fetchAll`.
+- [ ] **Автоматическое закрытие тегов и пунктуации (Auto-Closing Tags & Auto-Close Pairs)**:
+  - [ ] Реализация Auto Closing Tags для HTML/PHP в Monaco Editor: при вводе завершающего символа `>` открывающего не-void тега (например, `<div>`, `<section>`, `<span>`) автоматически подставляется парный закрывающий тег `</div>` с установкой курсора между тегами.
+  - [ ] Умное закрытие: игнорирование void-элементов HTML5 (`<br>`, `<hr>`, `<img>`, `<input>`, `<meta>`, `<link>`), в которых закрывающий тег недопустим.
+  - [ ] Автодополнение парных символов и кавычек: автозакрытие `<?php ... ?>`, кавычек в атрибутах `class=""` и автоподстановка завершающей точки с запятой `;` при переходе на новую строку в PHP.
+- [ ] **DOM-валидация структуры разметки (HTML DOM Structure Linter)**:
+  - [ ] Интеллектуальный анализатор парности тегов на клиенте без внешних тяжелых зависимостей.
+  - [ ] Обнаружение незакрытых блочных тегов (например, открыт `<div class="container">`, но файл закончился без `</div>`).
+  - [ ] Обнаружение некорректного пересечения тегов (Invalid Tag Nesting: `<b><i>text</b></i>`).
+  - [ ] Вывод диагностических маркеров ошибок в Monaco Editor (подчеркивание проблемных мест волнистой линией с подсказкой и номером строки).
+- [ ] **Каталог веб-шаблонов (Web Blueprints Library)**:
+  - [ ] Расширение Launchpad и меню New File готовыми рецептами:
+    - Landing Page: чистый современный лендинг на Tailwind CDN.
+    - Auth Screen: форма входа / регистрации с валидацией.
+    - Dashboard Layout: боковое меню, хедер и адаптивная сетка карточек.
+    - PHP REST API Endpoint: контроллер обработки JSON-запросов с CORS, заголовками и ответом `200 OK`.
 
 ---
 
