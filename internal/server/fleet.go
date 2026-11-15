@@ -331,3 +331,107 @@ func (s *Server) handleInstallAgent(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, res)
 }
 
+// handleBatchInstallAgents provisions agents on multiple servers concurrently with optional SSE streaming.
+func (s *Server) handleBatchInstallAgents(w http.ResponseWriter, r *http.Request) {
+	if s.fleet == nil {
+		jsonError(w, http.StatusInternalServerError, "fleet manager not initialized")
+		return
+	}
+
+	var opts fleet.BatchInstallOptions
+	if r.Method == http.MethodGet {
+		if idsStr := r.URL.Query().Get("ids"); idsStr != "" {
+			opts.ServerIDs = strings.Split(idsStr, ",")
+		}
+		if cStr := r.URL.Query().Get("concurrency"); cStr != "" {
+			_, _ = fmt.Sscanf(cStr, "%d", &opts.Concurrency)
+		}
+		if sStr := r.URL.Query().Get("skipHealthy"); sStr == "true" || sStr == "1" {
+			opts.SkipHealthy = true
+		}
+		if pStr := r.URL.Query().Get("port"); pStr != "" {
+			_, _ = fmt.Sscanf(pStr, "%d", &opts.Options.Port)
+		}
+		if sudoStr := r.URL.Query().Get("useSudo"); sudoStr == "true" || sudoStr == "1" {
+			opts.Options.UseSudo = true
+		}
+		opts.Options.ServiceType = r.URL.Query().Get("serviceType")
+	} else if r.Body != nil && r.ContentLength > 0 {
+		_ = json.NewDecoder(r.Body).Decode(&opts)
+	}
+
+	isSSE := r.Method == http.MethodGet || r.Header.Get("Accept") == "text/event-stream" || r.URL.Query().Get("stream") == "true"
+	if isSSE {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no")
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			jsonError(w, http.StatusInternalServerError, "Streaming unsupported")
+			return
+		}
+
+		flusher.Flush()
+
+		sendEvent := func(eventType string, data any) {
+			bytesData, _ := json.Marshal(data)
+			_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventType, bytesData)
+			flusher.Flush()
+		}
+
+		res, err := s.fleet.BatchInstallAgents(r.Context(), opts, s.ssh, s.secrets, func(st fleet.BatchHostStatus) {
+			sendEvent("progress", st)
+		})
+
+		if err != nil {
+			sendEvent("error", map[string]string{"error": err.Error()})
+		} else {
+			sendEvent("done", res)
+		}
+
+		if s.audit != nil {
+			_ = s.audit.Log(audit.Event{
+				User:     s.getAuditUser(r),
+				IP:       r.RemoteAddr,
+				Action:   "fleet.agent.batch_install",
+				Severity: audit.SeverityInfo,
+				Target:   "fleet",
+				Details: map[string]any{
+					"total":   res.Total,
+					"success": res.Success,
+					"failed":  res.Failed,
+					"skipped": res.Skipped,
+				},
+			})
+		}
+		return
+	}
+
+	res, err := s.fleet.BatchInstallAgents(r.Context(), opts, s.ssh, s.secrets, nil)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, map[string]any{"error": err.Error(), "result": res})
+		return
+	}
+
+	if s.audit != nil {
+		_ = s.audit.Log(audit.Event{
+			User:     s.getAuditUser(r),
+			IP:       r.RemoteAddr,
+			Action:   "fleet.agent.batch_install",
+			Severity: audit.SeverityInfo,
+			Target:   "fleet",
+			Details: map[string]any{
+				"total":   res.Total,
+				"success": res.Success,
+				"failed":  res.Failed,
+				"skipped": res.Skipped,
+			},
+		})
+	}
+
+	jsonResponse(w, http.StatusOK, res)
+}
+
+

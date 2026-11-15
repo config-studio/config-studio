@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"config-studio/internal/audit"
@@ -133,5 +134,48 @@ func TestFleetServerEndpoints(t *testing.T) {
 	srv.ServeHTTP(recInstall, reqInstall)
 	if recInstall.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500 when installing agent on localhost, got %d", recInstall.Code)
+	}
+
+	// 8. POST /api/servers/batch-install (Empty targets test)
+	reqBatch := httptest.NewRequest("POST", "/api/servers/batch-install", bytes.NewReader([]byte(`{"serverIds":[]}`)))
+	reqBatch.Header.Set("Content-Type", "application/json")
+	reqBatch.Header.Set("X-ConfigStudio-Web", "1")
+	recBatch := httptest.NewRecorder()
+	srv.ServeHTTP(recBatch, reqBatch)
+	if recBatch.Code != http.StatusOK {
+		t.Fatalf("expected 200 for empty batch install, got %d: %s", recBatch.Code, recBatch.Body.String())
+	}
+	var batchRes fleet.BatchInstallResult
+	if err := json.Unmarshal(recBatch.Body.Bytes(), &batchRes); err != nil {
+		t.Fatalf("failed to decode batch install result: %v", err)
+	}
+	if batchRes.Total != 0 {
+		t.Errorf("expected 0 total, got %d", batchRes.Total)
+	}
+
+	// 9. POST /api/servers/batch-install with SSE stream
+	reqBatchSSE := httptest.NewRequest("POST", "/api/servers/batch-install?stream=true", bytes.NewReader([]byte(`{"serverIds":[]}`)))
+	reqBatchSSE.Header.Set("Content-Type", "application/json")
+	reqBatchSSE.Header.Set("Accept", "text/event-stream")
+	reqBatchSSE.Header.Set("X-ConfigStudio-Web", "1")
+	recBatchSSE := httptest.NewRecorder()
+	srv.ServeHTTP(recBatchSSE, reqBatchSSE)
+	if recBatchSSE.Code != http.StatusOK {
+		t.Fatalf("expected 200 for SSE batch install, got %d", recBatchSSE.Code)
+	}
+	if !strings.Contains(recBatchSSE.Body.String(), "event: done") {
+		t.Errorf("expected SSE event: done, got: %s", recBatchSSE.Body.String())
+	}
+
+	// 10. GET /api/servers/batch-install/stream with query params
+	reqBatchGetSSE := httptest.NewRequest("GET", "/api/servers/batch-install/stream?ids=none&skipHealthy=true", nil)
+	reqBatchGetSSE.Header.Set("X-ConfigStudio-Web", "1")
+	recBatchGetSSE := httptest.NewRecorder()
+	srv.ServeHTTP(recBatchGetSSE, reqBatchGetSSE)
+	if recBatchGetSSE.Code != http.StatusOK {
+		t.Fatalf("expected 200 for GET SSE batch install, got %d", recBatchGetSSE.Code)
+	}
+	if !strings.Contains(recBatchGetSSE.Body.String(), "event: done") {
+		t.Errorf("expected SSE event: done for GET, got: %s", recBatchGetSSE.Body.String())
 	}
 }

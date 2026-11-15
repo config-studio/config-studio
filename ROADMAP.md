@@ -15,17 +15,19 @@
 
 ---
 
-## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.6)
+## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.7)
 
-### 🎯 Core Evolution & Fleet Provisioning (Спринт v2.3.6)
-- [ ] **1. Массовая установка агента (Fleet Batch Onboarding / Multi-Node Provisioning)**:
-  - [ ] Пакетная параллельная установка удаленного агента `config-studio-agent` на группу выбранных серверов флота с индикацией прогресса.
-  - [ ] Автоматическое связывание ключей Vault и валидация `/api/health` каждого развернутого агента.
+### 🎯 Core Evolution & AI Sandboxing (Спринт v2.3.7)
+- [ ] **1. Эфемерная песочница Goja (Code Mode Sandbox)**:
+  - [ ] Встраивание `github.com/dop251/goja` в пакет `internal/sandbox` с нулевым потреблением heap в покое.
+  - [ ] Безопасный фасад ядра `cs.*` (`cs.servers`, `cs.ssh`, `cs.fs`, `cs.vault`) с лимитом времени выполнения (10s) и глубины стека вызовов.
+  - [ ] REST API `POST /api/sandbox/eval` с изоляцией контекста для плагина `config-studio-mcp`.
 
 ### 💡 Отложенные задачи и бэклог (Backlog)
 - [ ] **Глобальный реестр горячих клавиш плагинов**: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий с клавиатуры (отложено до расширения каталога плагинов; текущее управление полностью закрывается верхним тулбаром и клавишей `F5`).
 - [ ] **Массовая раскатка конфигов (Safe Rollout Engine)**: Двухэтапная раскатка Canary-first с Diff & Approve и автоматическим rollback (отложено до масштабирования флота).
 - [ ] **Fleet CLI (Массовое исполнение сервисных команд)**: Параллельный запуск сервисных команд на группе узлов (отложено в бэклог).
+- [ ] **Diff Engine (`POST /api/fs/diff`)**: Визуальное сравнение файлов перед раскаткой (отложено вместе с Safe Rollout).
 
 ---
 
@@ -43,7 +45,7 @@ graph TD
     C4["4. Batch File Read & Discovery<br/>(Выпущено в v2.3.3)"]
     C5["5. Split-Screen Layout<br/>(Выпущено в v2.3.4)"]
     C6["6. Log Streaming Service<br/>(Выпущено в v2.3.5)"]
-    C7["7. Fleet Worker Pool & Diff Engine<br/>('fleet.ExecBatch')"]
+    C7["7. Fleet Batch Provisioning Engine<br/>(Выпущено в v2.3.6)"]
     C8["8. Goja Code Mode Sandbox<br/>(Безопасный JS фасад 'cs.*')"]
     
     Core --> C1
@@ -79,10 +81,13 @@ graph TD
 - [x] Мульти-сессионная панель в `BottomDockStrip` с лаунчером быстрых пресетов (Docker, Journalctl, Syslog, Dmesg).
 - [x] Плагинное API `window.ConfigStudio.logs` (`openStream`, `closeStream`, `getSessions`, `clear`, `reconnect`).
 
-### 4. Параллельный воркер-пул флота и Diff Engine
-*Необходимо для: `config-studio-servers` (Safe Rollout).*
-- [ ] Воркер-пул параллельного исполнения `fleet.ExecBatch(hostIds, cmd, concurrencyLimit)` в пакете `internal/fleet`.
-- [ ] Универсальный эндпоинт `POST /api/fs/diff` для предпросмотра различий Diff & Approve между локальным файлом и файлом на сервере.
+### 4. Воркер-пул флота и массовое развертывание агентов (Fleet Batch Provisioning)
+*(Выпущено в v2.3.6)*
+- [x] Серверный воркер-пул `BatchInstallAgents(ctx, opts, sshMgr, secMgr, onProgress)` с параллелизмом до 10 потоков.
+- [x] Эндпоинты `POST /api/servers/batch-install` и потоковый `GET /api/servers/batch-install/stream` с SSE-прогрессом.
+- [x] Автоматическая генерация уникальных TOTP-секретов для каждого узла с сохранением в Core Vault (`agent:<srvID>`).
+- [x] Пропуск узлов с уже активным агентом (`skipHealthy`), поддержка sudo, автоопределение systemd/OpenRC.
+- [x] Модальный интерфейс `openBatchInstallModal` в плагине `config-studio-servers v1.5.0` с прогресс-баром и журналами по каждому серверу.
 
 ### 5. Эфемерная песочница Goja (Code Mode Sandbox)
 *Необходимо для: `config-studio-mcp & Code Mode Engine`.*
@@ -97,7 +102,7 @@ graph TD
 
 | Плагин / Репозиторий | Категория | Статус | Запланированный функционал | Выполненный объем vs Бэклог |
 |---|---|:---:|---|---|
-| **`config-studio-servers`** | Инфраструктура & Флот | ⚡ **Частично реализован** (v1.4.0) | Инвентарь `servers.yaml`, Universal Fleet Switcher, SSH Auto-Onboarding агента, Zero-Secret Vault, Embedded Agent Distribution (.cspkg), Массовая установка агента (Fleet Batch Onboarding / Multi-Node Provisioning). *(Отложено: Safe Rollout Diff & Approve / Canary-first, Fleet CLI).* | **Выполнено (v1.4.0):** Инвентарь, переключатель, SSH онбординг одиночного узла, стриминг бинарников агента из .cspkg, Vault, кастомные Dropdown.<br/>**В фокусе (Этап 5):** Массовая параллельная установка агентов на группу узлов (Fleet Batch Provisioning), монитор прогресса, автоподхват ключей.<br/>**Отложено в бэклог:** Массовая раскатка конфигов (Safe Rollout Engine) и Fleet CLI. |
+| **`config-studio-servers`** | Инфраструктура & Флот | ⚡ **Частично реализован** (v1.5.0) | Инвентарь `servers.yaml`, Universal Fleet Switcher, SSH Auto-Onboarding агента, Zero-Secret Vault, Embedded Agent Distribution (.cspkg), Массовая параллельная установка агента (Fleet Batch Provisioning). *(Отложено: Safe Rollout Diff & Approve / Canary-first, Fleet CLI).* | **Выполнено (v1.5.0):** Инвентарь, переключатель, SSH онбординг одиночного узла, стриминг бинарников агента из .cspkg, Vault, кастомные Dropdown, Массовая параллельная установка агентов (Batch Provisioning Engine) с SSE-прогрессом.<br/>**Отложено в бэклог:** Массовая раскатка конфигов (Safe Rollout Engine) и Fleet CLI. |
 | **`config-studio-glance`** | Дашборды & Закладки | 📋 **Запланирован** | 1-Click Baremetal Binary Updater (`glanceapp/glance`), каталог Community Widgets, архитектура `$include`, Any-Document Bookmark Generator (`Alt+B`), 1-Click Traefik Sync, Live Split-Screen предпросмотр (:8080) с авторелоадом. | **Выполнено:** Ядро подготовило `batchRead` (v2.3.3) и Split Layout (v2.3.4).<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-docker`** | Контейнеризация | 📋 **Запланирован** | Визуальный конструктор Compose, библиотека Blueprints (Postgres, Redis, Traefik), Pre-Save удаленная проверка (`docker compose config`), тулбар (`Up -d`, `Down`, `Pull`), SSE-стриминг логов в нижний док, дашборд статусов контейнеров/портов. | **Выполнено:** Базовый синтаксический guard YAML и Log Streaming Service (v2.3.5) ядра.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-nginx`** | Веб-серверы & Прокси | 📋 **Запланирован** | Конструктор блоков `server`/`location`/`proxy_pass`, архитектурные шаблоны (SPA, WebSocket, SSL), Pre-Save удаленный синтаксический чекер `nginx -t`, 1-Click менеджер `sites-available` ➔ `sites-enabled`, монитор истечения SSL-сертификатов. | **Выполнено:** Поддержка подсветки `.conf` в ядре и SSH Headless API.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
@@ -480,6 +485,30 @@ graph TD
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details open>
+<summary><b>⚡ Детали релиза v2.3.6: Fleet Batch Provisioning Engine & Servers v1.5.0 (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
+
+- [x] **Go Core Backend (`internal/fleet` & `internal/server`)**:
+  - Реализован параллельный воркер-пул `BatchInstallAgents(ctx, opts, sshMgr, secMgr, onProgress)` с настраиваемым лимитом параллелизма (по умолчанию 4 потока, от 1 до 10).
+  - Эндпоинты `POST /api/servers/batch-install` и потоковый `GET /api/servers/batch-install/stream` с поддержкой передачи параметров через JSON или query string.
+  - Полноценная поддержка Server-Sent Events (SSE): события `progress` с шагами развертывания (`pending`, `connecting`, `installing`, `success`, `skipped`, `error`) и событие завершения `done` со сводкой.
+  - Умный пропуск узлов с уже работающим агентом (`skipHealthy: true`) через валидацию `/api/health`.
+  - Автоматическая изоляция localhost (защита от удаленной установки на локальный узел).
+  - Автоматическая генерация уникальных TOTP-ключей и сохранение учетных записей агентов в Core Vault (`agent:<srvID>`).
+  - Комплексное покрытие модульными и интеграционными тестами (`TestBatchInstallAgents_ValidationAndSkipping`, `TestFleetServerEndpoints`).
+- [x] **Плагин `config-studio-servers v1.5.0`**:
+  - Реализовано модальное окно массового онбординга `openBatchInstallModal`:
+    - Выбор целевых серверов флота с быстрыми фильтрами («Только без агента», «Все», «Снять»).
+    - Настройки порта агента, числа потоков параллелизма, типа службы (auto, systemd, openrc, none) и флагов sudo / пропуска активных узлов.
+    - Живой анимированный прогресс-бар (`completed / total * 100%`) со счетчиками успешных, пропущенных и ошибочных установок.
+    - Детальные карточки узлов со статусными бейджами и раскрываемыми аккордеонами логов установки для каждого сервера.
+    - Автоматическая актуализация инвентаря `loadServers()` по завершении массовой раскатки.
+  - Добавлены кнопки быстрого вызова «Массовая установка» в шапку сайдбара и футер выпадающего списка флота.
+  - Метод `openBatchInstall(ids)` зарегистрирован в Inter-Plugin Service `fleet-manager`.
+  - Скомпилирован и проверен бинарный пакет `servers.cspkg` v1.5.0 (SHA-256).
+
+</details>
+
+<details>
 <summary><b>📜 Детали релиза v2.3.5: Структурированный потоковый логгер (Log Streaming Service) (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
 
 - [x] **Go Core Backend (`internal/logs` & `internal/server`)**:

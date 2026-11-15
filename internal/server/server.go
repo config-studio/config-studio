@@ -233,6 +233,8 @@ func (s *Server) setupRoutes() {
 	mux.HandleFunc("PUT /api/servers/raw", s.handleSetRawServersYAML)
 	mux.HandleFunc("POST /api/servers/ping/{id}", s.handlePingServer)
 	mux.HandleFunc("POST /api/servers/install-agent/{id}", s.handleInstallAgent)
+	mux.HandleFunc("GET /api/servers/batch-install/stream", s.handleBatchInstallAgents)
+	mux.HandleFunc("POST /api/servers/batch-install", s.handleBatchInstallAgents)
 	mux.HandleFunc("GET /api/servers/{id}/sysinfo", s.handleServerSysInfo)
 
 	// Core Host Inventory & OpenSSH Interoperability
