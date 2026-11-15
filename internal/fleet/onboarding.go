@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base32"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"config-studio/internal/cspkg"
 	"config-studio/internal/secrets"
 	"config-studio/internal/ssh"
 	"github.com/pkg/sftp"
@@ -132,15 +132,16 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 		archSlug = "amd64"
 	}
 
-	// 4. Locate local agent binary
+	// 4. Resolve agent binary stream (from servers.cspkg or local disk)
 	binaryName := fmt.Sprintf("config-studio-agent-linux-%s", archSlug)
-	localBinPath, err := findLocalAgentBinary(m.dataDir, opts.AgentsDir, binaryName)
+	binReader, binSize, binSource, err := getAgentBinaryStream(m.dataDir, opts.AgentsDir, binaryName)
 	if err != nil {
 		addLog("Не найден бинарник агента %s: %v", binaryName, err)
 		result.Error = err.Error()
 		return result, err
 	}
-	addLog("Найден бинарник для отправки: %s", filepath.Base(localBinPath))
+	defer binReader.Close()
+	addLog("Найден бинарник для отправки: %s (%d КБ)", binSource, binSize/1024)
 
 	// 5. Detect Init System (systemd or openrc)
 	serviceType := opts.ServiceType
@@ -181,8 +182,8 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 		addLog("Секрет авторизации сгенерирован и безопасно сохранен в Core Vault (ID: %s)", vaultSecretID)
 	}
 
-	// 7. Upload binary via SFTP to /tmp/config-studio-agent
-	sftpClient, err := sftp.NewClient(client)
+	// 7. Initialize SFTP client with concurrent write acceleration
+	sftpClient, err := sftp.NewClient(client, sftp.UseConcurrentWrites(true))
 	if err != nil {
 		addLog("Ошибка инициализации SFTP: %v", err)
 		result.Error = err.Error()
@@ -190,31 +191,6 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	}
 	defer sftpClient.Close()
 
-	binData, err := os.ReadFile(localBinPath)
-	if err != nil {
-		addLog("Ошибка чтения локального бинарника: %v", err)
-		result.Error = err.Error()
-		return result, err
-	}
-
-	remoteTmpBin := "/tmp/config-studio-agent"
-	addLog("Загрузка бинарника (%d КБ) на сервер по SFTP в %s...", len(binData)/1024, remoteTmpBin)
-	dstFile, err := sftpClient.Create(remoteTmpBin)
-	if err != nil {
-		addLog("Ошибка создания временного файла на сервере: %v", err)
-		result.Error = err.Error()
-		return result, err
-	}
-	if _, err := io.Copy(dstFile, bytes.NewReader(binData)); err != nil {
-		_ = dstFile.Close()
-		addLog("Ошибка передачи данных бинарника: %v", err)
-		result.Error = err.Error()
-		return result, err
-	}
-	_ = dstFile.Close()
-	_ = sftpClient.Chmod(remoteTmpBin, 0755)
-
-	// 8. Stop old agent instances and safely place new binary
 	sudoPrefix := ""
 	if opts.UseSudo && !strings.EqualFold(sshCfg.User, "root") {
 		sudoPrefix = "sudo "
@@ -223,22 +199,83 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	targetBinPath := "/usr/local/bin/config-studio-agent"
 	targetCfgDir := "/etc/config-studio"
 	if !opts.UseSudo && !strings.EqualFold(sshCfg.User, "root") {
-		targetBinPath = "$HOME/.config-studio/bin/config-studio-agent"
-		targetCfgDir = "$HOME/.config-studio"
+		homeDir, _ := runRemoteCmd(client, "echo $HOME")
+		if homeDir == "" {
+			homeDir = "~"
+		}
+		targetBinPath = fmt.Sprintf("%s/.config-studio/bin/config-studio-agent", homeDir)
+		targetCfgDir = fmt.Sprintf("%s/.config-studio", homeDir)
 	}
 
-	addLog("Остановка предыдущих процессов агента (если были)...")
-	_, _ = runRemoteCmd(client, fmt.Sprintf("%ssystemctl stop config-studio-agent 2>/dev/null || %src-service config-studio-agent stop 2>/dev/null || %spkill -9 -f config-studio-agent 2>/dev/null || true", sudoPrefix, sudoPrefix, sudoPrefix))
+	targetDir := filepath.Dir(targetBinPath)
+	_, _ = runRemoteCmd(client, fmt.Sprintf("%smkdir -p %s %s", sudoPrefix, targetDir, targetCfgDir))
 
-	addLog("Создание резервной копии и установка бинарника в %s...", targetBinPath)
-	_, _ = runRemoteCmd(client, fmt.Sprintf("%smkdir -p $(dirname %s) %s", sudoPrefix, targetBinPath, targetCfgDir))
-	_, _ = runRemoteCmd(client, fmt.Sprintf("%scp -f %s %s.bak 2>/dev/null || true", sudoPrefix, targetBinPath, targetBinPath))
-	// install unlinks existing target inode so running processes don't trigger ETXTBSY (Text file busy)
-	_, err = runRemoteCmd(client, fmt.Sprintf("%sinstall -m 755 %s %s 2>/dev/null || (%scp -f %s %s && %schmod 755 %s)", sudoPrefix, remoteTmpBin, targetBinPath, sudoPrefix, remoteTmpBin, targetBinPath, sudoPrefix, targetBinPath))
+	// 8. Stream binary directly into target directory (.tmp) to guarantee same filesystem (avoids EXDEV)
+	tmpBin := targetBinPath + ".tmp"
+	bakBin := targetBinPath + ".bak"
+
+	addLog("Потоковая передача бинарника по SFTP в %s...", tmpBin)
+	dstFile, err := sftpClient.Create(tmpBin)
 	if err != nil {
-		addLog("Предупреждение/ошибка при копировании бинарника: %v", err)
+		// Fallback if targetDir is write-restricted for non-root: stream to /tmp and move via sudo
+		fallbackTmp := "/tmp/config-studio-agent.tmp"
+		dstFile, err = sftpClient.Create(fallbackTmp)
+		if err != nil {
+			addLog("Ошибка создания временного файла на сервере: %v", err)
+			result.Error = err.Error()
+			return result, err
+		}
+		if _, err := io.Copy(dstFile, binReader); err != nil {
+			_ = dstFile.Close()
+			addLog("Ошибка передачи данных бинарника: %v", err)
+			result.Error = err.Error()
+			return result, err
+		}
+		_ = dstFile.Close()
+		_ = sftpClient.Chmod(fallbackTmp, 0755)
+		_, _ = runRemoteCmd(client, fmt.Sprintf("%smv -f %s %s", sudoPrefix, fallbackTmp, tmpBin))
+	} else {
+		if _, err := io.Copy(dstFile, binReader); err != nil {
+			_ = dstFile.Close()
+			addLog("Ошибка передачи данных бинарника: %v", err)
+			result.Error = err.Error()
+			return result, err
+		}
+		_ = dstFile.Close()
 	}
-	_, _ = runRemoteCmd(client, fmt.Sprintf("rm -f %s", remoteTmpBin))
+	_ = sftpClient.Chmod(tmpBin, 0755)
+
+	// 9. Stop previous daemon instances and perform atomic replacement with PosixRename
+	addLog("Остановка предыдущих процессов агента (если были)...")
+	_, _ = runRemoteCmd(client, fmt.Sprintf("%ssystemctl stop config-studio-agent 2>/dev/null || %src-service config-studio-agent stop 2>/dev/null || %spkill -f '[c]onfig-studio-agent' 2>/dev/null || true", sudoPrefix, sudoPrefix, sudoPrefix))
+
+	atomicRename := func(oldPath, newPath string) error {
+		if err := sftpClient.PosixRename(oldPath, newPath); err == nil {
+			return nil
+		}
+		if err := sftpClient.Rename(oldPath, newPath); err == nil {
+			return nil
+		}
+		_, err := runRemoteCmd(client, fmt.Sprintf("%smv -f %s %s", sudoPrefix, oldPath, newPath))
+		return err
+	}
+
+	hasOldBin := false
+	if _, err := sftpClient.Stat(targetBinPath); err == nil {
+		hasOldBin = true
+		addLog("Резервное копирование текущего бинарника: %s -> %s", targetBinPath, bakBin)
+		_ = atomicRename(targetBinPath, bakBin)
+	}
+
+	addLog("Атомарная активация нового бинарника: %s -> %s", tmpBin, targetBinPath)
+	if err := atomicRename(tmpBin, targetBinPath); err != nil {
+		addLog("Ошибка активации бинарника: %v", err)
+		if hasOldBin {
+			_ = atomicRename(bakBin, targetBinPath)
+		}
+		result.Error = err.Error()
+		return result, err
+	}
 
 	// Check if agent.yaml should be preserved in upgrade mode
 	targetCfgFile := fmt.Sprintf("%s/agent.yaml", targetCfgDir)
@@ -333,9 +370,9 @@ depend() {
 			addLog("Служба OpenRC запущена и добавлена в runlevel default")
 		}
 	} else {
-		// Fallback: nohup background process
+		// Fallback: nohup background process (with stdio redirection and regex pkill to avoid hanging SSH)
 		addLog("Запуск агента в фоновом режиме (nohup)...")
-		_, _ = runRemoteCmd(client, fmt.Sprintf("nohup %s -config %s/agent.yaml -port %d > /dev/null 2>&1 &", targetBinPath, targetCfgDir, port))
+		_, _ = runRemoteCmd(client, fmt.Sprintf("pkill -f '[c]onfig-studio-agent' || true; nohup %s -config %s/agent.yaml -port %d </dev/null >/dev/null 2>&1 &", targetBinPath, targetCfgDir, port))
 	}
 
 	// 10. Health Check (Wait for daemon to open port)
@@ -369,6 +406,28 @@ depend() {
 		}
 	}
 
+	if !healthy {
+		addLog("ОШИБКА: Health check не пройден после запуска агента (%s)", agentURL)
+		if hasOldBin {
+			addLog("Выполняется автоматический откат на предыдущую стабильную версию (.bak)...")
+			_ = atomicRename(bakBin, targetBinPath)
+			if serviceType == "systemd" {
+				_, _ = runRemoteCmd(client, fmt.Sprintf("%ssystemctl restart config-studio-agent", sudoPrefix))
+			} else if serviceType == "openrc" {
+				_, _ = runRemoteCmd(client, fmt.Sprintf("%src-service config-studio-agent restart", sudoPrefix))
+			} else {
+				_, _ = runRemoteCmd(client, fmt.Sprintf("pkill -f '[c]onfig-studio-agent' || true; nohup %s -config %s/agent.yaml -port %d </dev/null >/dev/null 2>&1 &", targetBinPath, targetCfgDir, port))
+			}
+			addLog("Откат завершен. Предыдущая версия агента восстановлена.")
+		}
+		result.Error = fmt.Sprintf("health check failed on %s", agentURL)
+		return result, fmt.Errorf("agent failed health check on %s", agentURL)
+	}
+
+	if hasOldBin {
+		addLog("✓ Обновление успешно завершено! Резервная копия сохранена в %s", bakBin)
+	}
+
 	// 11. Update server in servers.yaml
 	srv.Connection.Agent = &AgentConnectionConfig{
 		Enabled:     true,
@@ -397,6 +456,54 @@ func runRemoteCmd(client *gossh.Client, cmd string) (string, error) {
 
 	out, err := session.CombinedOutput(cmd)
 	return strings.TrimSpace(string(out)), err
+}
+
+// getAgentBinaryStream resolves the binary reader and metadata.
+// 1. First priority: stream directly out of servers.cspkg (zero disk footprint on host)
+// 2. Fallback: local filesystem in dataDir/agents or bin/agents
+func getAgentBinaryStream(dataDir, optsAgentsDir, binaryName string) (io.ReadCloser, int64, string, error) {
+	// 1. Try servers.cspkg in dataDir/plugins, plugins/, or test/data/plugins
+	cspkgCandidates := []string{
+		filepath.Join(dataDir, "plugins", "servers.cspkg"),
+		filepath.Join("plugins", "servers.cspkg"),
+		filepath.Join(dataDir, "servers.cspkg"),
+		filepath.Join("data", "plugins", "servers.cspkg"),
+	}
+
+	for _, cspkgPath := range cspkgCandidates {
+		if fi, err := os.Stat(cspkgPath); err == nil && !fi.IsDir() {
+			zr, err := cspkg.OpenZipReader(cspkgPath)
+			if err == nil {
+				targetRel := "agents/" + binaryName
+				for _, f := range zr.File {
+					if filepath.ToSlash(filepath.Clean(f.Name)) == targetRel {
+						rc, err := f.Open()
+						if err == nil {
+							return rc, int64(f.UncompressedSize64), fmt.Sprintf("%s (внутри %s)", targetRel, filepath.Base(cspkgPath)), nil
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Fallback: local binary on host filesystem
+	localPath, err := findLocalAgentBinary(dataDir, optsAgentsDir, binaryName)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("бинарник агента %q не найден ни в .cspkg, ни на диске: %w", binaryName, err)
+	}
+
+	f, err := os.Open(localPath)
+	if err != nil {
+		return nil, 0, "", err
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, 0, "", err
+	}
+
+	return f, fi.Size(), localPath, nil
 }
 
 func findLocalAgentBinary(dataDir, optsAgentsDir, binaryName string) (string, error) {

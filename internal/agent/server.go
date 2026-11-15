@@ -15,18 +15,26 @@ import (
 )
 
 type Server struct {
-	cfg     *Config
-	auth    *Authenticator
-	version string
-	srv     *http.Server
+	cfg       *Config
+	auth      *Authenticator
+	version   string
+	commit    string
+	buildDate string
+	srv       *http.Server
 }
 
-func NewServer(cfg *Config, version string) *Server {
+func NewServer(cfg *Config, version string, optMetadata ...string) *Server {
 	auth := NewAuthenticator(cfg.Master, cfg.ScopedTokens)
 	s := &Server{
 		cfg:     cfg,
 		auth:    auth,
 		version: version,
+	}
+	if len(optMetadata) > 0 {
+		s.commit = optMetadata[0]
+	}
+	if len(optMetadata) > 1 {
+		s.buildDate = optMetadata[1]
 	}
 
 	mux := http.NewServeMux()
@@ -131,14 +139,21 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) *AuthConte
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	hostname, _ := os.Hostname()
-	jsonResponse(w, http.StatusOK, map[string]any{
+	resp := map[string]any{
 		"status":    "ok",
 		"version":   s.version,
 		"timestamp": time.Now().Unix(),
 		"uptime":    int64(time.Since(agentStartTime).Seconds()),
 		"hostname":  hostname,
 		"adopted":   s.cfg.Adopted,
-	})
+	}
+	if s.commit != "" {
+		resp["commit"] = s.commit
+	}
+	if s.buildDate != "" {
+		resp["buildDate"] = s.buildDate
+	}
+	jsonResponse(w, http.StatusOK, resp)
 }
 
 // handleAdopt performs a one-time pairing handshake with Config Studio host.

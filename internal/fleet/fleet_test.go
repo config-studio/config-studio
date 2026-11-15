@@ -256,3 +256,35 @@ func TestFleetManager_V2_SingleSourceOfTruth(t *testing.T) {
 		t.Errorf("expected resolved core host, got %+v", srvCoreOnly)
 	}
 }
+
+func TestFleet_GetAgentBinaryStream(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-fleet-stream-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a mock local binary in tmpDir/agents/config-studio-agent-linux-amd64
+	agentsDir := filepath.Join(tmpDir, "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("failed to create agents dir: %v", err)
+	}
+	mockBinPath := filepath.Join(agentsDir, "config-studio-agent-linux-amd64")
+	if err := os.WriteFile(mockBinPath, []byte("mock-agent-binary-content"), 0755); err != nil {
+		t.Fatalf("failed to write mock binary: %v", err)
+	}
+
+	// Test stream resolution via local fallback
+	rc, size, src, err := getAgentBinaryStream(tmpDir, agentsDir, "config-studio-agent-linux-amd64")
+	if err != nil {
+		t.Fatalf("expected stream resolution to succeed, got %v", err)
+	}
+	defer rc.Close()
+
+	if size != int64(len("mock-agent-binary-content")) {
+		t.Errorf("expected size %d, got %d", len("mock-agent-binary-content"), size)
+	}
+	if !strings.Contains(src, "config-studio-agent-linux-amd64") {
+		t.Errorf("expected source to contain binary name, got %q", src)
+	}
+}

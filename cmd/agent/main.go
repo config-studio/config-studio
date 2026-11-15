@@ -12,10 +12,14 @@ import (
 	"config-studio/internal/agent"
 )
 
-const version = "2.3.0"
+var (
+	Version   = "2.3.0"
+	Commit    = "dev"
+	BuildDate = "unknown"
+)
 
 func printUsage() {
-	fmt.Printf(`Config Studio Remote Agent v%s
+	fmt.Printf(`Config Studio Remote Agent v%s (commit: %s, built: %s)
 Lightweight, Zero-Trust Headless Daemon for Cloud & VPS Fleet Management.
 
 USAGE:
@@ -38,7 +42,7 @@ TOPICS AVAILABLE:
     health            Ping and uptime status
     logs:<path>       Read-only access to log directory or file
     configs:<path>    Read-only access to specific configuration folder
-`, version)
+`, Version, Commit, BuildDate)
 }
 
 func main() {
@@ -54,7 +58,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Printf("config-studio-agent v%s\n", version)
+		fmt.Printf("config-studio-agent v%s (commit: %s, built: %s)\n", Version, Commit, BuildDate)
 		return
 	}
 
@@ -72,7 +76,7 @@ func main() {
 
 	if isNew || !cfg.Adopted {
 		fmt.Println("==================================================================")
-		fmt.Printf("  Config Studio Remote Agent v%s\n", version)
+		fmt.Printf("  Config Studio Remote Agent v%s (commit: %s)\n", Version, Commit)
 		fmt.Println("==================================================================")
 		if !cfg.Adopted {
 			fmt.Println("  Status:         UNADOPTED (Ready for 1-Click Adopt from Config Studio)")
@@ -89,7 +93,7 @@ func main() {
 		fmt.Println("==================================================================")
 	}
 
-	srv := agent.NewServer(cfg, version)
+	srv := agent.NewServer(cfg, Version, Commit, BuildDate)
 
 	// Graceful shutdown handling
 	sigChan := make(chan os.Signal, 1)

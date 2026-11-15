@@ -44,18 +44,38 @@ jobs:
         run: |
           mkdir -p release-binaries
           
-          # Linux amd64
-          echo "Building for Linux (amd64)..."
+          # Extract clean SemVer without leading 'v'
+          VERSION="dev"
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          elif [[ -n "${GITHUB_SHA}" ]]; then
+            VERSION="dev-${GITHUB_SHA::7}"
+          fi
+          COMMIT="${GITHUB_SHA::7}"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          
+          LDFLAGS="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildDate=${BUILD_DATE}"
+          
+          # Config Studio Core: Linux amd64
+          echo "Building Core for Linux (amd64)..."
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o release-binaries/config-studio-linux-amd64 ./cmd/server
           
-          # Linux arm64
-          echo "Building for Linux (arm64)..."
+          # Config Studio Core: Linux arm64
+          echo "Building Core for Linux (arm64)..."
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o release-binaries/config-studio-linux-arm64 ./cmd/server
           
-          # Windows amd64 (.exe)
-          echo "Building for Windows (amd64)..."
+          # Config Studio Core: Windows amd64 (.exe)
+          echo "Building Core for Windows (amd64)..."
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o release-binaries/config-studio-windows-amd64.exe ./cmd/server
           cp release-binaries/config-studio-windows-amd64.exe release-binaries/config-studio.exe
+
+          # Remote Agent: Linux amd64
+          echo "Building Remote Agent for Linux (amd64)..."
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS" -o release-binaries/config-studio-agent-linux-amd64 ./cmd/agent
+
+          # Remote Agent: Linux arm64
+          echo "Building Remote Agent for Linux (arm64)..."
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS" -o release-binaries/config-studio-agent-linux-arm64 ./cmd/agent
 
       - name: Generate Checksums (SHA-256)
         working-directory: release-binaries
