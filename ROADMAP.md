@@ -15,12 +15,12 @@
 
 ---
 
-## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.4)
+## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.5)
 
-### 🎯 Core Evolution (Спринт v2.3.4)
-- [ ] **1. Разделенный экран (Split-Screen Workspace Layout)**:
-  - [ ] Режим двухпанельного сплита (Editor слева, Webview / Iframe справа) с перетаскиваемым разделителем в `App.tsx`.
-  - [ ] Плагинное API: `window.ConfigStudio.registerSplitWebview({ id, title, url, refreshOnSave?: boolean })` для live-предпросмотра дашбордов и страниц (Glance, Web-DevKit, Markdown/HTML).
+### 🎯 Core Evolution (Спринт v2.3.5)
+- [ ] **1. Структурированный потоковый логгер (Log Streaming Service)**:
+  - [ ] Потоковый канал логов на бэкенде (Server-Sent Events / WebSocket) без ANSI-мусора PTY для надежной интеграции с `journalctl -f` и `docker compose logs -f`.
+  - [ ] Компонент Log Viewer в `@config-studio/ui` с поиском, паузой автоскролла и цветовой дифференциацией уровней (ERROR/WARN/INFO).
 
 ### 💡 Отложенные задачи и бэклог (Backlog)
 - [ ] **Глобальный реестр горячих клавиш плагинов**: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий с клавиатуры (отложено до расширения каталога плагинов; текущее управление полностью закрывается верхним тулбаром и клавишей `F5`).
@@ -39,7 +39,7 @@ graph TD
     C2["2. Editor Navigation & Custom Tabs<br/>(Выпущено в v2.2.0 - v2.3.2)"]
     C3["3. Smart Embedded Agent Distribution<br/>(Выпущено в v2.3.1)"]
     C4["4. Batch File Read & Discovery<br/>(Выпущено в v2.3.3)"]
-    C5["5. Split-Screen Layout<br/>(Editor + Live Webview)"]
+    C5["5. Split-Screen Layout<br/>(Выпущено в v2.3.4)"]
     C6["6. Log Streaming Service<br/>(SSE / WebSocket без PTY-мусора)"]
     C7["7. Fleet Worker Pool & Diff Engine<br/>('fleet.ExecBatch')"]
     C8["8. Goja Code Mode Sandbox<br/>(Безопасный JS фасад 'cs.*')"]
@@ -66,9 +66,9 @@ graph TD
 - [x] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
 
 ### 2. Разделенный экран (Split-Screen Workspace Layout)
-*Необходимо для: `config-studio-glance` (Live Dashboard Preview :8080), `config-studio-web-devkit` (Chrome preview), Markdown/HTML превью.*
-- [ ] Режим двухпанельного сплита (Editor слева, Webview / Iframe справа) с перетаскиваемым разделителем в `App.tsx`.
-- [ ] Плагинное API: `window.ConfigStudio.registerSplitWebview({ id, title, url, refreshOnSave?: boolean })`.
+*(Выпущено в v2.3.4)*
+- [x] Режим двухпанельного сплита (Editor слева, Webview / Iframe справа) с перетаскиваемым разделителем в `App.tsx`.
+- [x] Плагинное API: `window.ConfigStudio.registerSplitWebview({ id, title, url, refreshOnSave?: boolean })`.
 
 ### 3. Структурированный потоковый логгер (Log Streaming Service)
 *Необходимо для: `config-studio-journal` (journalctl -f), `config-studio-docker` (compose logs -f).*
@@ -128,6 +128,26 @@ graph TD
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details open>
+<summary><b>🚀 Детали релиза v2.3.4: Split-Screen Workspace Layout & Live Webview (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
+
+- [x] **Перетаскиваемый разделитель (Draggable Resizer) в `@config-studio/ui`**:
+  - Компонент `SplitPanel` оснащен интерактивным ресайзером на левой границе с плавной регулировкой ширины (min 320px).
+  - Персистентное сохранение выбранной ширины в `localStorage` (`cs_split_panel_width`).
+  - Полноэкранный прозрачный оверлей во время перетаскивания (исключает потерю событий мыши над `iframe` и внешними виджетами).
+  - Полная поддержка кнопки развертывания на весь экран Maximize / Restore.
+- [x] **Универсальный селектор открытых сплит-панелей (`PluginSplitPanel.tsx`)**:
+  - Реализован утвержденный Вариант В (Гибрид): компактный выпадающий селектор при нескольких открытых панелях, не загромождающий шапку.
+  - Сохранение DOM-состояния и содержимого (`SinglePanelMount` с `display: none` для неактивных панелей — фреймы и виджеты не сбрасывают состояние и скролл при переключении).
+  - Кнопки быстрого действия: ручной перезапуск (`RotateCw`) и переход в новую вкладку браузера (`ExternalLink`).
+- [x] **Плагинное API и автоматический авторелоад при сохранении (`pluginLoader.ts`)**:
+  - Методы фасада: `window.ConfigStudio.registerSplitWebview`, `toggleSplitWebview`, `closeSplitWebview`, `reloadSplitWebview`, `setActiveSplitPanel`.
+  - Встроенный хук: при сохранении файлов редактора (`onFileSave` / `Ctrl+S`) все активные сплит-панели с флагом `refreshOnSave: true` автоматически перезагружают свое содержимое.
+- [x] **Синхронизация витрины и типизации**:
+  - Обновлена интерактивная витрина `config-studio-plugins/ui.html` (Секция 18) с поддержкой живого Drag-and-Drop ресайзера.
+  - Добавлена типизация `SplitWebviewDef`, обновлены методы в `config-studio-plugin-docs/types/config-studio.d.ts`.
+</details>
+
+<details>
 <summary><b>🚀 Детали релиза v2.3.3: Batch File Read, Glob Indexing & Traefik Acceleration (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
 
 - [x] **Пакетное чтение файлов каталога на бэкенде (Go Core)**:

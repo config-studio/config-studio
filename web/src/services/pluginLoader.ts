@@ -149,7 +149,12 @@ class PluginLoader {
             id: panelDef.id,
             pluginId: panelDef.pluginId || 'unknown',
             title: panelDef.title || 'Panel',
-            open: true,
+            icon: panelDef.icon,
+            port: panelDef.port,
+            url: panelDef.url,
+            refreshOnSave: panelDef.refreshOnSave,
+            onReload: panelDef.onReload,
+            open: panelDef.open !== undefined ? panelDef.open : true,
             render: panelDef.render,
           };
           this.splitPanels.push(existing);
@@ -159,11 +164,110 @@ class PluginLoader {
           } else {
             existing.open = !existing.open;
           }
+          if (panelDef.title) existing.title = panelDef.title;
+          if (panelDef.icon) existing.icon = panelDef.icon;
+          if (panelDef.port !== undefined) existing.port = panelDef.port;
+          if (panelDef.url) existing.url = panelDef.url;
+          if (panelDef.refreshOnSave !== undefined) existing.refreshOnSave = panelDef.refreshOnSave;
+          if (panelDef.onReload) existing.onReload = panelDef.onReload;
           if (panelDef.render) existing.render = panelDef.render;
         }
 
-        this.activeSplitPanelId = existing && existing.open ? existing.id : null;
+        if (existing && existing.open) {
+          this.activeSplitPanelId = existing.id;
+        } else if (this.activeSplitPanelId === panelDef.id) {
+          const remaining = this.splitPanels.find((p) => p.id !== panelDef.id && p.open);
+          this.activeSplitPanelId = remaining ? remaining.id : null;
+        }
         this.notify();
+      },
+
+      registerSplitWebview: (def: {
+        id: string;
+        pluginId: string;
+        title: string;
+        url: string;
+        icon?: string;
+        port?: number;
+        refreshOnSave?: boolean;
+        open?: boolean;
+      }) => {
+        let iframeEl: HTMLIFrameElement | null = null;
+        const currentUrl = def.url;
+
+        const renderWebview = (container: HTMLElement) => {
+          container.innerHTML = '';
+          const wrapper = document.createElement('div');
+          wrapper.className = 'w-full h-full flex flex-col bg-base overflow-hidden relative';
+
+          iframeEl = document.createElement('iframe');
+          iframeEl.src = currentUrl;
+          iframeEl.className = 'w-full h-full border-none flex-1';
+          iframeEl.setAttribute('allow', 'cross-origin-isolated; autoplay; clipboard-write; encrypted-media; fullscreen');
+
+          wrapper.appendChild(iframeEl);
+          container.appendChild(wrapper);
+        };
+
+        const panelDef: SplitPanelDef = {
+          id: def.id,
+          pluginId: def.pluginId,
+          title: def.title,
+          icon: def.icon,
+          port: def.port,
+          url: def.url,
+          refreshOnSave: def.refreshOnSave !== false,
+          open: def.open ?? true,
+          render: renderWebview,
+          onReload: () => {
+            if (iframeEl) {
+              iframeEl.src = iframeEl.src;
+            }
+          },
+        };
+
+        this.splitPanels = this.splitPanels.filter((p) => p.id !== panelDef.id);
+        this.splitPanels.push(panelDef);
+        if (panelDef.open) {
+          this.activeSplitPanelId = panelDef.id;
+        }
+        this.notify();
+      },
+
+      toggleSplitWebview: (id: string, updates?: any) => {
+        const existing = this.splitPanels.find((p) => p.id === id);
+        if (existing) {
+          (window as any).ConfigStudio.toggleSplitPanel({ id, ...updates });
+        } else if (updates && updates.url && updates.title) {
+          (window as any).ConfigStudio.registerSplitWebview({
+            id,
+            pluginId: updates.pluginId || 'unknown',
+            title: updates.title,
+            url: updates.url,
+            ...updates,
+          });
+        }
+      },
+
+      closeSplitWebview: (id?: string) => {
+        const targetId = id || this.activeSplitPanelId;
+        if (targetId) {
+          this.closeSplitPanel(targetId);
+        }
+      },
+
+      reloadSplitWebview: (id?: string) => {
+        const targetId = id || this.activeSplitPanelId;
+        if (targetId) {
+          const panel = this.splitPanels.find((p) => p.id === targetId);
+          if (panel && typeof panel.onReload === 'function') {
+            panel.onReload();
+          }
+        }
+      },
+
+      setActiveSplitPanel: (panelId: string) => {
+        this.setActiveSplitPanel(panelId);
       },
 
       registerBottomPanel: (panel: BottomPanelDef) => {
@@ -828,6 +932,26 @@ class PluginLoader {
         console.error('[Plugin] onFileSave error:', err);
       }
     });
+
+    // Auto-reload split panels with refreshOnSave: true
+    this.splitPanels.forEach((p) => {
+      if (p.open && p.refreshOnSave && typeof p.onReload === 'function') {
+        try {
+          p.onReload();
+        } catch (e) {
+          console.error('[PluginLoader] Error auto-reloading split panel on save:', p.id, e);
+        }
+      }
+    });
+  }
+
+  setActiveSplitPanel(panelId: string) {
+    const panel = this.splitPanels.find((p) => p.id === panelId);
+    if (panel) {
+      panel.open = true;
+      this.activeSplitPanelId = panel.id;
+      this.notify();
+    }
   }
 
   subscribe(listener: Listener) {
@@ -856,7 +980,8 @@ class PluginLoader {
       panel.open = false;
     }
     if (this.activeSplitPanelId === panelId) {
-      this.activeSplitPanelId = null;
+      const remaining = this.splitPanels.find((p) => p.id !== panelId && p.open);
+      this.activeSplitPanelId = remaining ? remaining.id : null;
     }
     this.notify();
   }

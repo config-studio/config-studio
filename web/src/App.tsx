@@ -996,9 +996,7 @@ export const App: React.FC = () => {
     return <LoginScreen settings={settings} onLogin={handleLogin} />;
   }
 
-  const activeSplitPanel = pluginState.splitPanels.find(
-    (p) => p.id === pluginState.activeSplitPanelId && p.open
-  );
+  const openSplitPanels = pluginState.splitPanels.filter((p) => p.open);
 
   return (
     <div className="h-full w-full h-[100dvh] flex flex-col overflow-hidden bg-base text-gray-900 dark:text-gray-100 select-none">
@@ -1131,11 +1129,13 @@ export const App: React.FC = () => {
           />
         </div>
 
-        {/* Optional Plugin Split Panel (e.g. Web DevKit Live Preview) */}
-        {activeSplitPanel && (
+        {/* Optional Plugin Split Panel (e.g. Web DevKit / Glance Live Preview) */}
+        {openSplitPanels.length > 0 && (
           <PluginSplitPanel
-            panel={activeSplitPanel}
-            onClose={() => pluginManager.closeSplitPanel(activeSplitPanel.id)}
+            panels={openSplitPanels}
+            activePanelId={pluginState.activeSplitPanelId}
+            onSelectPanel={(panelId) => pluginManager.setActiveSplitPanel(panelId)}
+            onClose={(panelId) => pluginManager.closeSplitPanel(panelId)}
           />
         )}
 

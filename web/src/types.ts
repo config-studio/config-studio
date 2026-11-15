@@ -94,8 +94,24 @@ export interface SplitPanelDef {
   id: string;
   pluginId: string;
   title: string;
+  icon?: string;
+  port?: number;
+  url?: string;
+  refreshOnSave?: boolean;
+  onReload?: () => void;
   open: boolean;
   render: (container: HTMLElement) => void;
+}
+
+export interface SplitWebviewDef {
+  id: string;
+  pluginId: string;
+  title: string;
+  url: string;
+  icon?: string;
+  port?: number;
+  refreshOnSave?: boolean;
+  open?: boolean;
 }
 
 export interface SplitActionOption {
