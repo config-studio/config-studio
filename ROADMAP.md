@@ -16,9 +16,11 @@
 ## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.3)
 
 ### 🎯 Core Evolution (Спринт v2.3.3)
-- [ ] **1. Навигация и кросс-файловый поиск (Editor Navigation & Cross-File Discovery)**:
-  - [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
-  - [ ] Глобальный реестр горячих клавиш: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий из любого открытого документа.
+- [ ] **1. Пакетное чтение файлов каталога (Batch File Read & Discovery)**:
+  - [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов (необходимо для кросс-файловой навигации Traefik, Glance и инспекторов).
+
+### 💡 Отложенные задачи и бэклог (Backlog)
+- [ ] **Глобальный реестр горячих клавиш плагинов**: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий с клавиатуры (отложено до расширения каталога плагинов; текущее управление полностью закрывается верхним тулбаром и клавишей `F5`).
 
 ---
 
@@ -56,10 +58,9 @@ graph TD
     C8 --> P6["MCP & Автоматизация"]
 ```
 
-### 1. Навигация и кросс-файловый поиск (Editor Navigation & Cross-File Discovery)
+### 1. Пакетное чтение файлов и кросс-файловый поиск (Batch File Read & Discovery)
 *Необходимо для: `config-studio-traefik` (Go to Definition), `config-studio-glance` ($include), линтеров и инспекторов.*
 - [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
-- [ ] Глобальный реестр горячих клавиш: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий из любого открытого документа.
 
 ### 2. Разделенный экран (Split-Screen Workspace Layout)
 *Необходимо для: `config-studio-glance` (Live Dashboard Preview :8080), `config-studio-web-devkit` (Chrome preview), Markdown/HTML превью.*
