@@ -7,11 +7,18 @@ import {
   Image as ImageIcon,
   Upload,
   Check,
+  RefreshCw,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  Download,
+  Cpu,
 } from 'lucide-react';
-import { Settings } from '../../../types';
+import { Settings, SystemUpdateInfo } from '../../../types';
+import { api } from '../../../services/api';
 import { LanguageMeta } from '../../../utils/i18n';
 import { PRESET_BASE_COLORS, PRESET_ACCENT_COLORS } from '../types';
-import { Input, Button, Card, Dropdown, DropdownOption } from '../../ui';
+import { Input, Button, Card, Dropdown, DropdownOption, Badge } from '../../ui';
 
 interface GeneralTabProps {
   settings: Settings;
@@ -52,6 +59,53 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
 }) => {
   const [iconPreview, setIconPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Core Self-Updater state (CORE-001)
+  const [updateInfo, setUpdateInfo] = useState<SystemUpdateInfo | null>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [isUpdatingCore, setIsUpdatingCore] = useState(false);
+  const [updateStatusMsg, setUpdateStatusMsg] = useState<{ text: string; isError?: boolean } | null>(null);
+
+  const handleCheckUpdate = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateStatusMsg(null);
+    try {
+      const info = await api.checkSystemUpdate();
+      setUpdateInfo(info);
+      if (!info.hasUpdate) {
+        setUpdateStatusMsg({ text: t.coreUpToDate || 'У вас установлена последняя версия Config Studio' });
+      }
+    } catch (err: any) {
+      setUpdateStatusMsg({ text: err.message || 'Ошибка проверки обновлений', isError: true });
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
+
+  const handleApplyUpdate = async () => {
+    if (!updateInfo?.downloadUrl) return;
+    setIsUpdatingCore(true);
+    setUpdateStatusMsg(null);
+    try {
+      const res = await api.applySelfUpdate(updateInfo.downloadUrl);
+      setUpdateStatusMsg({ text: t.updateSuccessRestarting || 'Обновление успешно установлено! Перезапуск сервера...' });
+      if (res.restartRequired) {
+        setTimeout(async () => {
+          try {
+            await api.restartSystem();
+          } catch {
+            // Server restarting
+          }
+          setTimeout(() => {
+            window.location.reload();
+          }, 2500);
+        }, 1500);
+      }
+    } catch (err: any) {
+      setUpdateStatusMsg({ text: err.message || 'Ошибка установки обновления', isError: true });
+      setIsUpdatingCore(false);
+    }
+  };
 
   const languageOptions: DropdownOption[] = useMemo(() => {
     return availableLanguages.map((l) => ({
@@ -311,6 +365,89 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Core Version & In-Place Self-Updater (CORE-001) */}
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Cpu className="w-4 h-4 text-accent" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+              {t.coreUpdateTitle || 'Версия и обновление ядра'}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-400">{t.coreVersionLabel || 'Текущая версия'}:</span>
+            <Badge color="gray" size="sm" className="font-mono">
+              v{updateInfo?.currentVersion || '2.3.0'}
+            </Badge>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+          <div className="text-xs text-gray-400">
+            {updateInfo?.hasUpdate ? (
+              <span className="text-amber-400 font-medium flex items-center space-x-1.5">
+                <Sparkles size={14} className="text-amber-400 shrink-0" />
+                <span>
+                  {t.updateAvailable || 'Доступна новая версия'} v{updateInfo.latestVersion}
+                </span>
+              </span>
+            ) : updateStatusMsg ? (
+              <span
+                className={`flex items-center space-x-1.5 ${
+                  updateStatusMsg.isError ? 'text-red-400' : 'text-emerald-400'
+                }`}
+              >
+                {updateStatusMsg.isError ? (
+                  <AlertCircle size={14} className="shrink-0" />
+                ) : (
+                  <CheckCircle2 size={14} className="shrink-0" />
+                )}
+                <span>{updateStatusMsg.text}</span>
+              </span>
+            ) : (
+              <span>Config Studio Core (Go + React SPA)</span>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2 shrink-0">
+            {updateInfo?.hasUpdate && updateInfo.downloadUrl ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={handleApplyUpdate}
+                disabled={isUpdatingCore}
+                loading={isUpdatingCore}
+                icon={<Download size={13} />}
+              >
+                {isUpdatingCore
+                  ? t.updatingCore || 'Установка обновления...'
+                  : t.updateAndRestartBtn || 'Обновить и перезапустить'}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleCheckUpdate}
+                disabled={isCheckingUpdate}
+                loading={isCheckingUpdate}
+                icon={<RefreshCw size={13} className={isCheckingUpdate ? 'animate-spin' : ''} />}
+              >
+                {isCheckingUpdate ? t.checkingUpdate || 'Проверка...' : t.checkUpdateBtn || 'Проверить обновления'}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {updateInfo?.releaseNotes && updateInfo.hasUpdate && (
+          <div className="mt-2 p-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-base-border text-[11px] text-gray-400 max-h-24 overflow-y-auto custom-scrollbar">
+            <div className="font-semibold text-gray-300 mb-1">Что нового:</div>
+            <pre className="whitespace-pre-wrap font-sans text-xs">{updateInfo.releaseNotes}</pre>
+          </div>
+        )}
+      </Card>
     </div>
   );
 };

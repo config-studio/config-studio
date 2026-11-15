@@ -25,6 +25,8 @@ import {
   SFTPFileInfo,
   SFTPRequest,
   SystemMetrics,
+  SystemUpdateInfo,
+  SelfUpdateResult,
 } from '../types';
 import { telemetry } from './telemetry';
 
@@ -935,6 +937,40 @@ export const api = {
     if (!res.ok) {
       const text = await res.text();
       throw new Error(text || 'Failed to rename remote item');
+    }
+    return res.json();
+  },
+
+  // System Update APIs (CORE-001)
+  async checkSystemUpdate(): Promise<SystemUpdateInfo> {
+    const res = await webFetch('/api/system/check-update');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to check system update');
+    }
+    return res.json();
+  },
+
+  async applySelfUpdate(downloadUrl?: string): Promise<SelfUpdateResult> {
+    const res = await webFetch('/api/system/self-update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ downloadUrl }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to apply update');
+    }
+    return res.json();
+  },
+
+  async restartSystem(): Promise<{ success: boolean; message: string }> {
+    const res = await webFetch('/api/system/restart', {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to restart server');
     }
     return res.json();
   },

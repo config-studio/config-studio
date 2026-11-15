@@ -46,8 +46,10 @@ type SSHConnectionConfig struct {
 // AgentConnectionConfig defines Remote Agent daemon parameters.
 type AgentConnectionConfig struct {
 	Enabled     bool   `json:"enabled" yaml:"enabled"`
+	Port        int    `json:"port,omitempty" yaml:"port,omitempty"`
 	URL         string `json:"url,omitempty" yaml:"url,omitempty"`
 	VaultSecret string `json:"vaultSecret,omitempty" yaml:"vault_secret,omitempty"` // Core Vault reference (e.g. "vault:agent-id")
+	SecretRef   string `json:"secretRef,omitempty" yaml:"secret_ref,omitempty"`     // Core Vault reference (e.g. "vault://agent:id" or "vault:agent-id")
 	TLSVerify   bool   `json:"tlsVerify" yaml:"tls_verify"`
 }
 
@@ -60,12 +62,13 @@ type ConnectionConfig struct {
 // ServerNode represents a registered fleet server in servers.yaml.
 type ServerNode struct {
 	ID          string            `json:"id" yaml:"id"`
-	Name        string            `json:"name" yaml:"name"`
+	Name        string            `json:"name" yaml:"name,omitempty"`
 	Description string            `json:"description,omitempty" yaml:"description,omitempty"`
 	Group       string            `json:"group,omitempty" yaml:"group,omitempty"`
 	Tags        []string          `json:"tags,omitempty" yaml:"tags,omitempty"`
 	Icon        string            `json:"icon,omitempty" yaml:"icon,omitempty"`
 	Color       string            `json:"color,omitempty" yaml:"color,omitempty"`
+	SSHHostRef  string            `json:"sshHostRef,omitempty" yaml:"ssh_host_ref,omitempty"`
 
 	// Top-level convenience shortcuts (for single-VPS minimal configs)
 	Host        string            `json:"host,omitempty" yaml:"host,omitempty"`
@@ -81,6 +84,17 @@ type ServerNode struct {
 func (s *ServerNode) Normalize() {
 	if s.Tags == nil {
 		s.Tags = make([]string, 0)
+	}
+	if s.Connection.Agent != nil {
+		if s.Connection.Agent.Port <= 0 {
+			s.Connection.Agent.Port = 8085
+		}
+		if s.Connection.Agent.VaultSecret == "" && s.Connection.Agent.SecretRef != "" {
+			s.Connection.Agent.VaultSecret = s.Connection.Agent.SecretRef
+		}
+		if s.Connection.Agent.SecretRef == "" && s.Connection.Agent.VaultSecret != "" {
+			s.Connection.Agent.SecretRef = s.Connection.Agent.VaultSecret
+		}
 	}
 	if s.Host != "" && s.Connection.SSH == nil {
 		port := s.Port
@@ -104,12 +118,32 @@ func (s *ServerNode) Normalize() {
 	}
 }
 
-// ServersConfigFile represents the root schema of servers.yaml.
+// ServersConfigFile represents the root schema of servers.yaml (supporting both v1 servers and v2 nodes).
 type ServersConfigFile struct {
 	Version string                 `json:"version" yaml:"version"`
 	Presets map[string]interface{} `json:"presets,omitempty" yaml:"presets,omitempty"`
-	Servers []ServerNode           `json:"servers" yaml:"servers"`
+	Servers []ServerNode           `json:"servers,omitempty" yaml:"servers,omitempty"`
+	Nodes   []ServerNode           `json:"nodes,omitempty" yaml:"nodes,omitempty"`
 }
+
+// HostInfo provides resolved details for a core host from /api/hosts.
+type HostInfo struct {
+	ID          string
+	Name        string
+	Host        string
+	Port        int
+	User        string
+	IdentityID  string
+	ProxyJump   string
+	Group       string
+	Tags        []string
+	Color       string
+	Icon        string
+	Description string
+}
+
+// HostResolverFunc resolves host metadata by host ID.
+type HostResolverFunc func(id string) (*HostInfo, error)
 
 // Manager manages the fleet inventory and persistent servers.yaml storage.
 type Manager struct {
@@ -119,6 +153,7 @@ type Manager struct {
 	mu             sync.RWMutex
 	servers        []ServerNode
 	presets        map[string]interface{}
+	hostResolver   HostResolverFunc
 }
 
 // NewManager initializes the Manager and loads or creates servers.yaml.
@@ -162,7 +197,94 @@ func NewManager(dataDir string) (*Manager, error) {
 	return m, nil
 }
 
-// load parses the servers.yaml file into memory.
+// SetHostResolver configures a callback to resolve core host metadata dynamically.
+func (m *Manager) SetHostResolver(fn HostResolverFunc) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.hostResolver = fn
+}
+
+// resolveNodeLocked populates dynamic SSH details and Agent URLs from Core Host storage.
+func (m *Manager) resolveNodeLocked(s *ServerNode) {
+	if m.hostResolver == nil || s == nil {
+		return
+	}
+	if s.ID == "localhost" || s.ID == "local" {
+		return
+	}
+
+	ref := s.SSHHostRef
+	if ref == "" {
+		if hi, err := m.hostResolver(s.ID); err == nil && hi != nil {
+			ref = s.ID
+			s.SSHHostRef = ref
+		}
+	}
+
+	if ref == "" {
+		return
+	}
+
+	hi, err := m.hostResolver(ref)
+	if err != nil || hi == nil {
+		return
+	}
+
+	if s.Name == "" {
+		s.Name = hi.Name
+	}
+	if s.Description == "" {
+		s.Description = hi.Description
+	}
+	if s.Group == "" {
+		s.Group = hi.Group
+	}
+	if len(s.Tags) == 0 && len(hi.Tags) > 0 {
+		s.Tags = hi.Tags
+	}
+	if s.Color == "" {
+		s.Color = hi.Color
+	}
+	if s.Icon == "" {
+		s.Icon = hi.Icon
+	}
+
+	// Dynamic SSH configuration from Single Source of Truth
+	s.Host = hi.Host
+	s.Port = hi.Port
+	s.User = hi.User
+	s.Identity = hi.IdentityID
+	s.Connection.SSH = &SSHConnectionConfig{
+		Enabled:   true,
+		Host:      hi.Host,
+		Port:      hi.Port,
+		User:      hi.User,
+		Identity:  hi.IdentityID,
+		ProxyJump: hi.ProxyJump,
+	}
+
+	// Dynamic Agent URL if Agent is configured (deep copy to avoid mutating in-memory master state)
+	if s.Connection.Agent != nil {
+		agentCopy := *s.Connection.Agent
+		port := agentCopy.Port
+		if port <= 0 {
+			port = 8085
+			agentCopy.Port = port
+		}
+		if agentCopy.URL == "" || (strings.HasPrefix(agentCopy.URL, "http://") && strings.HasSuffix(agentCopy.URL, fmt.Sprintf(":%d", port))) {
+			agentCopy.URL = fmt.Sprintf("http://%s:%d", hi.Host, port)
+		}
+		if agentCopy.VaultSecret == "" && agentCopy.SecretRef != "" {
+			agentCopy.VaultSecret = agentCopy.SecretRef
+		}
+		if agentCopy.SecretRef == "" && agentCopy.VaultSecret != "" {
+			agentCopy.SecretRef = agentCopy.VaultSecret
+		}
+		s.Connection.Agent = &agentCopy
+	}
+}
+
+// load parses the servers.yaml file into memory (supporting v1 servers and v2 nodes).
 func (m *Manager) load() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -177,11 +299,16 @@ func (m *Manager) load() error {
 		return fmt.Errorf("unmarshal error: %w", err)
 	}
 
-	for i := range cfg.Servers {
-		cfg.Servers[i].Normalize()
+	rawNodes := cfg.Nodes
+	if len(rawNodes) == 0 && len(cfg.Servers) > 0 {
+		rawNodes = cfg.Servers
 	}
 
-	m.servers = cfg.Servers
+	for i := range rawNodes {
+		rawNodes[i].Normalize()
+	}
+
+	m.servers = rawNodes
 	if cfg.Presets != nil {
 		m.presets = cfg.Presets
 	} else {
@@ -207,12 +334,39 @@ func (m *Manager) maybeReload() {
 	}
 }
 
-// saveLocked writes the in-memory state to servers.yaml. Must be called under lock.
+// saveLocked writes the in-memory state to servers.yaml in v2 schema. Must be called under lock.
 func (m *Manager) saveLocked() error {
+	cleanNodes := make([]ServerNode, len(m.servers))
+	for i, s := range m.servers {
+		node := s
+		if node.SSHHostRef != "" {
+			node.Host = ""
+			node.User = ""
+			node.Port = 0
+			node.Identity = ""
+			node.Connection.SSH = nil
+
+			if node.Connection.Agent != nil {
+				agentCopy := *node.Connection.Agent
+				if agentCopy.Port <= 0 {
+					agentCopy.Port = 8085
+				}
+				if strings.HasPrefix(agentCopy.URL, "http://") && strings.HasSuffix(agentCopy.URL, fmt.Sprintf(":%d", agentCopy.Port)) {
+					agentCopy.URL = ""
+				}
+				if agentCopy.SecretRef == "" && agentCopy.VaultSecret != "" {
+					agentCopy.SecretRef = agentCopy.VaultSecret
+				}
+				node.Connection.Agent = &agentCopy
+			}
+		}
+		cleanNodes[i] = node
+	}
+
 	cfg := ServersConfigFile{
-		Version: "1",
+		Version: "2",
 		Presets: m.presets,
-		Servers: m.servers,
+		Nodes:   cleanNodes,
 	}
 
 	data, err := yaml.Marshal(&cfg)
@@ -220,7 +374,7 @@ func (m *Manager) saveLocked() error {
 		return err
 	}
 
-	header := []byte("# servers.yaml — Config Studio Fleet Inventory\n")
+	header := []byte("# servers.yaml v2 — Config Studio Fleet Inventory\n")
 	content := append(header, data...)
 
 	tmpPath := m.filePath + ".tmp"
@@ -241,18 +395,22 @@ func (m *Manager) saveLocked() error {
 	return nil
 }
 
-// ListServers returns a copy of all registered servers.
+// ListServers returns a copy of all registered servers with resolved metadata.
 func (m *Manager) ListServers() []ServerNode {
 	m.maybeReload()
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	res := make([]ServerNode, len(m.servers))
-	copy(res, m.servers)
+	for i, s := range m.servers {
+		copy := s
+		m.resolveNodeLocked(&copy)
+		res[i] = copy
+	}
 	return res
 }
 
-// GetServer finds a server by its unique ID.
+// GetServer finds a server by its unique ID with resolved metadata.
 func (m *Manager) GetServer(id string) (*ServerNode, error) {
 	m.maybeReload()
 	m.mu.RLock()
@@ -261,6 +419,7 @@ func (m *Manager) GetServer(id string) (*ServerNode, error) {
 	for _, s := range m.servers {
 		if s.ID == id {
 			copy := s
+			m.resolveNodeLocked(&copy)
 			return &copy, nil
 		}
 	}
@@ -337,9 +496,14 @@ func (m *Manager) SetRawYAML(rawContent string) error {
 		return fmt.Errorf("invalid YAML syntax: %w", err)
 	}
 
+	rawList := cfg.Nodes
+	if len(rawList) == 0 && len(cfg.Servers) > 0 {
+		rawList = cfg.Servers
+	}
+
 	seenIDs := make(map[string]bool)
-	for i := range cfg.Servers {
-		s := &cfg.Servers[i]
+	for i := range rawList {
+		s := &rawList[i]
 		if s.ID == "" {
 			return errors.New("all servers must have an 'id'")
 		}
@@ -365,7 +529,7 @@ func (m *Manager) SetRawYAML(rawContent string) error {
 		return err
 	}
 
-	m.servers = cfg.Servers
+	m.servers = rawList
 	if cfg.Presets != nil {
 		m.presets = cfg.Presets
 	}

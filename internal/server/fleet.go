@@ -25,6 +25,9 @@ func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
 		existingMap := make(map[string]bool)
 		for _, srv := range servers {
 			existingMap[srv.ID] = true
+			if srv.SSHHostRef != "" {
+				existingMap[srv.SSHHostRef] = true
+			}
 			if srv.Connection.SSH != nil && srv.Connection.SSH.Host != "" {
 				port := srv.Connection.SSH.Port
 				if port <= 0 {
@@ -47,6 +50,7 @@ func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
 					Tags:        h.Tags,
 					Color:       h.Color,
 					Icon:        h.Icon,
+					SSHHostRef:  h.ID,
 				}
 				node.Connection.SSH = &fleet.SSHConnectionConfig{
 					Enabled:   true,
@@ -56,6 +60,10 @@ func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
 					Identity:  h.IdentityID,
 					ProxyJump: h.ProxyJump,
 				}
+				node.Host = h.Host
+				node.Port = h.Port
+				node.User = h.User
+				node.Identity = h.IdentityID
 				servers = append(servers, node)
 			}
 		}
@@ -85,15 +93,17 @@ func (s *Server) handleAddOrUpdateServer(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := s.fleet.AddOrUpdateServer(srv); err != nil {
-		jsonError(w, http.StatusBadRequest, "failed to save server: "+err.Error())
-		return
-	}
-
-	// Mirror SSH config to Core Host Storage
-	if s.hosts != nil && srv.ID != "localhost" && srv.ID != "local" {
+	// Single Source of Truth: if sshHostRef is provided, link with Core Host
+	if srv.SSHHostRef != "" && s.hosts != nil {
+		if h, err := s.hosts.Get(srv.SSHHostRef); err == nil && h != nil {
+			if srv.Name == "" {
+				srv.Name = h.Name
+			}
+		}
+	} else if s.hosts != nil && srv.ID != "localhost" && srv.ID != "local" {
+		// Mirror SSH config to Core Host Storage and link ref
 		if srv.Connection.SSH != nil && srv.Connection.SSH.Enabled && strings.TrimSpace(srv.Connection.SSH.Host) != "" {
-			_, _ = s.hosts.Save(&hosts.Host{
+			h, _ := s.hosts.Save(&hosts.Host{
 				ID:          srv.ID,
 				Name:        srv.Name,
 				Host:        srv.Connection.SSH.Host,
@@ -107,7 +117,15 @@ func (s *Server) handleAddOrUpdateServer(w http.ResponseWriter, r *http.Request)
 				Icon:        srv.Icon,
 				Description: srv.Description,
 			})
+			if h != nil {
+				srv.SSHHostRef = h.ID
+			}
 		}
+	}
+
+	if err := s.fleet.AddOrUpdateServer(srv); err != nil {
+		jsonError(w, http.StatusBadRequest, "failed to save server: "+err.Error())
+		return
 	}
 
 	if s.audit != nil {

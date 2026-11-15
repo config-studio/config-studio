@@ -75,6 +75,29 @@ func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *p
 		hostsMgr, _ = hosts.NewManager(cfgMgr.DataDir(), secMgr)
 	}
 
+	if fleetMgr != nil && hostsMgr != nil {
+		fleetMgr.SetHostResolver(func(ref string) (*fleet.HostInfo, error) {
+			h, err := hostsMgr.Get(ref)
+			if err != nil || h == nil {
+				return nil, err
+			}
+			return &fleet.HostInfo{
+				ID:          h.ID,
+				Name:        h.Name,
+				Host:        h.Host,
+				Port:        h.NormalizedPort(),
+				User:        h.User,
+				IdentityID:  h.IdentityID,
+				ProxyJump:   h.ProxyJump,
+				Group:       h.Group,
+				Tags:        h.Tags,
+				Color:       h.Color,
+				Icon:        h.Icon,
+				Description: h.Description,
+			}, nil
+		})
+	}
+
 	s := &Server{
 		cfg:          cfg,
 		config:       cfgMgr,
@@ -218,6 +241,11 @@ func (s *Server) setupRoutes() {
 
 	// SysInfo & Hardware Telemetry (Localhost & Fleet Nodes)
 	mux.HandleFunc("GET /api/sysinfo", s.handleSysInfo)
+
+	// System Update & Self-Updater (CORE-001)
+	mux.HandleFunc("GET /api/system/check-update", s.handleCheckSystemUpdate)
+	mux.HandleFunc("POST /api/system/self-update", s.handleSelfUpdate)
+	mux.HandleFunc("POST /api/system/restart", s.handleSystemRestart)
 
 	// Remote Agent Proxy (bypasses browser mixed-content and CORS restrictions)
 	mux.HandleFunc("/api/remote-proxy/{path...}", s.handleRemoteProxy)

@@ -46,6 +46,19 @@ interface PluginsTabProps {
   t: any;
 }
 
+function semverCompare(a?: string, b?: string): number {
+  if (!a || !b) return 0;
+  const pa = a.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = b.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const na = pa[i] || 0;
+    const nb = pb[i] || 0;
+    if (na > nb) return 1;
+    if (na < nb) return -1;
+  }
+  return 0;
+}
+
 export const PluginsTab: React.FC<PluginsTabProps> = ({
   pluginExecUnrestricted,
   setPluginExecUnrestricted,
@@ -310,6 +323,25 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
                     <Badge variant="neutral" size="sm">
                       v{p.version}
                     </Badge>
+                    {(() => {
+                      const cat = catalogItems.find((c) => c.id === p.id);
+                      if (cat && semverCompare(cat.version, p.version) > 0 && cat.downloadUrl) {
+                        return (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            className="h-5 px-1.5 text-[9px] gap-1 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white border-0 shadow-sm"
+                            loading={installingCatalogId === cat.id}
+                            onClick={() => handleInspectCatalogItem(cat)}
+                            title={language === 'en' ? `Update to v${cat.version}` : `Обновить до v${cat.version}`}
+                          >
+                            <RefreshCw size={9} className={installingCatalogId === cat.id ? 'animate-spin' : ''} />
+                            <span>{language === 'en' ? `Update to v${cat.version}` : `Обновить до v${cat.version}`}</span>
+                          </Button>
+                        );
+                      }
+                      return null;
+                    })()}
                     {p.builtin && (
                       <Badge variant="accent" size="sm">
                         {t.builtin}
@@ -523,9 +555,34 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
 
                   <div>
                     {isInstalled ? (
-                      <Badge variant="success" size="sm" icon={<CheckCircle2 size={13} />}>
-                        {t.catalogInstalled}
-                      </Badge>
+                      (() => {
+                        const installed = pluginsList.find((p) => p.id === catItem.id);
+                        const hasUpdate = installed && semverCompare(catItem.version, installed.version) > 0;
+                        if (hasUpdate) {
+                          return (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              className="h-7 px-2.5 text-xs gap-1.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white border-0 shadow-sm"
+                              onClick={() => handleInspectCatalogItem(catItem)}
+                              disabled={isInstallingThis || isInstalling}
+                              loading={isInstallingThis}
+                              icon={<RefreshCw size={12} className={isInstallingThis ? 'animate-spin' : ''} />}
+                            >
+                              {isInstallingThis
+                                ? t.installing
+                                : language === 'en'
+                                ? `Update to v${catItem.version}`
+                                : `Обновить до v${catItem.version}`}
+                            </Button>
+                          );
+                        }
+                        return (
+                          <Badge variant="success" size="sm" icon={<CheckCircle2 size={13} />}>
+                            {t.catalogInstalled}
+                          </Badge>
+                        );
+                      })()
                     ) : (
                       <Button
                         variant="primary"

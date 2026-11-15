@@ -26,6 +26,7 @@ type InstallAgentOptions struct {
 	UseSudo     bool   `json:"useSudo"`     // Run service and installation with sudo (default: true)
 	ServiceType string `json:"serviceType"` // "auto", "systemd", "openrc", "none" (default: "auto")
 	AgentsDir   string `json:"agentsDir"`   // Optional local directory where agent binaries reside
+	UpgradeOnly bool   `json:"upgradeOnly"` // Preserve existing agent.yaml configuration and credentials
 }
 
 // InstallAgentResult captures execution logs and status.
@@ -229,8 +230,9 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	addLog("Остановка предыдущих процессов агента (если были)...")
 	_, _ = runRemoteCmd(client, fmt.Sprintf("%ssystemctl stop config-studio-agent 2>/dev/null || %src-service config-studio-agent stop 2>/dev/null || %spkill -9 -f config-studio-agent 2>/dev/null || true", sudoPrefix, sudoPrefix, sudoPrefix))
 
-	addLog("Установка бинарника в %s...", targetBinPath)
+	addLog("Создание резервной копии и установка бинарника в %s...", targetBinPath)
 	_, _ = runRemoteCmd(client, fmt.Sprintf("%smkdir -p $(dirname %s) %s", sudoPrefix, targetBinPath, targetCfgDir))
+	_, _ = runRemoteCmd(client, fmt.Sprintf("%scp -f %s %s.bak 2>/dev/null || true", sudoPrefix, targetBinPath, targetBinPath))
 	// install unlinks existing target inode so running processes don't trigger ETXTBSY (Text file busy)
 	_, err = runRemoteCmd(client, fmt.Sprintf("%sinstall -m 755 %s %s 2>/dev/null || (%scp -f %s %s && %schmod 755 %s)", sudoPrefix, remoteTmpBin, targetBinPath, sudoPrefix, remoteTmpBin, targetBinPath, sudoPrefix, targetBinPath))
 	if err != nil {
@@ -238,8 +240,20 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	}
 	_, _ = runRemoteCmd(client, fmt.Sprintf("rm -f %s", remoteTmpBin))
 
-	// Generate agent.yaml
-	agentYAML := fmt.Sprintf(`# config-studio-agent configuration
+	// Check if agent.yaml should be preserved in upgrade mode
+	targetCfgFile := fmt.Sprintf("%s/agent.yaml", targetCfgDir)
+	shouldWriteConfig := true
+	if opts.UpgradeOnly {
+		checkOut, _ := runRemoteCmd(client, fmt.Sprintf("%stest -f %s && echo EXISTS", sudoPrefix, targetCfgFile))
+		if strings.Contains(checkOut, "EXISTS") {
+			shouldWriteConfig = false
+			addLog("Сохранение существующей конфигурации и секретов агента (%s)", targetCfgFile)
+		}
+	}
+
+	if shouldWriteConfig {
+		// Generate agent.yaml
+		agentYAML := fmt.Sprintf(`# config-studio-agent configuration
 host: "0.0.0.0"
 port: %d
 adopted: true
@@ -257,14 +271,14 @@ sandbox:
     - "/root/.ssh"
 `, port, keyID, totpSecret)
 
-	remoteTmpCfg := "/tmp/agent.yaml"
-	cfgFile, err := sftpClient.Create(remoteTmpCfg)
-	if err == nil {
-		_, _ = cfgFile.Write([]byte(agentYAML))
-		_ = cfgFile.Close()
-		targetCfgFile := fmt.Sprintf("%s/agent.yaml", targetCfgDir)
-		_, _ = runRemoteCmd(client, fmt.Sprintf("%smv %s %s && %schmod 600 %s", sudoPrefix, remoteTmpCfg, targetCfgFile, sudoPrefix, targetCfgFile))
-		addLog("Конфигурация agent.yaml сохранена в %s", targetCfgFile)
+		remoteTmpCfg := "/tmp/agent.yaml"
+		cfgFile, err := sftpClient.Create(remoteTmpCfg)
+		if err == nil {
+			_, _ = cfgFile.Write([]byte(agentYAML))
+			_ = cfgFile.Close()
+			_, _ = runRemoteCmd(client, fmt.Sprintf("%smv %s %s && %schmod 600 %s", sudoPrefix, remoteTmpCfg, targetCfgFile, sudoPrefix, targetCfgFile))
+			addLog("Конфигурация agent.yaml сохранена в %s", targetCfgFile)
+		}
 	}
 
 	// 9. Configure & Start Service

@@ -102,8 +102,8 @@ var defaultFallbackCatalogJSON = []byte(`[
   {
     "id": "servers",
     "name": "Servers & Fleet Manager",
-    "version": "1.2.4",
-    "description": "Централизованное управление серверами, servers.yaml, нативный SSH/SFTP, встроенный агент, отправка файлов и автообнаружение LAN",
+    "version": "1.3.0",
+    "description": "Централизованное управление серверами, servers.yaml v2, нативный SSH/SFTP, встроенный агент и отправка файлов",
     "author": "Config Studio Team",
     "downloadUrl": "https://github.com/config-studio/config-studio-servers/releases/latest/download/servers.cspkg",
     "sourceId": "official",
@@ -113,13 +113,25 @@ var defaultFallbackCatalogJSON = []byte(`[
     "locales": {
       "ru": {
         "name": "Флот серверов & Инвентарь",
-        "description": "Управление парком серверов, servers.yaml, SSH/SFTP, встроенный агент и отправка файлов"
+        "description": "Управление парком серверов, servers.yaml v2, SSH/SFTP, встроенный агент и отправка файлов"
       },
       "en": {
         "name": "Servers & Fleet Manager",
-        "description": "Centralized server inventory, servers.yaml, native SSH/SFTP and agent integration in a unified switcher"
+        "description": "Centralized server inventory, servers.yaml v2, native SSH/SFTP and agent integration in a unified switcher"
       }
     }
+  },
+  {
+    "id": "traefik",
+    "name": "Traefik Router & Proxy Manager",
+    "version": "1.1.0",
+    "description": "Управление маршрутами, сервисами и TLS сертификатами Traefik v3",
+    "author": "Config Studio Team",
+    "downloadUrl": "https://github.com/config-studio/config-studio-traefik/releases/latest/download/traefik.cspkg",
+    "sourceId": "official",
+    "official": true,
+    "icon": "🚦",
+    "tags": ["Traefik", "Proxy", "Router", "TLS", "Docker"]
   },
   {
     "id": "lang-en",
@@ -144,6 +156,18 @@ var defaultFallbackCatalogJSON = []byte(`[
     "official": true,
     "icon": "🇷🇺",
     "tags": ["Localization", "Language", "Russian"]
+  },
+  {
+    "id": "lang-de",
+    "name": "Deutsche Sprachpaket",
+    "version": "1.0.0",
+    "description": "Vollständige deutsche Lokalisierung für Config Studio 🇩🇪",
+    "author": "Edvard Baldanov",
+    "downloadUrl": "https://github.com/config-studio/config-studio-lang-de/releases/latest/download/lang-de.cspkg",
+    "sourceId": "official",
+    "official": true,
+    "icon": "🇩🇪",
+    "tags": ["Localization", "Language", "German"]
   }
 ]`)
 
@@ -357,10 +381,26 @@ func (sm *SourcesManager) SyncSources(installedPlugins []Plugin) ([]CatalogItem,
 
 	_ = sm.saveSourcesLocked()
 
-	// Write cache
-	cacheBytes, err := json.MarshalIndent(allItems, "", "  ")
-	if err == nil {
-		_ = os.WriteFile(sm.cacheFile, cacheBytes, 0644)
+	// Write cache only if new items were fetched; preserve existing cache on network failure
+	if len(allItems) > 0 {
+		cacheBytes, err := json.MarshalIndent(allItems, "", "  ")
+		if err == nil {
+			_ = os.WriteFile(sm.cacheFile, cacheBytes, 0644)
+		}
+	} else {
+		// Fallback to cached items if network fetch failed for all sources
+		if data, err := os.ReadFile(sm.cacheFile); err == nil && len(data) > 0 {
+			var cached []CatalogItem
+			if err := json.Unmarshal(data, &cached); err == nil {
+				for i := range cached {
+					if p, ok := installedMap[cached[i].ID]; ok {
+						cached[i].Installed = true
+						cached[i].Enabled = p.Enabled
+					}
+				}
+				return cached, nil
+			}
+		}
 	}
 
 	return allItems, nil

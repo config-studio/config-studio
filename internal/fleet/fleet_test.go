@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -142,5 +143,99 @@ func TestFleetManager_PingLocalhost(t *testing.T) {
 	res := m.Ping(context.Background(), "localhost")
 	if res.Status != "online" || res.Protocol != "local" {
 		t.Errorf("expected localhost to be online local, got %+v", res)
+	}
+}
+
+func TestFleetManager_V2_SingleSourceOfTruth(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-fleet-v2-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	m, err := NewManager(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to init: %v", err)
+	}
+
+	// Mock dynamic core host repository
+	mockHosts := map[string]*HostInfo{
+		"alpine-01": {
+			ID:         "alpine-01",
+			Name:       "Alpine Test Server",
+			Host:       "192.168.1.100",
+			Port:       2222,
+			User:       "deployer",
+			IdentityID: "vault:ssh-key-1",
+			Group:      "Production",
+			Tags:       []string{"alpine", "web"},
+		},
+	}
+
+	m.SetHostResolver(func(id string) (*HostInfo, error) {
+		if h, ok := mockHosts[id]; ok {
+			return h, nil
+		}
+		return nil, os.ErrNotExist
+	})
+
+	// Add node with ssh_host_ref (ARCH-002)
+	node := ServerNode{
+		ID:         "alpine-01",
+		SSHHostRef: "alpine-01",
+		Connection: ConnectionConfig{
+			Agent: &AgentConnectionConfig{
+				Enabled:   true,
+				Port:      8085,
+				SecretRef: "vault://agent:alpine-01",
+			},
+		},
+	}
+
+	if err := m.AddOrUpdateServer(node); err != nil {
+		t.Fatalf("failed to add server: %v", err)
+	}
+
+	// 1. Verify that raw YAML is written in v2 schema and contains NO duplicate IP or credentials
+	raw, err := m.GetRawYAML()
+	if err != nil {
+		t.Fatalf("failed to get raw YAML: %v", err)
+	}
+	if !strings.Contains(raw, "version: \"2\"") && !strings.Contains(raw, "version: 2") {
+		t.Errorf("expected version 2 in YAML, got: %s", raw)
+	}
+	if !strings.Contains(raw, "nodes:") {
+		t.Errorf("expected nodes: list in YAML v2, got: %s", raw)
+	}
+	if strings.Contains(raw, "192.168.1.100") {
+		t.Errorf("expected NO duplicated IP in servers.yaml v2, but found it in: %s", raw)
+	}
+	if strings.Contains(raw, "deployer") {
+		t.Errorf("expected NO duplicated username in servers.yaml v2, but found it in: %s", raw)
+	}
+
+	// 2. Verify that GetServer resolves IP and dynamic Agent URL from Core Host dynamically
+	srv, err := m.GetServer("alpine-01")
+	if err != nil {
+		t.Fatalf("failed to get server: %v", err)
+	}
+	if srv.Host != "192.168.1.100" || srv.Port != 2222 || srv.User != "deployer" {
+		t.Errorf("expected resolved SSH info, got host=%q, port=%d, user=%q", srv.Host, srv.Port, srv.User)
+	}
+	if srv.Connection.Agent == nil || srv.Connection.Agent.URL != "http://192.168.1.100:8085" {
+		t.Errorf("expected dynamic agent URL http://192.168.1.100:8085, got %+v", srv.Connection.Agent)
+	}
+
+	// 3. Dynamic IP Change in Core Host propagates immediately
+	mockHosts["alpine-01"].Host = "10.0.0.55"
+	srvUpdated, err := m.GetServer("alpine-01")
+	if err != nil {
+		t.Fatalf("failed to get updated server: %v", err)
+	}
+	if srvUpdated.Host != "10.0.0.55" {
+		t.Errorf("expected updated IP 10.0.0.55, got %q", srvUpdated.Host)
+	}
+	if srvUpdated.Connection.Agent.URL != "http://10.0.0.55:8085" {
+		t.Errorf("expected dynamic agent URL to update to http://10.0.0.55:8085, got %q", srvUpdated.Connection.Agent.URL)
 	}
 }

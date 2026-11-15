@@ -478,3 +478,20 @@ export interface SystemMetrics {
   version: string;
 }
 
+export interface SystemUpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  hasUpdate: boolean;
+  releaseNotes?: string;
+  downloadUrl?: string;
+  publishedAt?: string;
+  assetSize?: number;
+}
+
+export interface SelfUpdateResult {
+  success: boolean;
+  message: string;
+  restartRequired: boolean;
+  executable?: string;
+}
+
