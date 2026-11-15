@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import MonacoEditor, { DiffEditor, OnMount } from '@monaco-editor/react';
 import { OpenFile, Settings, OutlineNode, ToolbarButtonDef, GuardValidationResult, WorkspaceRoot, FileRevision } from '../types';
 import { X, FileCode, Hash, ShieldAlert, ShieldCheck, History, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -183,64 +183,6 @@ export const Editor: React.FC<EditorProps> = ({
     });
   };
 
-  // FEAT-005: Long hex / base64 keys folding in Monaco
-  const hexDecorationsRef = useRef<string[]>([]);
-  const expandedKeysRef = useRef<Set<string>>(new Set());
-
-  const updateHexDecorations = useCallback(() => {
-    const editor = editorRef.current;
-    const monaco = monacoInstanceRef.current;
-    if (!editor || !monaco) return;
-
-    const model = editor.getModel();
-    if (!model) return;
-
-    const lineCount = model.getLineCount();
-    const newDecorations: any[] = [];
-    const tokenRegex = /(0x[a-fA-F0-9]{4}|[a-zA-Z0-9+/]{6})([a-zA-Z0-9+/]{32,})([a-zA-Z0-9+/=]{2,4})/g;
-
-    for (let line = 1; line <= lineCount; line++) {
-      const lineContent = model.getLineContent(line);
-      if (
-        lineContent.trim().startsWith('#') ||
-        lineContent.trim().startsWith('//') ||
-        lineContent.includes('http://') ||
-        lineContent.includes('https://')
-      ) {
-        continue;
-      }
-
-      let match: RegExpExecArray | null;
-      tokenRegex.lastIndex = 0;
-      while ((match = tokenRegex.exec(lineContent)) !== null) {
-        const prefix = match[1];
-        const middle = match[2];
-
-        const keyId = `${line}:${match.index}`;
-        if (expandedKeysRef.current.has(keyId)) {
-          continue;
-        }
-
-        const startCol = match.index + 1 + prefix.length;
-        const endCol = startCol + middle.length;
-
-        newDecorations.push({
-          range: new monaco.Range(line, startCol, line, endCol),
-          options: {
-            inlineClassName: 'monaco-folded-hex-hidden',
-            after: {
-              content: ' ··· ',
-              inlineClassName: 'monaco-folded-hex-badge',
-            },
-            hoverMessage: { value: 'FEAT-005: Длинный ключ свернут. Кликните, чтобы развернуть.' },
-          },
-        });
-      }
-    }
-
-    hexDecorationsRef.current = editor.deltaDecorations(hexDecorationsRef.current, newDecorations);
-  }, [editorRef]);
-
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoInstanceRef.current = monaco;
@@ -260,55 +202,6 @@ export const Editor: React.FC<EditorProps> = ({
         onCursorChange(e.position.lineNumber, e.position.column);
       }
     });
-
-    // FEAT-005: Toggle folded hex tokens on click
-    editor.onMouseDown((e: any) => {
-      const target = e.target;
-      const targetElement = target?.element;
-      const isBadgeClick = Boolean(
-        targetElement && (
-          targetElement.classList?.contains('monaco-folded-hex-badge') ||
-          targetElement.closest?.('.monaco-folded-hex-badge')
-        )
-      );
-
-      const pos = target?.position;
-      if (!pos && !isBadgeClick) return;
-
-      const lineNumber = pos ? pos.lineNumber : target?.range?.startLineNumber;
-      if (!lineNumber) return;
-
-      const model = editor.getModel();
-      if (!model) return;
-
-      const lineContent = model.getLineContent(lineNumber);
-      if (lineContent.includes('http://') || lineContent.includes('https://')) return;
-
-      const tokenRegex = /(0x[a-fA-F0-9]{4}|[a-zA-Z0-9+/]{6})([a-zA-Z0-9+/]{32,})([a-zA-Z0-9+/=]{2,4})/g;
-      let match: RegExpExecArray | null;
-      while ((match = tokenRegex.exec(lineContent)) !== null) {
-        const fullToken = match[0];
-        const tokenStartCol = match.index + 1;
-        const tokenEndCol = tokenStartCol + fullToken.length;
-
-        if (isBadgeClick || (pos && pos.column >= tokenStartCol && pos.column <= tokenEndCol)) {
-          const keyId = `${lineNumber}:${match.index}`;
-          if (expandedKeysRef.current.has(keyId)) {
-            expandedKeysRef.current.delete(keyId);
-          } else {
-            expandedKeysRef.current.add(keyId);
-          }
-          updateHexDecorations();
-          break;
-        }
-      }
-    });
-
-    editor.onDidChangeModelContent(() => {
-      updateHexDecorations();
-    });
-
-    updateHexDecorations();
   };
 
   useEffect(() => {
@@ -324,15 +217,6 @@ export const Editor: React.FC<EditorProps> = ({
   useEffect(() => {
     setSelectedRevIndex(0);
   }, [activeFilePath]);
-
-  // FEAT-005: Update hex decorations on active file switch
-  useEffect(() => {
-    expandedKeysRef.current.clear();
-    const timer = setTimeout(() => {
-      updateHexDecorations();
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [activeFilePath, currentFile?.path, updateHexDecorations]);
 
   const revisions = currentFile?.revisions || [];
   const selectedRev = revisions[selectedRevIndex] || revisions[0] || null;
