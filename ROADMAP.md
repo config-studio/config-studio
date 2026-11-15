@@ -93,7 +93,7 @@ graph TD
 
 | Плагин / Репозиторий | Категория | Статус | Запланированный функционал | Выполненный объем vs Бэклог |
 |---|---|:---:|---|---|
-| **`config-studio-servers`** | Инфраструктура & Флот | ⚡ **Частично реализован** (v1.4.0) | Инвентарь `servers.yaml`, Universal Fleet Switcher, SSH Auto-Onboarding агента, Zero-Secret Vault, Embedded Agent Distribution (.cspkg), Массовая установка агента (Fleet Batch Onboarding / Multi-Node Provisioning), параллельный воркер-пул, Fleet CLI. *(Отложено: Safe Rollout Diff & Approve / Canary-first).* | **Выполнено (v1.4.0):** Инвентарь, переключатель, SSH онбординг одиночного узла, стриминг бинарников агента из .cspkg, Vault.<br/>**В фокусе (Этап 5):** Массовая параллельная установка агентов на группу узлов (Fleet Batch Provisioning), монитор прогресса, автоподхват ключей, Fleet CLI.<br/>**Отложено в бэклог:** Массовая раскатка конфигов (Safe Rollout Engine: Diff & Approve, Canary-first). |
+| **`config-studio-servers`** | Инфраструктура & Флот | ⚡ **Частично реализован** (v1.4.0) | Инвентарь `servers.yaml`, Universal Fleet Switcher, SSH Auto-Onboarding агента, Zero-Secret Vault, Embedded Agent Distribution (.cspkg), Массовая установка агента (Fleet Batch Onboarding / Multi-Node Provisioning). *(Отложено: Safe Rollout Diff & Approve / Canary-first, Fleet CLI).* | **Выполнено (v1.4.0):** Инвентарь, переключатель, SSH онбординг одиночного узла, стриминг бинарников агента из .cspkg, Vault, кастомные Dropdown.<br/>**В фокусе (Этап 5):** Массовая параллельная установка агентов на группу узлов (Fleet Batch Provisioning), монитор прогресса, автоподхват ключей.<br/>**Отложено в бэклог:** Массовая раскатка конфигов (Safe Rollout Engine) и Fleet CLI. |
 | **`config-studio-glance`** | Дашборды & Закладки | 📋 **Запланирован** | 1-Click Baremetal Binary Updater (`glanceapp/glance`), каталог Community Widgets, архитектура `$include`, Any-Document Bookmark Generator (`Alt+B`), 1-Click Traefik Sync, Live Split-Screen предпросмотр (:8080) с авторелоадом. | **Выполнено:** Ядро подготовило `batchRead` (v2.3.3) и Split Layout (v2.3.4).<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-docker`** | Контейнеризация | 📋 **Запланирован** | Визуальный конструктор Compose, библиотека Blueprints (Postgres, Redis, Traefik), Pre-Save удаленная проверка (`docker compose config`), тулбар (`Up -d`, `Down`, `Pull`), SSE-стриминг логов в нижний док, дашборд статусов контейнеров/портов. | **Выполнено:** Базовый синтаксический guard YAML в ядре.<br/>**Осталось:** Полная реализация плагина и Log Streaming Service (v2.3.5) ядра. |
 | **`config-studio-nginx`** | Веб-серверы & Прокси | 📋 **Запланирован** | Конструктор блоков `server`/`location`/`proxy_pass`, архитектурные шаблоны (SPA, WebSocket, SSL), Pre-Save удаленный синтаксический чекер `nginx -t`, 1-Click менеджер `sites-available` ➔ `sites-enabled`, монитор истечения SSL-сертификатов. | **Выполнено:** Поддержка подсветки `.conf` в ядре и SSH Headless API.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
@@ -122,14 +122,14 @@ graph TD
 
 ---
 
-### 1. `config-studio-servers` («Серверы и Флот» — Этап 5: Массовая установка агентов & Fleet CLI)
-*Единый центр управления физическими серверами, VPS и кластерами с возможностью массового развертывания агентов и оркестрации команд.*
+### 1. `config-studio-servers` («Серверы и Флот» — Этап 5: Массовая установка агентов)
+*Единый центр управления физическими серверами, VPS и кластерами с возможностью массового развертывания агентов.*
 
-- **Текущее состояние:** Выпущены версии v1.0.0 — v1.4.0 (YAML инвентарь `servers.yaml`, Universal Fleet Switcher с кнопками `[ ⚡ Агент ]`, `[ 📁 SFTP ]`, `[ >_ Шелл ]`, 1-Click SSH Auto-Onboarding для одиночного узла, Embedded Agent Distribution с доставкой бинарников из `.cspkg`, интеграция с Core Vault).
+- **Текущее состояние:** Выпущены версии v1.0.0 — v1.4.0 (YAML инвентарь `servers.yaml`, Universal Fleet Switcher с кнопками `[ ⚡ Агент ]`, `[ 📁 SFTP ]`, `[ >_ Шелл ]`, 1-Click SSH Auto-Onboarding для одиночного узла, Embedded Agent Distribution с доставкой бинарников из `.cspkg`, интеграция с Core Vault, кастомные Dropdown).
 - **Файловые ассоциации (`fileMatches`):** `["servers.yaml", "servers.yml", "fleet.yaml"]`.
 - **Требуемые разрешения ядра (`permissions`):** `ssh.exec`, `secrets.read`, `fs.batchRead`, `ui.toolbar`, `ui.bottomDock`, `ui.modal`.
 
-#### Полная функциональная спецификация Этапа 5 (Массовая установка и онбординг флота):
+#### Полная функциональная спецификация Этапа 5 (Массовая установка агентов):
 - [ ] **Массовая установка агентов флота (Fleet Mass Onboarding / Batch Provisioning)**:
   - [ ] **Фильтрация и множественный выбор узлов (Target Nodes Multi-Select)**:
     - Интерактивный список узлов инвентаря с фильтром «Требуют установки агента» (статус: *Только SSH / Не настроен*), выбором по тегам (`prod`, `staging`, `vps`, `unmanaged`) или чекбоксами ручного выбора.
@@ -151,12 +151,12 @@ graph TD
     - Таблица статусов с живыми индикаторами по каждому узлу: Очередь ➔ Подключение ➔ Загрузка бинарника (%) ➔ Запуск службы ➔ Успешно ✓ / Ошибка ✕.
     - Раскрытие подробного лога этапов по клику на конкретный узел.
     - Сводная статистика (Успешно / Ошибок) и кнопка «Повторить для упавших» (`Retry Failed`).
-- [ ] **Fleet CLI (Массовое исполнение сервисных команд)**:
-  - [ ] Выполнение сервисных команд обслуживания (`systemctl restart <unit>`, `docker compose pull && docker compose up -d`, `apt update`) одновременно на выбранной группе серверов.
-  - [ ] Вывод результатов в нижний док с группировкой по хостам (вкладки хостов, бейджи статуса OK/ERR, цветовая индикация времени отклика).
 
 #### 💡 Отложенные задачи в бэклог (Deferred Backlog):
-- [ ] **Массовая раскатка конфигов (Safe Rollout Engine)** *(Отложено до завершения массовой установки и логгера)*:
+- [ ] **Fleet CLI (Массовое исполнение сервисных команд)** *(Отложено до завершения массовой установки и логгера)*:
+  - [ ] Выполнение сервисных команд обслуживания (`systemctl restart <unit>`, `docker compose pull && docker compose up -d`, `apt update`) одновременно на выбранной группе серверов.
+  - [ ] Вывод результатов в нижний док с группировкой по хостам (вкладки хостов, бейджи статуса OK/ERR, цветовая индикация времени отклика).
+- [ ] **Массовая раскатка конфигов (Safe Rollout Engine)**:
   - [ ] Сводный предпросмотр Diff & Approve перед применением файла на выбранную группу узлов (эндпоинт `POST /api/fs/diff`).
   - [ ] Canary-first раскатка (1 тестовый узел с тегом `CANARY` -> валидатор `docker compose config` / `nginx -t` / health check -> раскатка на остальные).
   - [ ] Автоматический план отката (1-Click Rollback) при сбое канарейки.
