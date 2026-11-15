@@ -92,9 +92,6 @@ func (s *ServerNode) Normalize() {
 		if s.Connection.Agent.VaultSecret == "" && s.Connection.Agent.SecretRef != "" {
 			s.Connection.Agent.VaultSecret = s.Connection.Agent.SecretRef
 		}
-		if s.Connection.Agent.SecretRef == "" && s.Connection.Agent.VaultSecret != "" {
-			s.Connection.Agent.SecretRef = s.Connection.Agent.VaultSecret
-		}
 	}
 	if s.Host != "" && s.Connection.SSH == nil {
 		port := s.Port
@@ -277,9 +274,6 @@ func (m *Manager) resolveNodeLocked(s *ServerNode) {
 		if agentCopy.VaultSecret == "" && agentCopy.SecretRef != "" {
 			agentCopy.VaultSecret = agentCopy.SecretRef
 		}
-		if agentCopy.SecretRef == "" && agentCopy.VaultSecret != "" {
-			agentCopy.SecretRef = agentCopy.VaultSecret
-		}
 		s.Connection.Agent = &agentCopy
 	}
 }
@@ -345,20 +339,22 @@ func (m *Manager) saveLocked() error {
 			node.Port = 0
 			node.Identity = ""
 			node.Connection.SSH = nil
+		}
 
-			if node.Connection.Agent != nil {
-				agentCopy := *node.Connection.Agent
-				if agentCopy.Port <= 0 {
-					agentCopy.Port = 8085
-				}
-				if strings.HasPrefix(agentCopy.URL, "http://") && strings.HasSuffix(agentCopy.URL, fmt.Sprintf(":%d", agentCopy.Port)) {
-					agentCopy.URL = ""
-				}
-				if agentCopy.SecretRef == "" && agentCopy.VaultSecret != "" {
-					agentCopy.SecretRef = agentCopy.VaultSecret
-				}
-				node.Connection.Agent = &agentCopy
+		if node.Connection.Agent != nil {
+			agentCopy := *node.Connection.Agent
+			if agentCopy.Port <= 0 {
+				agentCopy.Port = 8085
 			}
+			if strings.HasPrefix(agentCopy.URL, "http://") && strings.HasSuffix(agentCopy.URL, fmt.Sprintf(":%d", agentCopy.Port)) {
+				agentCopy.URL = ""
+			}
+			// Canonical field in YAML is vault_secret; omit duplicate secret_ref
+			if agentCopy.VaultSecret == "" && agentCopy.SecretRef != "" {
+				agentCopy.VaultSecret = agentCopy.SecretRef
+			}
+			agentCopy.SecretRef = ""
+			node.Connection.Agent = &agentCopy
 		}
 		cleanNodes[i] = node
 	}
