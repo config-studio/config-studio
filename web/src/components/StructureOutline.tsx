@@ -471,58 +471,58 @@ const OutlineItem: React.FC<OutlineItemProps> = ({
     switch (type) {
       case 'object':
         return (
-          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30">
-            Object
+          <span className="px-1 py-0.2 text-[9px] font-mono font-medium rounded-[3px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/25 leading-none">
+            obj
           </span>
         );
       case 'list':
         return (
-          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
-            List
+          <span className="px-1 py-0.2 text-[9px] font-mono font-medium rounded-[3px] bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/25 leading-none">
+            arr
           </span>
         );
       case 'string':
         return (
-          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-            String
+          <span className="px-1 py-0.2 text-[9px] font-mono font-medium rounded-[3px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 leading-none">
+            str
           </span>
         );
       case 'number':
         return (
-          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-            Number
+          <span className="px-1 py-0.2 text-[9px] font-mono font-medium rounded-[3px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 leading-none">
+            num
           </span>
         );
       case 'boolean':
         return (
-          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-pink-500/15 text-pink-600 dark:text-pink-400 border border-pink-500/30">
-            Boolean
+          <span className="px-1 py-0.2 text-[9px] font-mono font-medium rounded-[3px] bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 leading-none">
+            bool
           </span>
         );
       case 'section':
         return (
-          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
-            Section
+          <span className="px-1 py-0.2 text-[9px] font-mono font-medium rounded-[3px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25 leading-none">
+            sec
           </span>
         );
       case 'router':
       case 'function':
         return (
-          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30">
-            Router
+          <span className="px-1 py-0.2 text-[9px] font-mono font-medium rounded-[3px] bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/25 leading-none">
+            rt
           </span>
         );
       case 'service':
       case 'class':
         return (
-          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-            Service
+          <span className="px-1 py-0.2 text-[9px] font-mono font-medium rounded-[3px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 leading-none">
+            svc
           </span>
         );
       case 'middleware':
         return (
-          <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-            Middleware
+          <span className="px-1 py-0.2 text-[9px] font-mono font-medium rounded-[3px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 leading-none">
+            mw
           </span>
         );
     }

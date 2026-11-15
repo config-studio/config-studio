@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Save,
+  Check,
   Download,
   Settings as SettingsIcon,
   Search,
@@ -577,24 +578,34 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* Save button (always visible) */}
-        <button
-          onClick={() => onSave()}
-          disabled={!currentFile || isSaving}
-          className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-900 transition-all duration-150 shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ backgroundColor: settings.accentColor }}
-          title={`${t.save} (Ctrl+S)`}
-        >
-          {isSaving ? (
-            <div className="w-3.5 h-3.5 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
-          ) : (
-            <Save className="w-3.5 h-3.5" />
-          )}
-          <span className="hidden sm:inline">{isSaving ? t.saving : t.save}</span>
-          {currentFile?.isDirty && (
-            <StatusDot status="warning" size="xs" pulse className="ml-0.5" />
-          )}
-        </button>
+        {/* Save button (always visible) - DESIGN-003 Dynamic CTA */}
+        {(() => {
+          const isDirty = Boolean(currentFile?.isDirty);
+          return (
+            <button
+              onClick={() => onSave()}
+              disabled={!currentFile || isSaving}
+              className={`btn-save-cta flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 text-xs transition-all duration-150 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                isDirty ? 'is-dirty' : 'is-clean'
+              }`}
+              title={`${t.save} (Ctrl+S)`}
+            >
+              {isSaving ? (
+                <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : isDirty ? (
+                <Save className="w-3.5 h-3.5" />
+              ) : (
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+              <span className="hidden sm:inline">
+                {isSaving ? t.saving : isDirty ? t.save : (t.saved || 'Сохранено')}
+              </span>
+              {isDirty && (
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping ml-0.5" />
+              )}
+            </button>
+          );
+        })()}
 
         {/* Desktop-only secondary buttons */}
         <div className="hidden md:flex items-center space-x-1">

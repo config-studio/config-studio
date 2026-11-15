@@ -10,6 +10,10 @@
   --color-accent: #00d2b4;
   --color-accent-hover: #00b89e;
 
+  /* DESIGN-003: Dynamic Save CTA Tokens (Oklch glow & warm gold shift) */
+  --save-dirty-accent: color-mix(in oklch, var(--color-accent, #00d2b4) 75%, #facc15);
+  --save-dirty-glow: color-mix(in srgb, var(--save-dirty-accent) 45%, transparent);
+
   /* Typography & Theme Tokens (UI v2.0 - Light default values for WCAG AA compliance) */
   --text-primary: #0f172a;
   --text-secondary: #334155;
@@ -223,4 +227,67 @@ html:not(.dark) .tree-line::before {
     box-sizing: border-box !important;
     z-index: 9999 !important;
   }
+}
+
+/* DESIGN-003: Dynamic Save CTA Button */
+.btn-save-cta {
+  border-radius: 9999px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.btn-save-cta.is-clean {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted, #94a3b8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 500;
+}
+
+.btn-save-cta.is-clean:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary, #f8fafc);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.btn-save-cta.is-dirty {
+  background: linear-gradient(135deg, var(--color-accent, #00d2b4) 0%, var(--save-dirty-accent) 100%);
+  color: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--save-dirty-accent) 70%, #ffffff);
+  box-shadow: 0 0 16px var(--save-dirty-glow), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  font-weight: 600;
+}
+
+.btn-save-cta.is-dirty:hover:not(:disabled) {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow: 0 0 22px var(--save-dirty-glow), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* FEAT-005: Monaco Long Hex/Base64 Folding */
+.monaco-folded-hex-middle {
+  font-size: 0px !important;
+  letter-spacing: -1px;
+  user-select: all;
+}
+
+.monaco-folded-hex-middle::after {
+  content: " ··· ";
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-accent, #00d2b4);
+  background: color-mix(in srgb, var(--color-accent, #00d2b4) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent, #00d2b4) 35%, transparent);
+  padding: 0 4px;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: inline-block;
+  margin: 0 2px;
+  vertical-align: middle;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.monaco-folded-hex-middle:hover::after {
+  background: color-mix(in srgb, var(--color-accent, #00d2b4) 25%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent, #00d2b4) 60%, transparent);
 }
