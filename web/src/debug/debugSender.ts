@@ -15,6 +15,19 @@ export async function checkDebugServerHealth(): Promise<boolean> {
   if (now - lastCheckTime < 3000) return isServerOnline;
   lastCheckTime = now;
 
+  // 1. Check via Core reverse proxy
+  try {
+    const res = await fetch('/api/debug/health', {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (res.ok) {
+      isServerOnline = true;
+      return true;
+    }
+  } catch (_) {}
+
+  // 2. Fallback to direct port 9998
   try {
     const host = getDebugHost();
     const res = await fetch(`http://${host}:9998/health`, {
@@ -22,7 +35,7 @@ export async function checkDebugServerHealth(): Promise<boolean> {
       headers: { 'Accept': 'application/json' },
     });
     isServerOnline = res.ok;
-  } catch {
+  } catch (_) {
     isServerOnline = false;
   }
   return isServerOnline;
@@ -31,20 +44,25 @@ export async function checkDebugServerHealth(): Promise<boolean> {
 export function sendDebugEvent(evt: DebugEvent) {
   try {
     const payload = JSON.stringify(evt);
-    const host = getDebugHost();
-    const url = `http://${host}:9998/events`;
 
-    // Use direct fetch with keepalive and cors mode for reliable real-time transmission
-    fetch(url, {
+    // 1. Send via core proxy (/api/debug/events) — same origin, zero CORS/firewall issues
+    fetch('/api/debug/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: payload,
-      keepalive: true,
-      mode: 'cors',
     }).catch(() => {
-      // Non-blocking: Silently ignore if debug server is not listening
+      // 2. Fallback to direct port 9998
+      const host = getDebugHost();
+      const url = `http://${host}:9998/events`;
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      }).catch(() => {
+        // Silently ignore if debug server is offline
+      });
     });
-  } catch {
+  } catch (_) {
     // Non-blocking
   }
 }

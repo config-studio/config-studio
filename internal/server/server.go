@@ -250,6 +250,9 @@ func (s *Server) setupRoutes() {
 	// Remote Agent Proxy (bypasses browser mixed-content and CORS restrictions)
 	mux.HandleFunc("/api/remote-proxy/{path...}", s.handleRemoteProxy)
 
+	// Debug Telemetry Proxy to local debug server (:9998)
+	mux.HandleFunc("/api/debug/{action...}", s.handleDebugProxy)
+
 	// Health check
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

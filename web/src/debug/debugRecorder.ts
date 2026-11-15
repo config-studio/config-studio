@@ -162,8 +162,8 @@ export function initDebugRecorder() {
     const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
 
     // Skip our own debug server endpoint to prevent infinite loop
-    if (url.includes(':9998/')) {
-      return originalFetch.apply(this, args);
+    if (url.includes(':9998/') || url.includes('/api/debug/')) {
+      return originalFetch.apply(window, args);
     }
 
     const method = (init.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
@@ -186,7 +186,7 @@ export function initDebugRecorder() {
     );
 
     try {
-      const response = await originalFetch.apply(this, args);
+      const response = await originalFetch.apply(window, args);
       const durationMs = Date.now() - startTime;
 
       // Clone response to inspect body without consuming the stream
