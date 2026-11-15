@@ -10,6 +10,7 @@ import {
   Plus,
   RefreshCw,
   Sparkles,
+  Zap,
   Eye,
   EyeOff,
   Copy,
@@ -110,6 +111,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
 
   const categories = useMemo(() => [
     { id: 'all' as const, label: t.filterAll || 'Все', icon: <Layers size={12} /> },
+    { id: 'agent_credentials' as const, label: t.filterAgentCredentials || 'Agent Credentials', icon: <Zap size={12} className="text-cyan-400" /> },
     { id: 'password' as const, label: t.filterPasswords || 'Пароли', icon: <Key size={12} /> },
     { id: 'ssh_key' as const, label: t.filterSSHKeys || 'SSH Ключи', icon: <Shield size={12} /> },
     { id: 'token' as const, label: t.filterTokens || 'API Токены', icon: <Sparkles size={12} /> },
@@ -137,6 +139,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
   }, [categories, counts]);
 
   const secretTypeOptions: DropdownOption[] = useMemo(() => [
+    { value: 'agent_credentials', label: t.secretTypeAgentCredentials || 'Agent Credentials (TOTP)', icon: <Zap size={14} className="text-cyan-400" /> },
     { value: 'password', label: t.secretTypePassword, icon: <Key size={14} className="text-amber-400" /> },
     { value: 'ssh_key', label: t.secretTypeSSHKey, icon: <Shield size={14} className="text-emerald-400" /> },
     { value: 'token', label: t.secretTypeToken, icon: <Sparkles size={14} className="text-cyan-400" /> },
@@ -178,6 +181,11 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
 
   const getTypeMeta = (type: SecretType) => {
     switch (type) {
+      case 'agent_credentials':
+        return {
+          icon: <Zap className="w-3.5 h-3.5 text-cyan-400" />,
+          label: t.secretTypeAgentCredentials || 'Agent Credentials',
+        };
       case 'ssh_key':
         return {
           icon: <Shield className="w-3.5 h-3.5 text-sky-400" />,
@@ -215,7 +223,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
   const groupedSections = useMemo(() => {
     if (activeCategory !== 'all' || searchQuery.trim()) return null;
     const groups: { category: SecretType; label: string; icon: React.ReactNode; items: SecretMeta[] }[] = [];
-    const typeOrder: SecretType[] = ['password', 'ssh_key', 'token', 'certificate', 'env', 'other'];
+    const typeOrder: SecretType[] = ['agent_credentials', 'password', 'ssh_key', 'token', 'certificate', 'env', 'other'];
 
     for (const st of typeOrder) {
       const items = filteredSecrets.filter((s) => s.type === st);

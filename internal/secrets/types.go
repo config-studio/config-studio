@@ -3,12 +3,13 @@ package secrets
 type SecretType string
 
 const (
-	TypePassword    SecretType = "password"
-	TypeSSHKey      SecretType = "ssh_key"
-	TypeToken       SecretType = "token"
-	TypeCertificate SecretType = "certificate"
-	TypeEnv         SecretType = "env"
-	TypeOther       SecretType = "other"
+	TypePassword         SecretType = "password"
+	TypeSSHKey           SecretType = "ssh_key"
+	TypeToken            SecretType = "token"
+	TypeCertificate      SecretType = "certificate"
+	TypeEnv              SecretType = "env"
+	TypeAgentCredentials SecretType = "agent_credentials"
+	TypeOther            SecretType = "other"
 )
 
 type SecretScope string

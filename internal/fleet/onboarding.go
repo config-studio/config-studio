@@ -172,7 +172,7 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 			SecretMeta: secrets.SecretMeta{
 				ID:       vaultSecretID,
 				Title:    fmt.Sprintf("Agent Credentials (%s)", srv.Name),
-				Type:     secrets.TypePassword,
+				Type:     secrets.TypeAgentCredentials,
 				Scope:    secrets.ScopeShared,
 				PluginID: "servers",
 			},

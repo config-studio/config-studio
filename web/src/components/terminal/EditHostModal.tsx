@@ -71,7 +71,7 @@ export const EditHostModal: React.FC<EditHostModalProps> = ({
     if (isOpen) {
       api.listSecrets()
         .then((items) => {
-          setIdentities((items || []).filter((s) => s.type === 'ssh_key' || s.type === 'password' || s.scope === 'shared'));
+          setIdentities((items || []).filter((s) => (s.type === 'ssh_key' || s.type === 'password' || s.scope === 'shared') && s.type !== 'agent_credentials' && !s.id.startsWith('agent:')));
         })
         .catch(() => {});
     }

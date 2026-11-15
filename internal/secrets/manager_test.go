@@ -127,6 +127,7 @@ func TestSecretsManager(t *testing.T) {
 		{"sec:token", "GitHub CI Token", TypeToken, "ghp_MockToken123456789"},
 		{"sec:cert", "Wildcard TLS Cert", TypeCertificate, "-----BEGIN CERTIFICATE-----\nMOCK..."},
 		{"sec:env", "App Secret Env", TypeEnv, "DATABASE_URL=postgres://..."},
+		{"sec:agent", "Agent Credentials (alpine-01)", TypeAgentCredentials, `{"keyId":"cs_master_1","secret":"ABC"}`},
 		{"sec:other", "Hardware Security PIN", TypeOther, "9988"},
 	}
 
@@ -176,4 +177,39 @@ func bytesContains(b, sub []byte) bool {
 		}
 	}
 	return false
+}
+
+func TestSecretsManager_AgentMigration(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "cs-secrets-migration-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Pre-seed metadata with legacy "password" agent credential
+	legacyJSON := `[
+		{
+			"id": "agent:alpine-01",
+			"title": "Agent Credentials (Alpine VM Test)",
+			"type": "password",
+			"scope": "shared",
+			"pluginId": "servers"
+		}
+	]`
+	if err := os.WriteFile(filepath.Join(tempDir, "secrets_metadata.json"), []byte(legacyJSON), 0644); err != nil {
+		t.Fatalf("Failed to write legacy metadata: %v", err)
+	}
+
+	mgr, err := NewManager(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to create manager: %v", err)
+	}
+
+	meta, exists := mgr.GetMeta("agent:alpine-01")
+	if !exists {
+		t.Fatalf("Expected agent:alpine-01 to exist")
+	}
+	if meta.Type != TypeAgentCredentials {
+		t.Fatalf("Expected auto-migrated type to be %s, got %s", TypeAgentCredentials, meta.Type)
+	}
 }

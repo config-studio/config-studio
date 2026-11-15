@@ -67,10 +67,23 @@ func (m *Manager) loadMetadata() error {
 	}
 
 	m.items = make(map[string]SecretMeta, len(list))
+	migrated := false
 	for _, it := range list {
 		if it.ID != "" {
+			// Auto-migrate legacy agent credentials to TypeAgentCredentials
+			if (strings.HasPrefix(it.ID, "agent:") || strings.HasPrefix(it.Title, "Agent Credentials") || strings.HasPrefix(it.Title, "Remote Agent:")) && (it.Type == TypePassword || it.Type == TypeToken || it.Type == "") {
+				it.Type = TypeAgentCredentials
+				migrated = true
+			}
 			m.items[it.ID] = it
 		}
+	}
+
+	if migrated {
+		// unlock mu temporarily or save asynchronously without lock deadlock
+		go func() {
+			_ = m.saveMetadata()
+		}()
 	}
 
 	return nil
@@ -202,7 +215,11 @@ func (m *Manager) Set(item SecretItem) error {
 
 	secType := item.Type
 	if secType == "" {
-		secType = TypePassword
+		if strings.HasPrefix(cleanID, "agent:") || strings.HasPrefix(item.Title, "Agent Credentials") || strings.HasPrefix(item.Title, "Remote Agent:") {
+			secType = TypeAgentCredentials
+		} else {
+			secType = TypePassword
+		}
 	}
 	secScope := item.Scope
 	if secScope == "" {
