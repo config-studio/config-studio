@@ -5,21 +5,25 @@
 > **Главный регламент разработки:**
 > 1. **Сперва ядро (Core First):** Сначала реализуются и тестируются фундаментальные механизмы ядра редактора, валидации и точек расширения.
 > 2. **Предварительное обсуждение:** Перед реализацией **каждой отдельной функции** мы подробно обсуждаем ее UX/UI, структуру данных и сценарии использования. Только после явного утверждения пишется код.
-> 3. **Изолированный репозиторий для каждого расширения (One Repo Per Plugin):** Каждый официальный плагин экосистемы Config Studio (`config-studio-ssh`, `config-studio-remote-agent`, `config-studio-web-devkit` и др.) разрабатывается, версионируется и сопровождается в **отдельном самостоятельном GitHub-репозитории** со своим кодом, тестами и релизным циклом, а центральный репозиторий `config-studio-plugins` выступает реестром пакетов и точкой дистрибуции `.cspkg`.
+> 3. **Изолированный репозиторий для каждого расширения (One Repo Per Plugin):** Каждый официальный плагин экосистемы Config Studio (`config-studio-servers`, `config-studio-traefik`, `config-studio-web-devkit` и др.) разрабатывается, версионируется и сопровождается в **отдельном самостоятельном GitHub-репозитории** со своим кодом, тестами и релизным циклом, а центральный репозиторий `config-studio-plugins` выступает реестром пакетов и точкой дистрибуции `.cspkg`.
 > 4. **Инженерная дисциплина (/ub-mode):** Вся разработка и модификация кодовой базы строго следует циклу: *First Make it Work* (Laziness Protocol: одно решение в одном месте, TDD, Boundary Discipline, Type System Discipline, Idempotence, Subtract Before You Add), *Then Make it Right* (устранение первопричин, дробление функций, удаление мертвого кода), *Follow Practice* (Keep a Log, Worktree Cleanup, Commit often with why/what/proof).
 > 5. **Регламент ведения Roadmap (Roadmap Clean-State Discipline):** Секции текущего спринта и планируемых плагинов («В РАБОТЕ» / «ПЛАНИРУЕМЫЕ ПЛАГИНЫ») должны содержать **строго невыполненные задачи и бэклог (`- [ ]`)**. Как только этап или функция полностью завершена, она **всегда переносится вниз под спойлер (`<details><summary>...</summary>`) в архив выполненных этапов (Released)**. Верхний план никогда не должен захламляться выполненными чекбоксами.
 > 6. **Обязательный релиз плагинов через GitHub Workflow (CI/CD Automated Releases):** Каждое расширение должно компилироваться и выпускаться строго через GitHub Actions Workflow (`.github/workflows/release.yml`) при пуше тега версии (`v*`) или `workflow_dispatch`. Workflow автоматически запускает unit-тесты, собирает `main.js`, упаковывает бинарный пакет `.cspkg`, генерирует SHA-256 чексуммы и публикует официальный GitHub Release с прикрепленными артефактами. Создание всех новых расширений выполняется на базе официального репозитория-шаблона `config-studio-plugin-template`.
-> 7. **Инкрементальное версионирование по пунктам Roadmap (Sub-versioning per Item):** Начиная с релиза **v2.3.0**, за каждый выполненный функциональный пункт из `Core Evolution Roadmap` выпускается отдельная подверсия ядра (**v2.3.1**, **v2.3.2** и т.д.) с немедленным тестированием, обновлением архива и сборкой бинарников.
+> 7. **Инкрементальное версионирование по пунктам Roadmap (Sub-versioning per Item):** Начиная с релиза **v2.3.0**, за каждый выполненный функциональный пункт из `Core Evolution Roadmap` выпускается отдельная подверсия ядра (**v2.3.1**, **v2.3.2**, **v2.3.3** и т.д.) с немедленным тестированием, обновлением архива и сборкой бинарников.
 
 ---
 
-## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.1)
+## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.3)
 
-### 🎯 Core Evolution (Спринт v2.3.1)
+### 🎯 Core Evolution (Спринт v2.3.3)
 - [ ] **1. Навигация и кросс-файловый поиск (Editor Navigation & Cross-File Discovery)**:
   - [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
   - [ ] Глобальный реестр горячих клавиш: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий из любого открытого документа.
-- [ ] **Ревизия режима повышенных привилегий**: скрытие или удаление кнопки невостребованного режима повышенных привилегий (Privileged Mode) в интерфейсе настроек безопасности.
+- [ ] **2. Ревизия режима повышенных привилегий (Privileged Mode Cleanup)**:
+  - [ ] Скрытие/удаление невостребованного переключателя Privileged Mode в интерфейсе настроек безопасности для устранения визуального шума.
+- [ ] **3. Интерактивная витрина дизайн-системы и устранение оставшихся UI-дефектов**:
+  - [ ] Модернизация витрины `config-studio-plugins/ui.html` под сетку модальных окон с шагом 20% (`xxl`, `xl`, `lg`, `md`, `sm`, `fullscreen`) и кнопкой Maximize / Restore.
+  - [ ] Интеграция секций новых компонентов в витрину: `ConfirmModal`, `EmptyState`, `SearchInput`, `SectionHeader`.
 
 ---
 
@@ -27,35 +31,34 @@
 
 Фундаментальные сервисы и точки расширения ядра, создаваемые по принципу *Core First* перед реализацией соответствующих плагинов:
 
-![4 фундаментальных улучшения Core (Go & Web)](docs/screenshots/core-evolution-architecture.png)
-
 ```mermaid
 graph TD
-    Core["4 фундаментальных улучшения Core (Go & Web)"]
+    Core["Фундаментальные улучшения Core (Go & Web)"]
     
-    C1["1. Headless SSH Exec API<br/>('POST /api/ssh/exec')"]
-    C2["2. Editor Navigation<br/>('openFile(path, {line, col})')"]
-    C3["3. Split-Screen Layout<br/>(Editor + Live Webview)"]
-    C4["4. Core Multi-Host & Diff Engine<br/>('fleet.ExecBatch')"]
+    C1["1. Headless SSH Exec & Host Storage<br/>(Выпущено в v2.3.0 - v2.3.2)"]
+    C2["2. Editor Navigation & Custom Tabs<br/>(Выпущено в v2.2.0 - v2.3.2)"]
+    C3["3. Smart Embedded Agent Distribution<br/>(Выпущено в v2.3.1)"]
+    C4["4. Batch File Read & Discovery<br/>('POST /api/fs/batch-read')"]
+    C5["5. Split-Screen Layout<br/>(Editor + Live Webview)"]
+    C6["6. Log Streaming Service<br/>(SSE / WebSocket без PTY-мусора)"]
+    C7["7. Fleet Worker Pool & Diff Engine<br/>('fleet.ExecBatch')"]
+    C8["8. Goja Code Mode Sandbox<br/>(Безопасный JS фасад 'cs.*')"]
     
     Core --> C1
     Core --> C2
     Core --> C3
     Core --> C4
+    Core --> C5
+    Core --> C6
+    Core --> C7
+    Core --> C8
     
-    C1 --> P1["Docker (Compose Doctor & Actions)"]
-    C1 --> P2["Nginx (nginx -t & reload)"]
-    C1 --> P3["Systemd (analyze & restart)"]
-    C1 --> P4["Glance (baremetal binary updater)"]
-    
-    C2 --> P5["Traefik (Go to Definition mw-* -> ser-*)"]
-    C2 --> P6["Glance (Go to $include widget)"]
-    C2 --> P7["Инспекторы и линтеры ошибок"]
-    
-    C3 --> P8["Glance (Live Dashboard Preview :8080)"]
-    C3 --> P9["Web-DevKit & Markdown Previews"]
-    
-    C4 --> P10["Servers (Safe Rollout & Fleet CLI)"]
+    C4 --> P1["Traefik & Glance (Мгновенная индексация правил)"]
+    C5 --> P2["Glance (Live Dashboard Preview :8080)"]
+    C5 --> P3["Web-DevKit & Markdown Previews"]
+    C6 --> P4["Docker & Journalctl (Стриминг логов в Bottom Dock)"]
+    C7 --> P5["Servers (Safe Rollout & Fleet CLI)"]
+    C8 --> P6["MCP & Автоматизация"]
 ```
 
 ### 1. Навигация и кросс-файловый поиск (Editor Navigation & Cross-File Discovery)
@@ -63,50 +66,25 @@ graph TD
 - [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
 - [ ] Глобальный реестр горячих клавиш: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий из любого открытого документа.
 
-### 2. Неинтерактивное SSH-исполнение и Privileged Mode (Headless SSH Exec)
-*Необходимо для: `config-studio-traefik` (Traefik Doctor), `config-studio-docker` (Compose Doctor), `config-studio-nginx` (nginx -t), `config-studio-systemd` (analyze), `config-studio-glance` (Baremetal Updater).*
-
-```text
-                       ┌────────────────────────────────────────┐
-                       │   Go-Backend Core: POST /api/ssh/exec   │
-                       │   (неинтерактивная SSH-сессия, таймауты,│
-                       │    забор ключей/паролей из Core Vault)  │
-                       └───────────────────┬────────────────────┘
-                                           │
-         ┌───────────────────┬─────────────┴───────┬───────────────────┐
-         ▼                   ▼                     ▼                   ▼
-  config-studio-traefik   config-studio-nginx   config-studio-docker   config-studio-systemd
- (traefik healthcheck)       (nginx -t)        (compose config/ps)   (systemd-analyze verify)
-```
-
-- [x] Сервис `internal/ssh.ExecuteCommand(ctx, cfg, req)` в Go-бэкенде (неинтерактивное выполнение через чистую сессию SSH с таймаутом).
-- [x] REST API эндпоинт `POST /api/ssh/exec`: вход `{ hostId, cmd, timeoutSec, env }` -> выход `{ exitCode, stdout, stderr, durationMs }`.
-- [x] Sudo Elevation Helper: автоматическая подстановка пароля из Core Vault для непривилегированных пользователей.
-- [x] Модульные тесты `internal/ssh/exec_test.go` и `internal/server/ssh_test.go` на таймауты, ошибки аутентификации и код возврата.
-
-### 3. Разделенный экран (Split-Screen Workspace Layout)
+### 2. Разделенный экран (Split-Screen Workspace Layout)
 *Необходимо для: `config-studio-glance` (Live Dashboard Preview :8080), `config-studio-web-devkit` (Chrome preview), Markdown/HTML превью.*
 - [ ] Режим двухпанельного сплита (Editor слева, Webview / Iframe справа) с перетаскиваемым разделителем в `App.tsx`.
 - [ ] Плагинное API: `window.ConfigStudio.registerSplitWebview({ id, title, url, refreshOnSave?: boolean })`.
 
-### 4. Структурированный потоковый логгер (Log Streaming Service)
+### 3. Структурированный потоковый логгер (Log Streaming Service)
 *Необходимо для: `config-studio-journal` (journalctl -f), `config-studio-docker` (compose logs -f).*
 - [ ] Потоковый канал логов на бэкенде (Server-Sent Events / WebSocket) без ANSI-мусора PTY.
 - [ ] Компонент Log Viewer в `@config-studio/ui` с поиском, паузой автоскролла и цветовой дифференциацией уровней (ERROR/WARN/INFO).
 
-### 5. Параллельный воркер-пул флота и Diff Engine
+### 4. Параллельный воркер-пул флота и Diff Engine
 *Необходимо для: `config-studio-servers` (Safe Rollout).*
 - [ ] Воркер-пул параллельного исполнения `fleet.ExecBatch(hostIds, cmd, concurrencyLimit)` в пакете `internal/fleet`.
 - [ ] Универсальный эндпоинт `POST /api/fs/diff` для предпросмотра различий Diff & Approve между локальным файлом и файлом на сервере.
 
-### 6. Эфемерная песочница Goja (Code Mode Sandbox)
+### 5. Эфемерная песочница Goja (Code Mode Sandbox)
 *Необходимо для: `config-studio-mcp & Code Mode Engine`.*
 - [ ] Встраивание `github.com/dop251/goja` в пакет `internal/sandbox` с нулевым потреблением heap в покое.
 - [ ] Безопасный фасад ядра `cs.*` (`cs.servers`, `cs.ssh`, `cs.fs`, `cs.vault`) с лимитом времени (10s) и глубины стека.
-
-### 7. UX настроек, типизация секретов и ревизия привилегий (Settings & Vault UX)
-- [ ] **Категоризация секретов по типам**: структурирование и разделение секретов в реестре «Секреты и Ключи» по типам (`Пароль`, `SSH-ключ`, `API токен`, `Сертификат`) для удобной навигации при росте числа записей.
-- [ ] **Ревизия режима повышенных привилегий**: скрытие или удаление кнопки невостребованного режима повышенных привилегий (Privileged Mode) для упрощения настроек безопасности.
 
 ---
 
@@ -151,6 +129,45 @@ graph TD
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details open>
+<summary><b>🚀 Детали релиза v2.3.2: Core Host Storage, Unification, Custom Tabs & Plugin Docs Overhaul (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
+
+- [x] **Централизованное хранилище узлов Core Host Storage (`data/hosts.json`)**:
+  - Перенос инвентаря серверов из разрозненных локальных `localStorage` браузера в надежный персистентный Go-бэкенд (`internal/server/hosts.go`).
+  - REST API: `GET /api/hosts`, `POST /api/hosts`, `DELETE /api/hosts/:id`.
+  - Автоматическая бесшовная миграция старых записей хостов при первом старте.
+- [x] **Клиентский сервис `sshHostService` (`sshHosts.ts`)**:
+  - Единая точка правды для терминала, SFTP, флота серверов и плагинов.
+  - Реактивная подписка на изменения (`subscribe`), кэширование и экспорт в формат OpenSSH (`~/.ssh/config`).
+  - Экспорт в глобальный фасад: `window.ConfigStudio.ssh`.
+- [x] **Виртуальные пользовательские вкладки (`openCustomTab`)**:
+  - Реализован метод `openCustomTab({ path, name, content, language, readOnly, badge, onSave })` для отображения виртуальных документов, Diff-сравнений и сводок в главном таб-баре редактора.
+- [x] **Фирменный компонент Dropdown для ванильного JS (`ui.renderDropdown`)**:
+  - Реализован `mountDropdown(container, config)` с поддержкой `openUpward`, статусов подключения, бейджей, поиска и программного контроллера `VanillaDropdownController`.
+- [x] **Унификация UI и возврат списка плагинов**:
+  - Возврат чистого сбалансированного списочного вида на вкладке «Плагины» (`PluginsTab.tsx`) с сохранением всех фильтров и мгновенным откликом.
+  - Унификация дизайн-токенов Core Design System v2 в `config-studio-traefik v1.1.1` и `config-studio-web-devkit v1.3.3`.
+- [x] **Глобальная синхронизация репозитория документации `config-studio-plugin-docs`**:
+  - Полное обновление TypeScript-определений `types/config-studio.d.ts` (14 новых API-методов, полные типы `secrets`, `sysinfo`, `agent`, `ssh`).
+  - Актуализация всех 7 глав руководства `docs/`, шаблона `template/` и примеров `examples/`.
+  - Все изменения закоммичены и отправлены в `origin/main`.
+
+</details>
+
+<details>
+<summary><b>📦 Детали релиза v2.3.1: Smart Plugin-Embedded Agent Distribution (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
+
+- [x] **Smart Plugin-Embedded Agent Distribution**:
+  - Встраивание скомпилированных бинарников удаленного агента `config-studio-agent` внутрь `.cspkg` для архитектур `linux/amd64` и `linux/arm64`.
+  - Стриминг `ZIP -> SFTP` напрямую из архива в удаленный файл через `io.Reader` без промежуточной распаковки на диск клиента (чистота системы и обход антивирусных ложных срабатываний).
+  - Спецификация секции `agent` в `plugin.json` с двойным версионированием (версия плагина `version: "1.4.0"` и версия бинарника `agent.version: "2.3.0"` с хэшем `commit: "1fe3dc3"`).
+  - Защита ядра от ошибки ядра Linux `EXDEV (Invalid cross-device link)` путем размещения временных `.tmp` файлов строго в той же директории, что и целевой бинарник.
+  - Механизм ротации с созданием резервной копии `.bak`, проверкой эндпоинта `/api/health` и мгновенным откатом при сбое запуска.
+  - Автоматизированная сборка бинарников агента в GitHub Actions репозитория `config-studio`.
+  - Релиз плагина `config-studio-servers v1.4.0` со встроенным агентом `v2.3.0`.
+
+</details>
+
+<details>
 <summary><b>🎉 Детали релиза v2.3.0: Core UI Design System v2, Web/SSH Terminal, Headless SSH API & Secrets Types (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
 
 - [x] **Дизайн-система ядра v2 (`@config-studio/ui`)**:
