@@ -188,3 +188,92 @@ func TestReadOnlyEnforcement(t *testing.T) {
 		t.Errorf("expected read-only error on RenameItemRoot, got: %v", err)
 	}
 }
+
+func TestBatchReadRoot(t *testing.T) {
+	svc, workDir, cleanup := setupTestService(t)
+	defer cleanup()
+
+	// 1. Create test files
+	_ = os.MkdirAll(filepath.Join(workDir, "rules", "sub"), 0755)
+	_ = os.WriteFile(filepath.Join(workDir, "rules", "mw-auth.yml"), []byte("auth: middleware"), 0644)
+	_ = os.WriteFile(filepath.Join(workDir, "rules", "mw-rate.yml"), []byte("rate: 100/s"), 0644)
+	_ = os.WriteFile(filepath.Join(workDir, "rules", "sub", "deep.yml"), []byte("deep: true"), 0644)
+	_ = os.WriteFile(filepath.Join(workDir, "rules", "app.bin"), []byte{0x00, 0x01, 0x02}, 0644)
+	_ = os.WriteFile(filepath.Join(workDir, "other.txt"), []byte("hello world"), 0644)
+
+	// Test 1: Explicit paths
+	res, err := svc.BatchReadRoot(BatchReadRequest{
+		Paths: []string{"rules/mw-auth.yml", "rules/mw-rate.yml"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(res.Files))
+	}
+	if res.Files["rules/mw-auth.yml"] != "auth: middleware" {
+		t.Errorf("unexpected content: %s", res.Files["rules/mw-auth.yml"])
+	}
+
+	// Test 2: Single-level glob
+	res, err = svc.BatchReadRoot(BatchReadRequest{
+		Pattern: "rules/*.yml",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Files) != 2 {
+		t.Fatalf("expected 2 files for rules/*.yml, got %d", len(res.Files))
+	}
+
+	// Test 3: Recursive glob (**)
+	res, err = svc.BatchReadRoot(BatchReadRequest{
+		Pattern: "rules/**/*.yml",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Files) != 3 {
+		t.Fatalf("expected 3 files for rules/**/*.yml, got %d", len(res.Files))
+	}
+
+	// Test 4: Binary file handling
+	res, err = svc.BatchReadRoot(BatchReadRequest{
+		Paths: []string{"rules/app.bin", "other.txt"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Files) != 1 || res.Files["other.txt"] != "hello world" {
+		t.Errorf("expected only other.txt to be read, got: %v", res.Files)
+	}
+	if res.Errors["rules/app.bin"] != "binary file skipped" {
+		t.Errorf("expected binary error for app.bin, got: %v", res.Errors)
+	}
+
+	// Test 5: Path traversal protection
+	res, err = svc.BatchReadRoot(BatchReadRequest{
+		Paths: []string{"../../outside.txt"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Files) != 0 {
+		t.Errorf("expected 0 files for traversal, got %d", len(res.Files))
+	}
+	if len(res.Errors) == 0 {
+		t.Errorf("expected traversal error in Errors map")
+	}
+
+	// Test 6: MaxFiles limit
+	res, err = svc.BatchReadRoot(BatchReadRequest{
+		Pattern:  "rules/**/*.yml",
+		MaxFiles: 2,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Files) != 2 || !res.Truncated {
+		t.Errorf("expected 2 files and truncated=true, got files=%d, truncated=%v", len(res.Files), res.Truncated)
+	}
+}

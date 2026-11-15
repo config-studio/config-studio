@@ -318,6 +318,32 @@ export const api = {
     return res.json();
   },
 
+  async batchReadFiles(req: {
+    root?: string;
+    paths?: string[];
+    patterns?: string[];
+    pattern?: string;
+    maxFiles?: number;
+    maxSizeBytes?: number;
+  }): Promise<{
+    root: string;
+    files: Record<string, string>;
+    errors?: Record<string, string>;
+    count: number;
+    truncated: boolean;
+  }> {
+    const res = await webFetch('/api/fs/batch-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to batch read files');
+    }
+    return res.json();
+  },
+
   async saveFile(path: string, content: string, backup: boolean = true, force: boolean = false, root: string = ''): Promise<void> {
     const res = await webFetch('/api/fs/file', {
       method: 'POST',
@@ -885,6 +911,40 @@ export const api = {
     if (!res.ok) {
       const text = await res.text();
       throw new Error(text || 'Failed to read remote file');
+    }
+    return res.json();
+  },
+
+  async sftpBatchRead(req: {
+    host: string;
+    port?: number;
+    user?: string;
+    authType?: string;
+    password?: string;
+    privateKey?: string;
+    passphrase?: string;
+    identityId?: string;
+    jumpHost?: any;
+    paths?: string[];
+    patterns?: string[];
+    pattern?: string;
+    baseDir?: string;
+    maxFiles?: number;
+    maxSizeBytes?: number;
+  }): Promise<{
+    files: Record<string, string>;
+    errors?: Record<string, string>;
+    count: number;
+    truncated: boolean;
+  }> {
+    const res = await webFetch('/api/ssh/sftp/batch-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || 'Failed to batch read remote files via SFTP');
     }
     return res.json();
   },

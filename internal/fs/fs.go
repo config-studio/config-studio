@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -433,4 +435,239 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(out, in)
 	return err
+}
+
+// BatchReadRequest specifies paths or glob patterns to read in batch.
+type BatchReadRequest struct {
+	Root         string   `json:"root,omitempty"`
+	Paths        []string `json:"paths,omitempty"`
+	Patterns     []string `json:"patterns,omitempty"`
+	Pattern      string   `json:"pattern,omitempty"`
+	MaxFiles     int      `json:"maxFiles,omitempty"`
+	MaxSizeBytes int64    `json:"maxSizeBytes,omitempty"`
+}
+
+// BatchReadResult contains contents of read files and any individual errors.
+type BatchReadResult struct {
+	Root      string            `json:"root"`
+	Files     map[string]string `json:"files"`
+	Errors    map[string]string `json:"errors,omitempty"`
+	Count     int               `json:"count"`
+	Truncated bool              `json:"truncated"`
+}
+
+// isBinary inspects the first 512 bytes for null byte (0x00).
+func isBinary(data []byte) bool {
+	n := len(data)
+	if n > 512 {
+		n = 512
+	}
+	for _, b := range data[:n] {
+		if b == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// matchGlob matches a path against single or double-star glob patterns.
+func matchGlob(pattern, relPath string) bool {
+	pattern = strings.ReplaceAll(pattern, "\\", "/")
+	relPath = strings.ReplaceAll(relPath, "\\", "/")
+	pattern = strings.TrimPrefix(pattern, "./")
+	relPath = strings.TrimPrefix(relPath, "./")
+
+	if pattern == "*" || pattern == "**" || pattern == "**/*" {
+		return true
+	}
+
+	if !strings.Contains(pattern, "**") {
+		if !strings.Contains(pattern, "/") {
+			if matched, _ := path.Match(pattern, path.Base(relPath)); matched {
+				return true
+			}
+		}
+		if matched, _ := path.Match(pattern, relPath); matched {
+			return true
+		}
+		return false
+	}
+
+	var sb strings.Builder
+	sb.WriteString("(?i)^")
+	i := 0
+	n := len(pattern)
+	for i < n {
+		if i+4 <= n && pattern[i:i+4] == "/**/" {
+			sb.WriteString("(?:/.+/|/)")
+			i += 4
+		} else if i+3 <= n && pattern[i:i+3] == "/**" {
+			sb.WriteString("(?:/.*)?")
+			i += 3
+		} else if i+3 <= n && pattern[i:i+3] == "**/" {
+			sb.WriteString("(?:^|.*/)")
+			i += 3
+		} else if i+2 <= n && pattern[i:i+2] == "**" {
+			sb.WriteString(".*")
+			i += 2
+		} else if pattern[i] == '*' {
+			sb.WriteString("[^/]*")
+			i++
+		} else if pattern[i] == '?' {
+			sb.WriteString("[^/]")
+			i++
+		} else {
+			sb.WriteString(regexp.QuoteMeta(string(pattern[i])))
+			i++
+		}
+	}
+	sb.WriteString("$")
+
+	re, err := regexp.Compile(sb.String())
+	if err != nil {
+		return false
+	}
+	return re.MatchString(relPath)
+}
+
+// BatchReadRoot reads multiple files matching paths or glob patterns under the specified root.
+func (s *Service) BatchReadRoot(req BatchReadRequest) (BatchReadResult, error) {
+	wm := s.ensureWorkspaces()
+	var root WorkspaceRoot
+	var ok bool
+	if req.Root != "" {
+		root, ok = wm.Get(req.Root)
+		if !ok {
+			return BatchReadResult{}, fmt.Errorf("workspace root '%s' not found", req.Root)
+		}
+	} else {
+		defaultID := wm.DefaultRoot()
+		root, _ = wm.Get(defaultID)
+	}
+
+	maxFiles := req.MaxFiles
+	if maxFiles <= 0 {
+		maxFiles = 100
+	} else if maxFiles > 500 {
+		maxFiles = 500
+	}
+
+	maxSizeBytes := req.MaxSizeBytes
+	if maxSizeBytes <= 0 {
+		maxSizeBytes = 5 * 1024 * 1024 // 5 MB default
+	} else if maxSizeBytes > 10*1024*1024 {
+		maxSizeBytes = 10 * 1024 * 1024 // 10 MB cap
+	}
+
+	res := BatchReadResult{
+		Root:   root.ID,
+		Files:  make(map[string]string),
+		Errors: make(map[string]string),
+	}
+
+	candSet := make(map[string]bool)
+	var candidateList []string
+
+	// 1. Process explicit paths
+	for _, p := range req.Paths {
+		clean := strings.TrimPrefix(filepath.ToSlash(filepath.Clean(p)), "/")
+		if clean != "" && !candSet[clean] {
+			candSet[clean] = true
+			candidateList = append(candidateList, clean)
+		}
+	}
+
+	// 2. Process glob patterns
+	var patterns []string
+	if req.Pattern != "" {
+		patterns = append(patterns, req.Pattern)
+	}
+	patterns = append(patterns, req.Patterns...)
+
+	if len(patterns) > 0 && root.Path != "" {
+		_ = filepath.Walk(root.Path, func(pathStr string, info os.FileInfo, err error) error {
+			if err != nil || pathStr == root.Path {
+				return nil
+			}
+			if info.IsDir() {
+				if strings.HasPrefix(info.Name(), ".") && info.Name() != "." {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			rel, err := filepath.Rel(root.Path, pathStr)
+			if err != nil {
+				return nil
+			}
+			relSlash := filepath.ToSlash(rel)
+
+			for _, pat := range patterns {
+				if matchGlob(pat, relSlash) {
+					if !candSet[relSlash] {
+						candSet[relSlash] = true
+						candidateList = append(candidateList, relSlash)
+					}
+					break
+				}
+			}
+			return nil
+		})
+	}
+
+	sort.Strings(candidateList)
+
+	var totalSize int64
+	for _, rel := range candidateList {
+		if len(res.Files) >= maxFiles {
+			res.Truncated = true
+			break
+		}
+
+		fullPath, _, err := s.SafePathRoot(req.Root, rel)
+		if err != nil {
+			res.Errors[rel] = err.Error()
+			continue
+		}
+
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			res.Errors[rel] = err.Error()
+			continue
+		}
+		if info.IsDir() {
+			continue
+		}
+
+		if (totalSize + info.Size()) > maxSizeBytes {
+			res.Truncated = true
+			break
+		}
+
+		data, err := os.ReadFile(fullPath)
+		if err != nil {
+			res.Errors[rel] = err.Error()
+			continue
+		}
+
+		if isBinary(data) {
+			res.Errors[rel] = "binary file skipped"
+			continue
+		}
+
+		res.Files[rel] = string(data)
+		totalSize += int64(len(data))
+	}
+
+	res.Count = len(res.Files)
+	if len(res.Errors) == 0 {
+		res.Errors = nil
+	}
+
+	return res, nil
+}
+
+// BatchRead reads multiple files matching paths or glob patterns across default workspace.
+func (s *Service) BatchRead(req BatchReadRequest) (BatchReadResult, error) {
+	return s.BatchReadRoot(req)
 }

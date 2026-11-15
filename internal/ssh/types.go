@@ -102,3 +102,30 @@ type SFTPRequest struct {
 	Mode       uint32  `json:"mode,omitempty"`
 	NewPath    string  `json:"newPath,omitempty"`
 }
+
+// SFTPBatchReadRequest encapsulates payload for SFTP batch file operations.
+type SFTPBatchReadRequest struct {
+	Host         string   `json:"host"`
+	Port         int      `json:"port"`
+	User         string   `json:"user"`
+	AuthType     string   `json:"authType"`
+	Password     string   `json:"password,omitempty"`
+	PrivateKey   string   `json:"privateKey,omitempty"`
+	Passphrase   string   `json:"passphrase,omitempty"`
+	IdentityID   string   `json:"identityId,omitempty"`
+	JumpHost     *Config  `json:"jumpHost,omitempty"`
+	Paths        []string `json:"paths,omitempty"`
+	Patterns     []string `json:"patterns,omitempty"`
+	Pattern      string   `json:"pattern,omitempty"`
+	BaseDir      string   `json:"baseDir,omitempty"`
+	MaxFiles     int      `json:"maxFiles,omitempty"`
+	MaxSizeBytes int64    `json:"maxSizeBytes,omitempty"`
+}
+
+// SFTPBatchReadResult holds contents and stats for remote batch reads.
+type SFTPBatchReadResult struct {
+	Files     map[string]string `json:"files"`
+	Errors    map[string]string `json:"errors,omitempty"`
+	Count     int               `json:"count"`
+	Truncated bool              `json:"truncated"`
+}

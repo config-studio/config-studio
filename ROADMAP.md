@@ -13,11 +13,12 @@
 
 ---
 
-## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.3)
+## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.4)
 
-### 🎯 Core Evolution (Спринт v2.3.3)
-- [ ] **1. Пакетное чтение файлов каталога (Batch File Read & Discovery)**:
-  - [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов (необходимо для кросс-файловой навигации Traefik, Glance и инспекторов).
+### 🎯 Core Evolution (Спринт v2.3.4)
+- [ ] **1. Разделенный экран (Split-Screen Workspace Layout)**:
+  - [ ] Режим двухпанельного сплита (Editor слева, Webview / Iframe справа) с перетаскиваемым разделителем в `App.tsx`.
+  - [ ] Плагинное API: `window.ConfigStudio.registerSplitWebview({ id, title, url, refreshOnSave?: boolean })` для live-предпросмотра дашбордов и страниц (Glance, Web-DevKit, Markdown/HTML).
 
 ### 💡 Отложенные задачи и бэклог (Backlog)
 - [ ] **Глобальный реестр горячих клавиш плагинов**: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий с клавиатуры (отложено до расширения каталога плагинов; текущее управление полностью закрывается верхним тулбаром и клавишей `F5`).
@@ -35,7 +36,7 @@ graph TD
     C1["1. Headless SSH Exec & Host Storage<br/>(Выпущено в v2.3.0 - v2.3.2)"]
     C2["2. Editor Navigation & Custom Tabs<br/>(Выпущено в v2.2.0 - v2.3.2)"]
     C3["3. Smart Embedded Agent Distribution<br/>(Выпущено в v2.3.1)"]
-    C4["4. Batch File Read & Discovery<br/>('POST /api/fs/batch-read')"]
+    C4["4. Batch File Read & Discovery<br/>(Выпущено в v2.3.3)"]
     C5["5. Split-Screen Layout<br/>(Editor + Live Webview)"]
     C6["6. Log Streaming Service<br/>(SSE / WebSocket без PTY-мусора)"]
     C7["7. Fleet Worker Pool & Diff Engine<br/>('fleet.ExecBatch')"]
@@ -59,8 +60,8 @@ graph TD
 ```
 
 ### 1. Пакетное чтение файлов и кросс-файловый поиск (Batch File Read & Discovery)
-*Необходимо для: `config-studio-traefik` (Go to Definition), `config-studio-glance` ($include), линтеров и инспекторов.*
-- [ ] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
+*(Выпущено в v2.3.3)*
+- [x] Пакетное чтение файлов каталога: `POST /api/fs/batch-read` и `POST /api/sftp/batch-read` с поддержкой glob-масок (`rules/mw-*.yml`) для быстрой индексации без множественных сетевых запросов.
 
 ### 2. Разделенный экран (Split-Screen Workspace Layout)
 *Необходимо для: `config-studio-glance` (Live Dashboard Preview :8080), `config-studio-web-devkit` (Chrome preview), Markdown/HTML превью.*
@@ -125,6 +126,26 @@ graph TD
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details open>
+<summary><b>🚀 Детали релиза v2.3.3: Batch File Read, Glob Indexing & Traefik Acceleration (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
+
+- [x] **Пакетное чтение файлов каталога на бэкенде (Go Core)**:
+  - Эндпоинты `POST /api/fs/batch-read` и `POST /api/ssh/sftp/batch-read` (также алиас `POST /api/sftp/batch-read`).
+  - Поддержка точных путей (`paths: [...]`) и рекурсивных glob-шаблонов (`patterns: ["rules/**/*.yml", "conf.d/*.yml"]`).
+  - Полноценный компилятор glob-масок `matchGlob` с поддержкой `**`, `*`, `?` и регистронезависимости в Windows и Linux.
+  - Встроенный фильтр бинарных файлов (проверка первых 512 байт на `0x00`), защита от выхода за пределы рабочей директории (Path Traversal Protection через `SafePathRoot`) и ограничение `maxFiles` / `maxSizeBytes`.
+  - Покрытие юнит-тестами `TestBatchReadRoot` и `TestFSBatchReadEndpoint` (100% зеленые тесты).
+- [x] **Фронтенд и плагинный фасад (`web/src/services/api.ts` & `pluginLoader.ts`)**:
+  - Методы клиента `api.batchReadFiles` и `api.sftpBatchRead`.
+  - Экспорт в глобальный фасад плагинов: `window.ConfigStudio.fs.batchRead(options)`, `window.ConfigStudio.fs.readFile(path, root)`, `window.ConfigStudio.batchReadFiles(options)` и `window.ConfigStudio.sftpBatchRead(options)`.
+- [x] **Официальная типизация (`config-studio-plugin-docs/types/config-studio.d.ts`)**:
+  - Описаны интерфейсы `BatchReadOptions`, `BatchReadResult`, `SFTPBatchReadOptions`, `SFTPBatchReadResult` и `FsAPI`.
+- [x] **Ускорение плагина `config-studio-traefik` (v1.1.2)**:
+  - `TraefikWorkspaceIndexer` переведен на однопроходную пакетную загрузку файлов конфигурации через `fs.batchRead` вместо $N+1$ последовательных HTTP-запросов `readFile`.
+  - Бесшовный fallback на пофайловое чтение в случае недоступности эндпоинта.
+  - Добавлены юнит-тесты на пакетное чтение (34 теста пройдены успешно, сборка `main.js` завершена).
+</details>
+
+<details>
 <summary><b>🚀 Детали релиза v2.3.2: Core Host Storage, Unification, Custom Tabs & Plugin Docs Overhaul (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
 
 - [x] **Централизованное хранилище узлов Core Host Storage (`data/hosts.json`)**:

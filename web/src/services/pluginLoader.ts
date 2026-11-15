@@ -282,6 +282,30 @@ class PluginLoader {
         await this.openCustomTabHandler(tab);
       },
 
+      fs: {
+        batchRead: async (req: {
+          root?: string;
+          paths?: string[];
+          patterns?: string[];
+          pattern?: string;
+          maxFiles?: number;
+          maxSizeBytes?: number;
+        }) => api.batchReadFiles(req),
+        readFile: async (path: string, root?: string) => {
+          const res = await api.getFile(path, root);
+          return res.content;
+        },
+      },
+      batchReadFiles: async (req: {
+        root?: string;
+        paths?: string[];
+        patterns?: string[];
+        pattern?: string;
+        maxFiles?: number;
+        maxSizeBytes?: number;
+      }) => api.batchReadFiles(req),
+      sftpBatchRead: async (req: Parameters<typeof api.sftpBatchRead>[0]) => api.sftpBatchRead(req),
+
       showNotification: (msg: string, type?: 'info' | 'success' | 'error') => {
         this.notificationHandler(msg, type);
       },

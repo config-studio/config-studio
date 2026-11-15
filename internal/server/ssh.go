@@ -233,3 +233,20 @@ func (s *Server) handleSFTPRename(w http.ResponseWriter, r *http.Request) {
 		"newPath": req.NewPath,
 	})
 }
+
+func (s *Server) handleSFTPBatchRead(w http.ResponseWriter, r *http.Request) {
+	var req ssh.SFTPBatchReadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res, err := s.ssh.BatchReadFile(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(res)
+}

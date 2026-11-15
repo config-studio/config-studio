@@ -148,9 +148,11 @@ func (s *Server) setupRoutes() {
 	mux.HandleFunc("POST /api/fs/create", s.handleCreateItem)
 	mux.HandleFunc("DELETE /api/fs/delete", s.handleDeleteItem)
 	mux.HandleFunc("POST /api/fs/rename", s.handleRenameItem)
+	mux.HandleFunc("GET /api/fs/upload", s.handleUploadFile)
 	mux.HandleFunc("POST /api/fs/upload", s.handleUploadFile)
 	mux.HandleFunc("GET /api/fs/download", s.handleDownloadFile)
 	mux.HandleFunc("GET /api/fs/search", s.handleSearchFiles)
+	mux.HandleFunc("POST /api/fs/batch-read", s.handleFSBatchRead)
 
 	// Structure Guard APIs
 	mux.HandleFunc("POST /api/guard/validate", s.handleValidateGuard)
@@ -213,6 +215,8 @@ func (s *Server) setupRoutes() {
 	mux.HandleFunc("POST /api/ssh/sftp/mkdir", s.handleSFTPMkdir)
 	mux.HandleFunc("POST /api/ssh/sftp/delete", s.handleSFTPDelete)
 	mux.HandleFunc("POST /api/ssh/sftp/rename", s.handleSFTPRename)
+	mux.HandleFunc("POST /api/ssh/sftp/batch-read", s.handleSFTPBatchRead)
+	mux.HandleFunc("POST /api/sftp/batch-read", s.handleSFTPBatchRead)
 
 	// Fleet Inventory APIs
 	mux.HandleFunc("GET /api/servers", s.handleListServers)
@@ -639,6 +643,31 @@ func (s *Server) handleGetFile(w http.ResponseWriter, r *http.Request) {
 		"readOnly":    rootObj.ReadOnly,
 		"content":     string(content),
 	})
+}
+
+func (s *Server) handleFSBatchRead(w http.ResponseWriter, r *http.Request) {
+	var req appfs.BatchReadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, http.StatusBadRequest, "invalid request payload: "+err.Error())
+		return
+	}
+
+	if req.Root == "" {
+		req.Root = r.URL.Query().Get("root")
+	}
+	if req.Pattern == "" && len(req.Patterns) == 0 && len(req.Paths) == 0 {
+		if qPat := r.URL.Query().Get("pattern"); qPat != "" {
+			req.Pattern = qPat
+		}
+	}
+
+	res, err := s.fs.BatchReadRoot(req)
+	if err != nil {
+		jsonError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, res)
 }
 
 func (s *Server) handleGetFileInfo(w http.ResponseWriter, r *http.Request) {
