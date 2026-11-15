@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Package,
-  ShieldAlert,
   Sparkles,
   RefreshCw,
   Trash2,
@@ -37,8 +36,8 @@ import {
 } from '../../ui';
 
 interface PluginsTabProps {
-  pluginExecUnrestricted: boolean;
-  setPluginExecUnrestricted: (v: boolean) => void;
+  pluginExecUnrestricted?: boolean;
+  setPluginExecUnrestricted?: (v: boolean) => void;
   accentColor: string;
   onReloadPlugins?: () => Promise<void>;
   onNavigateToPluginSettings?: (pluginId: string) => void;
@@ -60,8 +59,8 @@ function semverCompare(a?: string, b?: string): number {
 }
 
 export const PluginsTab: React.FC<PluginsTabProps> = ({
-  pluginExecUnrestricted,
-  setPluginExecUnrestricted,
+  pluginExecUnrestricted: _pluginExecUnrestricted,
+  setPluginExecUnrestricted: _setPluginExecUnrestricted,
   accentColor: _accentColor,
   onReloadPlugins,
   onNavigateToPluginSettings,
@@ -266,24 +265,6 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
 
   return (
     <div className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
-      {/* Host Command Execution Security ("I know what I'm doing" mode) */}
-      <Callout
-        variant="warning"
-        icon={<ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />}
-        title={
-          <div className="flex items-center justify-between w-full">
-            <span className="uppercase tracking-wider">{t.unrestrictedMode}</span>
-            <Toggle
-              checked={pluginExecUnrestricted}
-              onChange={setPluginExecUnrestricted}
-              size="sm"
-            />
-          </div>
-        }
-      >
-        <p className="mt-1">{t.unrestrictedHelp}</p>
-      </Callout>
-
       {/* Installed Plugins List */}
       <div>
         <SectionHeader

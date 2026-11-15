@@ -44,6 +44,7 @@ import {
   PillTabItem,
   Dropdown,
   DropdownOption,
+  Callout,
 } from '../../ui';
 
 interface SecretsTabProps {
@@ -582,30 +583,25 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
         </div>
       </Card>
 
-      {/* Condition 1: Password protection disabled */}
+      {/* Condition 1: Password protection disabled (local development notice) */}
       {!authEnabled && (
-        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start space-x-3.5">
-          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div className="space-y-2 flex-1">
-            <h4 className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
-              {t.authRequiredToManage}
-            </h4>
-            <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
-              {t.authRequiredHelp}
-            </p>
-            <div className="pt-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onNavigateToSecurity}
-                icon={<Shield size={13} />}
-                className="text-amber-800 dark:text-amber-200 border-amber-500/40 hover:bg-amber-500/20"
-              >
-                {t.tabSecurity}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <Callout
+          variant="neutral"
+          icon={<Shield className="w-4 h-4 text-gray-400 shrink-0" />}
+          action={
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={onNavigateToSecurity}
+              icon={<Shield size={12} />}
+            >
+              {t.tabSecurity}
+            </Button>
+          }
+          title={t.authRequiredToManage}
+        >
+          {t.authRequiredHelp}
+        </Callout>
       )}
 
       {/* Condition 2: Password protection enabled, but Privileged Mode locked */}
