@@ -72,7 +72,9 @@
 - **Модульная система плагинов и бинарный формат .cspkg (Plugin System v2.1):**
   - **Бинарный MRS-контейнер `.cspkg`**: сверхбыстрое чтение пакетов на лету прямо из памяти с проверкой SHA-256.
   - **Гибридная установка**: Drag-and-drop пакетов `.cspkg`/`.zip` в окно, установка по URL или из каталога в 1 клик.
-  - **Безопасная шина сервисов и хранилище Core Vault**: обмен сервисами (`services.getOptional`) и защита секретов в OS Keychain.
+  - **Безопасная шина сервисов и хранилище Core Vault**: обмен сервисами (`services.getOptional`), защита секретов в OS Keychain и специализированная категория `agent_credentials` для TOTP-ключей удаленных агентов.
+  - **Экосистема Smart Plugin-Embedded Agent Distribution**:
+    - Доставка удаленных Linux-агентов (`amd64` и `arm64`) внутри `.cspkg` пакета с поддержкой Air-Gapped/NAT контуров, прямым ZIP-SFTP стримингом, атомарной заменой через `PosixRename` и авто-откатом при сбое (подробнее в [docs/SMART_AGENT_DISTRIBUTION.md](docs/SMART_AGENT_DISTRIBUTION.md)).
   - **Официальные расширения экосистемы**:
     - 🖥️ **[config-studio-servers](https://github.com/config-studio/config-studio-servers)**: «Серверы и Флот» — централизованный инвентарь `servers.yaml`, универсальный переключатель в шапке, 1-Click установка демона, сопряжение в локальной сети (LAN Discovery) и безопасное управление ключами через Core Vault.
     - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)**: Живой предпросмотр HTML/PHP с симуляцией вкладки Chrome, сервер :8085, AST-структура и автодополнение Monaco.

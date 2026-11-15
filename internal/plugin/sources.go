@@ -102,22 +102,22 @@ var defaultFallbackCatalogJSON = []byte(`[
   {
     "id": "servers",
     "name": "Servers & Fleet Manager",
-    "version": "1.3.0",
-    "description": "Централизованное управление серверами, servers.yaml v2, нативный SSH/SFTP, встроенный агент и отправка файлов",
+    "version": "1.4.0",
+    "description": "Централизованное управление серверами, servers.yaml v2, нативный SSH/SFTP, встроенный агент с поддержкой Air-Gapped/NAT, Core Vault и отправка файлов",
     "author": "Config Studio Team",
     "downloadUrl": "https://github.com/config-studio/config-studio-servers/releases/latest/download/servers.cspkg",
     "sourceId": "official",
     "official": true,
-    "icon": "🖥️",
-    "tags": ["Fleet", "Servers", "SSH", "SFTP", "Agent"],
+    "icon": "server",
+    "tags": ["Fleet", "Servers", "SSH", "SFTP", "Agent", "Air-Gapped"],
     "locales": {
       "ru": {
         "name": "Флот серверов & Инвентарь",
-        "description": "Управление парком серверов, servers.yaml v2, SSH/SFTP, встроенный агент и отправка файлов"
+        "description": "Централизованное управление парком серверов, servers.yaml v2, SSH/SFTP, встроенный агент с поддержкой Air-Gapped/NAT, Core Vault и отправка файлов"
       },
       "en": {
         "name": "Servers & Fleet Manager",
-        "description": "Centralized server inventory, servers.yaml v2, native SSH/SFTP and agent integration in a unified switcher"
+        "description": "Centralized server inventory, servers.yaml v2, native SSH/SFTP, embedded agent with Air-Gapped/NAT support, and Core Vault"
       }
     }
   },
