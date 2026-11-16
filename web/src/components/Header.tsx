@@ -16,7 +16,6 @@ import {
   X,
   CornerDownLeft,
   Loader2,
-  Package,
   Menu,
   MoreVertical,
 } from 'lucide-react';
@@ -655,31 +654,15 @@ export const Header: React.FC<HeaderProps> = ({
             title={`Switch to ${settings.themeMode === 'dark' ? t.themeLight : t.themeDark}`}
           />
 
-          {/* Plugins quick toggle button */}
-          {onOpenPlugins && (
-            <button
-              onClick={onOpenPlugins}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-base-border transition-colors cursor-pointer"
-              title={`${t.tabPlugins} (${activePluginsCount} ${t.headerPluginsActive || 'active'})`}
-            >
-              <Package className="w-3.5 h-3.5 text-accent" />
-              <span className="hidden lg:inline font-medium">{t.tabPlugins}</span>
-              {activePluginsCount > 0 && (
-                <Badge variant="accent" size="xs">
-                  {activePluginsCount}
-                </Badge>
-              )}
-            </button>
-          )}
-
           {/* Settings button */}
-          <IconButton
-            variant="ghost"
-            size="md"
-            icon={<SettingsIcon className="w-4 h-4" />}
+          <button
             onClick={onOpenSettings}
+            className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-base-border transition-colors cursor-pointer"
             title={t.settings}
-          />
+          >
+            <SettingsIcon className="w-3.5 h-3.5 text-accent" />
+            <span className="font-medium">{t.settings}</span>
+          </button>
 
           {/* Logout button if auth enabled */}
           {onLogout && (
@@ -746,19 +729,6 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Globe className="w-3.5 h-3.5 text-accent" />
                   <span>{t.language}: {(settings.language || 'RU').toUpperCase()}</span>
-                </button>
-              )}
-
-              {onOpenPlugins && (
-                <button
-                  onClick={() => {
-                    setIsMobileMoreMenuOpen(false);
-                    onOpenPlugins();
-                  }}
-                  className="w-full px-3 py-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-left text-gray-800 dark:text-gray-200 flex items-center space-x-2.5"
-                >
-                  <Package className="w-3.5 h-3.5 text-accent" />
-                  <span>{t.tabPlugins} ({activePluginsCount})</span>
                 </button>
               )}
 
