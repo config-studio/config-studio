@@ -15,13 +15,14 @@
 
 ---
 
-## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.3.7)
+## 🎯 ТЕКУЩИЙ ЭТАП / В РАБОТЕ (Current Sprint: v2.4.0 — v3.0.0 Prep)
 
-### 🎯 Core Evolution & AI Sandboxing (Спринт v2.3.7)
-- [ ] **1. Эфемерная песочница Goja (Code Mode Sandbox)**:
-  - [ ] Встраивание `github.com/dop251/goja` в пакет `internal/sandbox` с нулевым потреблением heap в покое.
-  - [ ] Безопасный фасад ядра `cs.*` (`cs.servers`, `cs.ssh`, `cs.fs`, `cs.vault`) с лимитом времени выполнения (10s) и глубины стека вызовов.
-  - [ ] REST API `POST /api/sandbox/eval` с изоляцией контекста для плагина `config-studio-mcp`.
+> **Стратегический приоритет:** Все промежуточные версии ядра до **v3.0.0** выделены под полировку, баг-фиксы стабильности, регрессионное тестирование и подготовку/тестирование нативного десктопного окружения **Wails**.
+
+### 🛠️ Стабилизация, баг-фиксы и Wails Testing (Спринт v2.4.0 - v2.9.x)
+- [ ] Тестирование и адаптация Go-бэкенда под Wails v2/v3 desktop shell.
+- [ ] Регрессионное тестирование нативных оконных событий, трея и локальных сокетов.
+- [ ] Исправление замечаний и багов пользовательского интерфейса.
 
 ### 💡 Отложенные задачи и бэклог (Backlog)
 - [ ] **Глобальный реестр горячих клавиш плагинов**: `window.ConfigStudio.registerShortcut(key, handler)` для вызова плагинных действий с клавиатуры (отложено до расширения каталога плагинов; текущее управление полностью закрывается верхним тулбаром и клавишей `F5`).
@@ -46,7 +47,7 @@ graph TD
     C5["5. Split-Screen Layout<br/>(Выпущено в v2.3.4)"]
     C6["6. Log Streaming Service<br/>(Выпущено в v2.3.5)"]
     C7["7. Fleet Batch Provisioning Engine<br/>(Выпущено в v2.3.6)"]
-    C8["8. Goja Code Mode Sandbox<br/>(Безопасный JS фасад 'cs.*')"]
+    C8["8. Goja Code Mode Sandbox<br/>(Выпущено в v2.3.7)"]
     
     Core --> C1
     Core --> C2
@@ -90,9 +91,10 @@ graph TD
 - [x] Модальный интерфейс `openBatchInstallModal` в плагине `config-studio-servers v1.5.0` с прогресс-баром и журналами по каждому серверу.
 
 ### 5. Эфемерная песочница Goja (Code Mode Sandbox)
-*Необходимо для: `config-studio-mcp & Code Mode Engine`.*
-- [ ] Встраивание `github.com/dop251/goja` в пакет `internal/sandbox` с нулевым потреблением heap в покое.
-- [ ] Безопасный фасад ядра `cs.*` (`cs.servers`, `cs.ssh`, `cs.fs`, `cs.vault`) с лимитом времени (10s) и глубины стека.
+*(Выпущено в v2.3.7)*
+- [x] Встраивание `github.com/dop251/goja` в пакет `internal/sandbox` с нулевым потреблением heap в покое.
+- [x] Безопасный фасад ядра `cs.*` (`cs.servers`, `cs.ssh`, `cs.fs`, `cs.vault`) с лимитом времени (10s) и глубины стека.
+- [x] REST API `POST /api/sandbox/eval` с изоляцией контекста для плагина `config-studio-mcp`.
 
 ---
 
@@ -462,6 +464,27 @@ graph TD
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details open>
+<summary><b>⚡ Детали релиза v2.3.7: Goja Code Mode Sandbox & Secure JS Facade (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
+
+- [x] **Go Core Backend (`internal/sandbox` & `internal/server`)**:
+  - Встроен сверхбыстрый ECMAScript 5.1+ движок `github.com/dop251/goja` с концепцией **эфемерости** (нулевое потребление heap в покое, создание под каждый вызов и мгновенный сборщик мусора).
+  - Реализован безопасный фасад ядра `cs.*`:
+    - `cs.servers.list()` / `cs.servers.get(id)` — инвентарь серверов флота с маппингом JSON-тегов.
+    - `cs.hosts.list()` / `cs.hosts.get(id)` — база хостов SSH ядра.
+    - `cs.ssh.exec(hostId, cmd, timeoutSec)` — безопасное headless исполнение команд локально или по SSH с возвратом `{ stdout, stderr, exitCode, error }`.
+    - `cs.fs.readFile(path)` / `cs.fs.listFiles(dir)` — безопасное чтение файлов проекта.
+    - `cs.fs.writeFile(path, content)` — защищенная запись с обязательной проверкой политики безопасности `allowWrite: true`.
+    - `cs.vault.list()` / `cs.vault.getSecret(id)` — зашифрованное хранилище секретов.
+    - `console.log`, `console.info`, `console.warn`, `console.error` — сбор логов выполнения в массив `logs`.
+  - Защита от зависания и бесконечных циклов: прерывание по таймауту через `vm.Interrupt("execution timeout exceeded")` (по умолчанию 10с, максимум 30с).
+  - Защита от переполнения стека и рекурсий: лимит глубины вызовов `vm.SetMaxCallStackSize(256)`.
+  - Автоматический маппинг JSON-тегов Go-структур (`goja.TagFieldNameMapper("json", true)`).
+  - Эндпоинт `POST /api/sandbox/eval` с изоляцией контекста, передачей входных переменных через `context.*` и возвратом `EvalResult` (`success`, `value`, `logs`, `durationMs`, `error`).
+  - 100% покрытие unit-тестами пакетов `internal/sandbox` и `internal/server` (`TestSandbox_*`, `TestServer_SandboxEvalEndpoint`).
+
+</details>
+
+<details>
 <summary><b>⚡ Детали релиза v2.3.6: Fleet Batch Provisioning Engine & Servers v1.5.0 (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
 
 - [x] **Go Core Backend (`internal/fleet` & `internal/server`)**:

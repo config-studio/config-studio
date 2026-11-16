@@ -29,6 +29,7 @@ import (
 	"config-studio/internal/hosts"
 	"config-studio/internal/logs"
 	"config-studio/internal/plugin"
+	"config-studio/internal/sandbox"
 	"config-studio/internal/secrets"
 	"config-studio/internal/ssh"
 )
@@ -51,6 +52,7 @@ type Server struct {
 	fleet        *fleet.Manager
 	hosts        *hosts.Manager
 	logs         *logs.StreamService
+	sandbox      *sandbox.Service
 	handler      http.Handler
 	sessionsMu   sync.RWMutex
 	sessions     map[string]time.Time
@@ -114,6 +116,14 @@ func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *p
 		logs:         logs.NewStreamService(),
 		sessions:     make(map[string]time.Time),
 	}
+	s.sandbox = sandbox.NewService(
+		sandbox.DefaultOptions(),
+		s.fleet,
+		s.hosts,
+		s.ssh,
+		&serverFSAdapter{server: s},
+		s.secrets,
+	)
 	s.setupRoutes()
 	return s
 }
@@ -224,6 +234,9 @@ func (s *Server) setupRoutes() {
 	// Log Streaming Service (v2.3.5)
 	mux.HandleFunc("GET /api/logs/stream", s.handleLogsStream)
 	mux.HandleFunc("POST /api/logs/stream", s.handleLogsStream)
+
+	// Goja Code Mode Sandbox API (v2.3.7)
+	mux.HandleFunc("POST /api/sandbox/eval", s.handleSandboxEval)
 
 	// Fleet Inventory APIs
 	mux.HandleFunc("GET /api/servers", s.handleListServers)
