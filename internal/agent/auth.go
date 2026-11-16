@@ -294,6 +294,8 @@ func secureCompare(a, b string) bool {
 // GenerateRandomToken generates a cryptographically secure hex token with a prefix.
 func GenerateRandomToken(prefix string) string {
 	bytes := make([]byte, 16)
-	_, _ = rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		panic("crypto/rand failure: " + err.Error())
+	}
 	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(bytes))
 }

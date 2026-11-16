@@ -20,51 +20,78 @@ func (s *Server) handleListServers(w http.ResponseWriter, r *http.Request) {
 
 	servers := s.fleet.ListServers()
 
-	// Merge with Core Hosts if any host is present in Core but not yet in Fleet
+	// Enrich servers with Core Host connection details if linked via SSHHostRef
 	if s.hosts != nil {
-		existingMap := make(map[string]bool)
-		for _, srv := range servers {
-			existingMap[srv.ID] = true
-			if srv.SSHHostRef != "" {
-				existingMap[srv.SSHHostRef] = true
-			}
-			if srv.Connection.SSH != nil && srv.Connection.SSH.Host != "" {
-				port := srv.Connection.SSH.Port
-				if port <= 0 {
-					port = 22
+		for i := range servers {
+			if servers[i].SSHHostRef != "" {
+				if h, err := s.hosts.Get(servers[i].SSHHostRef); err == nil && h != nil {
+					if servers[i].Name == "" {
+						servers[i].Name = h.Name
+					}
+					if servers[i].Connection.SSH == nil {
+						servers[i].Connection.SSH = &fleet.SSHConnectionConfig{
+							Enabled:   true,
+							Host:      h.Host,
+							Port:      h.Port,
+							User:      h.User,
+							Identity:  h.IdentityID,
+							ProxyJump: h.ProxyJump,
+						}
+					}
+					if servers[i].Host == "" {
+						servers[i].Host = h.Host
+					}
+					if servers[i].Port <= 0 {
+						servers[i].Port = h.Port
+					}
+					if servers[i].User == "" {
+						servers[i].User = h.User
+					}
+					if servers[i].Identity == "" {
+						servers[i].Identity = h.IdentityID
+					}
 				}
-				key := fmt.Sprintf("%s@%s:%d", strings.ToLower(strings.TrimSpace(srv.Connection.SSH.User)), strings.ToLower(strings.TrimSpace(srv.Connection.SSH.Host)), port)
-				existingMap[key] = true
 			}
 		}
 
-		coreHosts := s.hosts.List()
-		for _, h := range coreHosts {
-			key := fmt.Sprintf("%s@%s:%d", strings.ToLower(strings.TrimSpace(h.User)), strings.ToLower(strings.TrimSpace(h.Host)), h.NormalizedPort())
-			if !existingMap[h.ID] && !existingMap[key] && h.ID != "localhost" && h.ID != "local" {
-				node := fleet.ServerNode{
-					ID:          h.ID,
-					Name:        h.Name,
-					Description: h.Description,
-					Group:       h.Group,
-					Tags:        h.Tags,
-					Color:       h.Color,
-					Icon:        h.Icon,
-					SSHHostRef:  h.ID,
+		// Only merge unlinked Core Hosts if explicitly requested (?includeHosts=true)
+		if r.URL.Query().Get("includeHosts") == "true" {
+			existingMap := make(map[string]bool)
+			for _, srv := range servers {
+				existingMap[srv.ID] = true
+				if srv.SSHHostRef != "" {
+					existingMap[srv.SSHHostRef] = true
 				}
-				node.Connection.SSH = &fleet.SSHConnectionConfig{
-					Enabled:   true,
-					Host:      h.Host,
-					Port:      h.Port,
-					User:      h.User,
-					Identity:  h.IdentityID,
-					ProxyJump: h.ProxyJump,
+			}
+
+			coreHosts := s.hosts.List()
+			for _, h := range coreHosts {
+				key := fmt.Sprintf("%s@%s:%d", strings.ToLower(strings.TrimSpace(h.User)), strings.ToLower(strings.TrimSpace(h.Host)), h.NormalizedPort())
+				if !existingMap[h.ID] && !existingMap[key] && h.ID != "localhost" && h.ID != "local" {
+					node := fleet.ServerNode{
+						ID:          h.ID,
+						Name:        h.Name,
+						Description: h.Description,
+						Group:       h.Group,
+						Tags:        h.Tags,
+						Color:       h.Color,
+						Icon:        h.Icon,
+						SSHHostRef:  h.ID,
+						Host:        h.Host,
+						Port:        h.Port,
+						User:        h.User,
+						Identity:    h.IdentityID,
+					}
+					node.Connection.SSH = &fleet.SSHConnectionConfig{
+						Enabled:   true,
+						Host:      h.Host,
+						Port:      h.Port,
+						User:      h.User,
+						Identity:  h.IdentityID,
+						ProxyJump: h.ProxyJump,
+					}
+					servers = append(servers, node)
 				}
-				node.Host = h.Host
-				node.Port = h.Port
-				node.User = h.User
-				node.Identity = h.IdentityID
-				servers = append(servers, node)
 			}
 		}
 	}
@@ -103,7 +130,7 @@ func (s *Server) handleAddOrUpdateServer(w http.ResponseWriter, r *http.Request)
 	} else if s.hosts != nil && srv.ID != "localhost" && srv.ID != "local" {
 		// Mirror SSH config to Core Host Storage and link ref
 		if srv.Connection.SSH != nil && srv.Connection.SSH.Enabled && strings.TrimSpace(srv.Connection.SSH.Host) != "" {
-			h, _ := s.hosts.Save(&hosts.Host{
+			h, err := s.hosts.Save(&hosts.Host{
 				ID:          srv.ID,
 				Name:        srv.Name,
 				Host:        srv.Connection.SSH.Host,
@@ -117,6 +144,10 @@ func (s *Server) handleAddOrUpdateServer(w http.ResponseWriter, r *http.Request)
 				Icon:        srv.Icon,
 				Description: srv.Description,
 			})
+			if err != nil {
+				jsonError(w, http.StatusInternalServerError, "failed to mirror host into core inventory: "+err.Error())
+				return
+			}
 			if h != nil {
 				srv.SSHHostRef = h.ID
 			}
@@ -165,13 +196,33 @@ func (s *Server) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if id == "localhost" {
-		jsonError(w, http.StatusBadRequest, "cannot delete localhost default node")
+	if id == "localhost" || id == "local" {
+		jsonError(w, http.StatusBadRequest, "cannot delete default local node")
 		return
 	}
 
-	if err := s.fleet.DeleteServer(id); err != nil {
-		jsonError(w, http.StatusNotFound, err.Error())
+	deleteHost := r.URL.Query().Get("deleteHost") == "true"
+	fleetErr := s.fleet.DeleteServer(id)
+
+	var hostErr error
+	if s.hosts != nil {
+		if _, err := s.hosts.Get(id); err == nil {
+			if deleteHost || fleetErr != nil {
+				hostErr = s.hosts.Delete(id)
+			}
+		}
+	}
+
+	// Wipe associated agent secret from Vault if present
+	if s.secrets != nil {
+		_ = s.secrets.Delete("agent:" + id)
+	}
+
+	if fleetErr != nil && hostErr != nil {
+		jsonError(w, http.StatusNotFound, fmt.Sprintf("server %q not found in fleet or hosts", id))
+		return
+	} else if fleetErr != nil && s.hosts == nil {
+		jsonError(w, http.StatusNotFound, fleetErr.Error())
 		return
 	}
 

@@ -3,6 +3,7 @@ package agent
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -115,5 +116,26 @@ func TestScopedTokens(t *testing.T) {
 	}
 	if auth.CanAccessPath(ctxNginx, "/etc/shadow", false) {
 		t.Errorf("Nginx token should NOT have read access to /etc/shadow")
+	}
+}
+
+func TestGenerateRandomToken_EntropyAndUniqueness(t *testing.T) {
+	seen := make(map[string]bool)
+	for i := 0; i < 500; i++ {
+		tok := GenerateRandomToken("cs_key")
+		if !strings.HasPrefix(tok, "cs_key_") {
+			t.Fatalf("expected token to start with cs_key_, got %s", tok)
+		}
+		parts := strings.Split(tok, "_")
+		if len(parts) != 3 || len(parts[2]) != 32 {
+			t.Fatalf("expected format cs_key_<32hex>, got %s", tok)
+		}
+		if parts[2] == "00000000000000000000000000000000" {
+			t.Fatalf("zero-entropy token detected: %s", tok)
+		}
+		if seen[tok] {
+			t.Fatalf("duplicate token generated: %s", tok)
+		}
+		seen[tok] = true
 	}
 }

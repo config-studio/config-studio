@@ -248,4 +248,75 @@ func TestDeleteServer_PreservesSSHHost(t *testing.T) {
 	if sshHost.Host != "192.168.0.50" {
 		t.Errorf("expected SSH host IP 192.168.0.50, got %s", sshHost.Host)
 	}
+
+	// CRITICAL: Verify server is NOT returned in GET /api/servers (no zombie host resurrection!)
+	reqList := httptest.NewRequest("GET", "/api/servers", nil)
+	reqList.Header.Set("X-ConfigStudio-Web", "1")
+	recList := httptest.NewRecorder()
+	srv.ServeHTTP(recList, reqList)
+	if strings.Contains(recList.Body.String(), hostID) {
+		t.Fatalf("CRITICAL: Zombie host detected! Server %q was deleted from fleet but reappeared in GET /api/servers: %s", hostID, recList.Body.String())
+	}
+}
+
+func TestDeleteServer_CascadeDeleteHostAndVault(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-fleet-del-casc-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	cfgMgr, _ := config.NewManager(tmpDir)
+	wsMgr, _ := appfs.NewWorkspaceManager(tmpDir, tmpDir)
+	fsSvc, _ := appfs.NewServiceWithManager(wsMgr)
+	runner := plugin.NewRunner()
+	pMgr, _ := plugin.NewManager(tmpDir, runner)
+	auditLogger, _ := audit.NewLogger(tmpDir)
+	secMgr, _ := secrets.NewManager(tmpDir)
+	fleetMgr, _ := fleet.NewManager(tmpDir)
+
+	srv := NewServer(Config{}, cfgMgr, fsSvc, pMgr, runner, auditLogger, secMgr, fleetMgr)
+
+	hostID := "host-temp-casc"
+	_, _ = srv.hosts.Save(&hosts.Host{
+		ID:   hostID,
+		Name: "Temp Cascade Host",
+		Host: "192.168.0.77",
+	})
+	_ = fleetMgr.AddOrUpdateServer(fleet.ServerNode{
+		ID:         hostID,
+		Name:       "Temp Cascade Node",
+		SSHHostRef: hostID,
+	})
+	_ = secMgr.Set(secrets.SecretItem{
+		SecretMeta: secrets.SecretMeta{
+			ID: "agent:" + hostID,
+		},
+		Value: "super-secret-token",
+	})
+
+	// Delete with deleteHost=true
+	reqDel := httptest.NewRequest("DELETE", "/api/servers/"+hostID+"?deleteHost=true", nil)
+	reqDel.Header.Set("X-ConfigStudio-Web", "1")
+	recDel := httptest.NewRecorder()
+	srv.ServeHTTP(recDel, reqDel)
+	if recDel.Code != http.StatusOK {
+		t.Fatalf("expected 200 on DELETE /api/servers with deleteHost=true, got %d: %s", recDel.Code, recDel.Body.String())
+	}
+
+	// 1. Should be deleted from servers.yaml
+	raw, _ := fleetMgr.GetRawYAML()
+	if strings.Contains(raw, hostID) {
+		t.Errorf("expected server to be deleted from servers.yaml")
+	}
+
+	// 2. Should be deleted from hosts.json when deleteHost=true
+	if _, err := srv.hosts.Get(hostID); err == nil {
+		t.Errorf("expected SSH host to be deleted from hosts.json when deleteHost=true")
+	}
+
+	// 3. Vault secret should be wiped
+	if _, err := secMgr.Get("agent:" + hostID); err == nil {
+		t.Errorf("expected Vault secret agent:%s to be wiped upon deletion", hostID)
+	}
 }

@@ -197,7 +197,9 @@ func (c *Config) DeleteScopedToken(id string) error {
 
 func GenerateBase32Secret(length int) string {
 	bytes := make([]byte, length)
-	_, _ = rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		panic("crypto/rand failure: " + err.Error())
+	}
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(bytes)
 }
 
