@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"config-studio/internal/audit"
 	"config-studio/internal/sandbox"
 )
 
@@ -48,6 +49,9 @@ func (s *Server) handleSandboxEval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Limit request body to 2MB to protect against payload exhaustion
+	r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
+
 	var req sandbox.EvalRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
@@ -58,6 +62,30 @@ func (s *Server) handleSandboxEval(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		jsonError(w, http.StatusInternalServerError, "sandbox evaluation error: "+err.Error())
 		return
+	}
+
+	if s.audit != nil {
+		codePreview := req.Code
+		if len(codePreview) > 100 {
+			codePreview = codePreview[:100] + "..."
+		}
+		severity := audit.SeverityInfo
+		if !res.Success {
+			severity = audit.SeverityWarn
+		}
+		_ = s.audit.Log(audit.Event{
+			User:     s.getAuditUser(r),
+			IP:       r.RemoteAddr,
+			Action:   "sandbox.eval",
+			Severity: severity,
+			Target:   "goja",
+			Details: map[string]any{
+				"codePreview": codePreview,
+				"success":     res.Success,
+				"durationMs":  res.DurationMs,
+				"allowWrite":  req.AllowWrite,
+			},
+		})
 	}
 
 	jsonResponse(w, http.StatusOK, res)

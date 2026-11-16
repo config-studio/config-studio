@@ -80,12 +80,129 @@ type VaultProvider interface {
 
 // Service manages ephemeral Goja runtimes.
 type Service struct {
-	fleet   FleetProvider
-	hosts   HostsProvider
-	ssh     SSHProvider
-	fs      FSProvider
-	vault   VaultProvider
-	opts    Options
+	fleet FleetProvider
+	hosts HostsProvider
+	ssh   SSHProvider
+	fs    FSProvider
+	vault VaultProvider
+	opts  Options
+}
+
+// HostDTO represents a sanitized host view safe for sandboxed scripts.
+type HostDTO struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Host        string   `json:"host"`
+	Port        int      `json:"port"`
+	User        string   `json:"user"`
+	AuthType    string   `json:"authType"`
+	DefaultPath string   `json:"defaultPath,omitempty"`
+	Group       string   `json:"group,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Color       string   `json:"color,omitempty"`
+	Icon        string   `json:"icon,omitempty"`
+	Description string   `json:"description,omitempty"`
+	CreatedAt   string   `json:"createdAt,omitempty"`
+	UpdatedAt   string   `json:"updatedAt,omitempty"`
+}
+
+func sanitizeHost(h *hosts.Host) *HostDTO {
+	if h == nil {
+		return nil
+	}
+	return &HostDTO{
+		ID:          h.ID,
+		Name:        h.Name,
+		Host:        h.Host,
+		Port:        h.NormalizedPort(),
+		User:        h.User,
+		AuthType:    string(h.AuthType),
+		DefaultPath: h.DefaultPath,
+		Group:       h.Group,
+		Tags:        h.Tags,
+		Color:       h.Color,
+		Icon:        h.Icon,
+		Description: h.Description,
+		CreatedAt:   h.CreatedAt,
+		UpdatedAt:   h.UpdatedAt,
+	}
+}
+
+// ServerDTO represents a sanitized fleet server view safe for sandboxed scripts.
+type ServerDTO struct {
+	ID          string               `json:"id"`
+	Name        string               `json:"name"`
+	Description string               `json:"description,omitempty"`
+	Group       string               `json:"group,omitempty"`
+	Tags        []string             `json:"tags,omitempty"`
+	Icon        string               `json:"icon,omitempty"`
+	Color       string               `json:"color,omitempty"`
+	SSHHostRef  string               `json:"sshHostRef,omitempty"`
+	Host        string               `json:"host,omitempty"`
+	User        string               `json:"user,omitempty"`
+	Port        int                  `json:"port,omitempty"`
+	Connection  ServerConnectionDTO  `json:"connection,omitempty"`
+	Rollout     *fleet.RolloutConfig `json:"rollout,omitempty"`
+}
+
+type ServerConnectionDTO struct {
+	SSH   *ServerSSHConnectionDTO   `json:"ssh,omitempty"`
+	Agent *ServerAgentConnectionDTO `json:"agent,omitempty"`
+}
+
+type ServerSSHConnectionDTO struct {
+	Enabled   bool   `json:"enabled"`
+	Host      string `json:"host,omitempty"`
+	Port      int    `json:"port,omitempty"`
+	User      string `json:"user,omitempty"`
+	ProxyJump string `json:"proxyJump,omitempty"`
+	Sudo      bool   `json:"sudo,omitempty"`
+}
+
+type ServerAgentConnectionDTO struct {
+	Enabled   bool   `json:"enabled"`
+	Port      int    `json:"port,omitempty"`
+	URL       string `json:"url,omitempty"`
+	TLSVerify bool   `json:"tlsVerify"`
+}
+
+func sanitizeServer(s *fleet.ServerNode) *ServerDTO {
+	if s == nil {
+		return nil
+	}
+	dto := &ServerDTO{
+		ID:          s.ID,
+		Name:        s.Name,
+		Description: s.Description,
+		Group:       s.Group,
+		Tags:        s.Tags,
+		Icon:        s.Icon,
+		Color:       s.Color,
+		SSHHostRef:  s.SSHHostRef,
+		Host:        s.Host,
+		User:        s.User,
+		Port:        s.Port,
+		Rollout:     s.Rollout,
+	}
+	if s.Connection.SSH != nil {
+		dto.Connection.SSH = &ServerSSHConnectionDTO{
+			Enabled:   s.Connection.SSH.Enabled,
+			Host:      s.Connection.SSH.Host,
+			Port:      s.Connection.SSH.Port,
+			User:      s.Connection.SSH.User,
+			ProxyJump: s.Connection.SSH.ProxyJump,
+			Sudo:      s.Connection.SSH.Sudo,
+		}
+	}
+	if s.Connection.Agent != nil {
+		dto.Connection.Agent = &ServerAgentConnectionDTO{
+			Enabled:   s.Connection.Agent.Enabled,
+			Port:      s.Connection.Agent.Port,
+			URL:       s.Connection.Agent.URL,
+			TLSVerify: s.Connection.Agent.TLSVerify,
+		}
+	}
+	return dto
 }
 
 // NewService creates a new sandbox Service with injected dependencies.
@@ -110,11 +227,21 @@ func NewService(opts Options, fleet FleetProvider, hosts HostsProvider, ssh SSHP
 }
 
 // Eval executes a JavaScript snippet inside an ephemeral, isolated Goja runtime.
-func (s *Service) Eval(ctx context.Context, req EvalRequest) (*EvalResult, error) {
+func (s *Service) Eval(ctx context.Context, req EvalRequest) (res *EvalResult, err error) {
 	start := time.Now()
-	res := &EvalResult{
+	res = &EvalResult{
 		Logs: make([]string, 0),
 	}
+
+	// Safety: Recover from any internal panic during evaluation
+	defer func() {
+		if r := recover(); r != nil {
+			res.Success = false
+			res.Error = fmt.Sprintf("internal sandbox panic: %v", r)
+			res.DurationMs = time.Since(start).Milliseconds()
+			err = nil
+		}
+	}()
 
 	code := strings.TrimSpace(req.Code)
 	if code == "" {
@@ -142,44 +269,67 @@ func (s *Service) Eval(ctx context.Context, req EvalRequest) (*EvalResult, error
 	vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
 	vm.SetMaxCallStackSize(s.opts.MaxStackDepth)
 
-	// Interrupter for runaway loops or timeouts
-	interrupted := false
+	done := make(chan struct{})
+	defer close(done)
+
+	var interruptReason string
 	var interrupterMu sync.Mutex
 
-	timer := time.AfterFunc(timeout, func() {
+	setInterrupt := func(reason string) {
 		interrupterMu.Lock()
-		interrupted = true
+		if interruptReason == "" {
+			interruptReason = reason
+		}
 		interrupterMu.Unlock()
-		vm.Interrupt("execution timeout exceeded")
+		vm.Interrupt(reason)
+	}
+
+	timer := time.AfterFunc(timeout, func() {
+		setInterrupt("execution timeout exceeded")
 	})
 	defer timer.Stop()
 
-	// Watch parent context cancellation
+	// Watch parent context cancellation without leaking goroutines
 	go func() {
-		<-evalCtx.Done()
-		if evalCtx.Err() == context.Canceled {
-			interrupterMu.Lock()
-			interrupted = true
-			interrupterMu.Unlock()
-			vm.Interrupt("execution canceled by client")
+		select {
+		case <-done:
+			return
+		case <-ctx.Done():
+			setInterrupt("execution canceled by client")
 		}
 	}()
 
-	// 1. Setup console logger
+	// 1. Setup console logger with DoS protection (limit lines and line size)
+	const maxLogLines = 1000
+	const maxLineLength = 4096
+	logLimitReached := false
 	var logsMu sync.Mutex
+
 	logFn := func(prefix string) func(call goja.FunctionCall) goja.Value {
 		return func(call goja.FunctionCall) goja.Value {
+			logsMu.Lock()
+			defer logsMu.Unlock()
+
+			if len(res.Logs) >= maxLogLines {
+				if !logLimitReached {
+					logLimitReached = true
+					res.Logs = append(res.Logs, "[WARN] log limit reached (maximum 1000 lines)")
+				}
+				return goja.Undefined()
+			}
+
 			parts := make([]string, len(call.Arguments))
 			for i, arg := range call.Arguments {
 				parts[i] = fmt.Sprint(arg.Export())
 			}
 			line := strings.Join(parts, " ")
+			if len(line) > maxLineLength {
+				line = line[:maxLineLength] + "... (truncated)"
+			}
 			if prefix != "" {
 				line = fmt.Sprintf("[%s] %s", prefix, line)
 			}
-			logsMu.Lock()
 			res.Logs = append(res.Logs, line)
-			logsMu.Unlock()
 			return goja.Undefined()
 		}
 	}
@@ -201,13 +351,18 @@ func (s *Service) Eval(ctx context.Context, req EvalRequest) (*EvalResult, error
 	// 3. Setup safe Core facade cs.*
 	csObj := vm.NewObject()
 
-	// cs.servers
+	// cs.servers (sanitized via ServerDTO)
 	serversObj := vm.NewObject()
 	_ = serversObj.Set("list", func(call goja.FunctionCall) goja.Value {
 		if s.fleet == nil {
 			return vm.ToValue([]any{})
 		}
-		return vm.ToValue(s.fleet.ListServers())
+		rawList := s.fleet.ListServers()
+		dtos := make([]*ServerDTO, len(rawList))
+		for i := range rawList {
+			dtos[i] = sanitizeServer(&rawList[i])
+		}
+		return vm.ToValue(dtos)
 	})
 	_ = serversObj.Set("get", func(call goja.FunctionCall) goja.Value {
 		if s.fleet == nil || len(call.Arguments) == 0 {
@@ -215,20 +370,25 @@ func (s *Service) Eval(ctx context.Context, req EvalRequest) (*EvalResult, error
 		}
 		id := call.Arguments[0].String()
 		srv, err := s.fleet.GetServer(id)
-		if err != nil {
+		if err != nil || srv == nil {
 			return goja.Null()
 		}
-		return vm.ToValue(srv)
+		return vm.ToValue(sanitizeServer(srv))
 	})
 	_ = csObj.Set("servers", serversObj)
 
-	// cs.hosts
+	// cs.hosts (sanitized via HostDTO)
 	hostsObj := vm.NewObject()
 	_ = hostsObj.Set("list", func(call goja.FunctionCall) goja.Value {
 		if s.hosts == nil {
 			return vm.ToValue([]any{})
 		}
-		return vm.ToValue(s.hosts.List())
+		rawList := s.hosts.List()
+		dtos := make([]*HostDTO, len(rawList))
+		for i, h := range rawList {
+			dtos[i] = sanitizeHost(h)
+		}
+		return vm.ToValue(dtos)
 	})
 	_ = hostsObj.Set("get", func(call goja.FunctionCall) goja.Value {
 		if s.hosts == nil || len(call.Arguments) == 0 {
@@ -239,7 +399,7 @@ func (s *Service) Eval(ctx context.Context, req EvalRequest) (*EvalResult, error
 		if err != nil || h == nil {
 			return goja.Null()
 		}
-		return vm.ToValue(h)
+		return vm.ToValue(sanitizeHost(h))
 	})
 	_ = csObj.Set("hosts", hostsObj)
 
@@ -252,24 +412,45 @@ func (s *Service) Eval(ctx context.Context, req EvalRequest) (*EvalResult, error
 		if len(call.Arguments) < 2 {
 			panic(vm.ToValue("cs.ssh.exec requires at least 2 arguments: hostId, command"))
 		}
-		hostID := call.Arguments[0].String()
+		hostID := strings.TrimSpace(call.Arguments[0].String())
 		cmdStr := call.Arguments[1].String()
 		timeoutSec := 10
 		if len(call.Arguments) >= 3 && call.Arguments[2].ToInteger() > 0 {
 			timeoutSec = int(call.Arguments[2].ToInteger())
 		}
 
-		var cfg *ssh.Config
-		if hostID != "localhost" && hostID != "local" && hostID != "" && s.hosts != nil {
-			h, err := s.hosts.Get(hostID)
-			if err != nil || h == nil {
-				panic(vm.ToValue(fmt.Sprintf("ssh host %q not found in core inventory", hostID)))
-			}
-			cfg = &ssh.Config{
-				Host: h.Host,
-				Port: h.Port,
-				User: h.User,
-			}
+		// Security: strictly forbid localhost/local command execution inside sandbox
+		if hostID == "localhost" || hostID == "local" || hostID == "" {
+			panic(vm.ToValue("execution on localhost/local is forbidden in sandbox"))
+		}
+		if s.hosts == nil {
+			panic(vm.ToValue("hosts provider is not initialized"))
+		}
+
+		h, err := s.hosts.Get(hostID)
+		if err != nil || h == nil {
+			panic(vm.ToValue(fmt.Sprintf("ssh host %q not found in core inventory", hostID)))
+		}
+
+		// Security: prevent loopback bypassing
+		if h.Host == "localhost" || h.Host == "127.0.0.1" || h.Host == "::1" {
+			panic(vm.ToValue("execution on localhost/local is forbidden in sandbox"))
+		}
+
+		identityID := h.IdentityID
+		if identityID == "" {
+			identityID = h.SecretID
+		}
+		cfg := &ssh.Config{
+			Host:       h.Host,
+			Port:       h.NormalizedPort(),
+			User:       h.User,
+			AuthType:   string(h.AuthType),
+			Password:   h.Password,
+			PrivateKey: h.PrivateKey,
+			Passphrase: h.Passphrase,
+			IdentityID: identityID,
+			TimeoutSec: timeoutSec,
 		}
 
 		sshRes, err := s.ssh.ExecuteCommand(evalCtx, cfg, &ssh.ExecRequest{
@@ -376,12 +557,23 @@ func (s *Service) Eval(ctx context.Context, req EvalRequest) (*EvalResult, error
 
 	if err != nil {
 		interrupterMu.Lock()
-		wasInterrupted := interrupted
+		reason := interruptReason
 		interrupterMu.Unlock()
 
-		if wasInterrupted {
+		if reason != "" {
 			res.Success = false
-			res.Error = "execution timeout exceeded"
+			res.Error = reason
+			return res, nil
+		}
+
+		var interr *goja.InterruptedError
+		if errors.As(err, &interr) {
+			res.Success = false
+			if str, ok := interr.Value().(string); ok && str != "" {
+				res.Error = str
+			} else {
+				res.Error = "execution interrupted"
+			}
 			return res, nil
 		}
 

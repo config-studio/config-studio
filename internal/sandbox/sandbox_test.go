@@ -114,12 +114,40 @@ func setupTestService() *Service {
 	fl := &mockFleet{
 		servers: []fleet.ServerNode{
 			{ID: "localhost", Name: "Localhost (Этот ПК)"},
-			{ID: "node-1", Name: "Production Node 1"},
+			{
+				ID:       "node-1",
+				Name:     "Production Node 1",
+				Identity: "super-secret-vault-ref",
+				Connection: fleet.ConnectionConfig{
+					SSH: &fleet.SSHConnectionConfig{
+						Host:     "10.0.0.1",
+						Identity: "vault:ssh-key",
+					},
+					Agent: &fleet.AgentConnectionConfig{
+						VaultSecret: "vault:agent-secret",
+						SecretRef:   "vault://agent:node-1",
+					},
+				},
+			},
 		},
 	}
 	h := &mockHosts{
 		hosts: []*hosts.Host{
-			{ID: "node-1", Name: "Host 1", Host: "10.0.0.1"},
+			{
+				ID:         "node-1",
+				Name:       "Host 1",
+				Host:       "10.0.0.1",
+				Password:   "plaintext-password",
+				PrivateKey: "-----BEGIN OPENSSH PRIVATE KEY-----...",
+				Passphrase: "secret-passphrase",
+				IdentityID: "vault-identity-123",
+				SecretID:   "vault-secret-123",
+			},
+			{
+				ID:   "local-bypass",
+				Name: "Bypass Attempt",
+				Host: "127.0.0.1",
+			},
 		},
 	}
 	f := &mockFS{
@@ -341,5 +369,176 @@ func TestSandbox_FacadeSSH(t *testing.T) {
 	}
 	if !strings.Contains(valMap["stdout"].(string), "output of: uname -a") {
 		t.Errorf("unexpected stdout: %v", valMap["stdout"])
+	}
+}
+
+func TestSandbox_Security_ForbidLocalhostExec(t *testing.T) {
+	svc := setupTestService()
+
+	targets := []string{"localhost", "local", "", "local-bypass"}
+	for _, target := range targets {
+		res, err := svc.Eval(context.Background(), EvalRequest{
+			Code: `cs.ssh.exec("` + target + `", "whoami");`,
+		})
+		if err != nil {
+			t.Fatalf("unexpected go error: %v", err)
+		}
+		if res.Success {
+			t.Fatalf("expected exec on target %q to fail, but succeeded with: %v", target, res.Value)
+		}
+		if !strings.Contains(res.Error, "forbidden in sandbox") && !strings.Contains(res.Error, "requires at least 2 arguments") {
+			t.Errorf("expected error to mention forbidden in sandbox for target %q, got: %s", target, res.Error)
+		}
+	}
+}
+
+func TestSandbox_Security_CredentialsNotLeaked(t *testing.T) {
+	svc := setupTestService()
+
+	// 1. Check host sanitization
+	resHost, err := svc.Eval(context.Background(), EvalRequest{
+		Code: `
+			const h = cs.hosts.get("node-1");
+			({
+				password: h.password,
+				privateKey: h.privateKey,
+				passphrase: h.passphrase,
+				identityId: h.identityId,
+				secretId: h.secretId,
+				name: h.name,
+				host: h.host,
+			});
+		`,
+	})
+	if err != nil || !resHost.Success {
+		t.Fatalf("hosts.get failed: %v, err=%s", err, resHost.Error)
+	}
+	hMap, ok := resHost.Value.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map, got %T: %v", resHost.Value, resHost.Value)
+	}
+	for _, forbiddenKey := range []string{"password", "privateKey", "passphrase", "identityId", "secretId"} {
+		if val, exists := hMap[forbiddenKey]; exists && val != nil && val != "" {
+			t.Errorf("sensitive key %q leaked in host: %v", forbiddenKey, val)
+		}
+	}
+	if hMap["name"] != "Host 1" || hMap["host"] != "10.0.0.1" {
+		t.Errorf("expected public host fields preserved, got: %v", hMap)
+	}
+
+	// 2. Check server node sanitization
+	resSrv, err := svc.Eval(context.Background(), EvalRequest{
+		Code: `
+			const s = cs.servers.get("node-1");
+			({
+				identity: s.identity,
+				sshIdentity: s.connection && s.connection.ssh ? s.connection.ssh.identity : null,
+				vaultSecret: s.connection && s.connection.agent ? s.connection.agent.vaultSecret : null,
+				secretRef: s.connection && s.connection.agent ? s.connection.agent.secretRef : null,
+				name: s.name,
+			});
+		`,
+	})
+	if err != nil || !resSrv.Success {
+		t.Fatalf("servers.get failed: %v, err=%s", err, resSrv.Error)
+	}
+	sMap, ok := resSrv.Value.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map, got %T: %v", resSrv.Value, resSrv.Value)
+	}
+	for _, forbiddenKey := range []string{"identity", "sshIdentity", "vaultSecret", "secretRef"} {
+		if val, exists := sMap[forbiddenKey]; exists && val != nil && val != "" {
+			t.Errorf("sensitive key %q leaked in server: %v", forbiddenKey, val)
+		}
+	}
+	if sMap["name"] != "Production Node 1" {
+		t.Errorf("expected server name preserved, got: %v", sMap["name"])
+	}
+}
+
+func TestSandbox_ContextCancellation_ReportsCorrectError(t *testing.T) {
+	svc := setupTestService()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Cancel after 20ms while script is looping
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		cancel()
+	}()
+
+	res, err := svc.Eval(ctx, EvalRequest{
+		Code:      "while(true) {}",
+		TimeoutMs: 2000,
+	})
+	if err != nil {
+		t.Fatalf("unexpected go error: %v", err)
+	}
+	if res.Success {
+		t.Fatalf("expected canceled execution to fail")
+	}
+	if !strings.Contains(res.Error, "canceled by client") {
+		t.Errorf("expected error to mention 'canceled by client', got: %s", res.Error)
+	}
+}
+
+func TestSandbox_Logs_CappedAtLimit(t *testing.T) {
+	svc := setupTestService()
+	res, err := svc.Eval(context.Background(), EvalRequest{
+		Code: `
+			for (let i = 0; i < 1200; i++) {
+				console.log("iteration", i);
+			}
+			console.log("A".repeat(5000));
+		`,
+	})
+	if err != nil || !res.Success {
+		t.Fatalf("eval failed: %v, err=%s", err, res.Error)
+	}
+	// Max log lines is 1000 + 1 warning message
+	if len(res.Logs) > 1001 {
+		t.Errorf("expected at most 1001 log lines, got: %d", len(res.Logs))
+	}
+	// Last log should be warning about log limit
+	warningFound := false
+	for _, l := range res.Logs {
+		if strings.Contains(l, "log limit reached") {
+			warningFound = true
+			break
+		}
+	}
+	if !warningFound {
+		t.Errorf("expected log limit warning message in logs")
+	}
+}
+
+type panicFS struct {
+	mockFS
+}
+
+func (p *panicFS) ReadFile(path string) ([]byte, error) {
+	panic("hardware disk explosion")
+}
+
+func TestSandbox_PanicRecovery(t *testing.T) {
+	fl := &mockFleet{}
+	h := &mockHosts{}
+	v := &mockVault{}
+	opts := Options{
+		DefaultTimeout: 1 * time.Second,
+		MaxTimeout:     5 * time.Second,
+		MaxStackDepth:  64,
+	}
+	svc := NewService(opts, fl, h, &mockSSH{}, &panicFS{}, v)
+	res, err := svc.Eval(context.Background(), EvalRequest{
+		Code: `cs.fs.readFile("boom.txt");`,
+	})
+	if err != nil {
+		t.Fatalf("unexpected go error: %v", err)
+	}
+	if res.Success {
+		t.Fatalf("expected panic to fail eval")
+	}
+	if !strings.Contains(res.Error, "panic") && !strings.Contains(res.Error, "hardware disk explosion") {
+		t.Errorf("expected error to mention panic or exception, got: %s", res.Error)
 	}
 }

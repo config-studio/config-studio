@@ -117,4 +117,26 @@ func TestServer_SandboxEvalEndpoint(t *testing.T) {
 	if !strings.Contains(res3.Error, "timeout") {
 		t.Errorf("expected timeout error message, got: %s", res3.Error)
 	}
+
+	// 4. Oversized payload rejected by MaxBytesReader (> 2MB)
+	hugeCode := strings.Repeat("// filler\n", 250000) // ~2.2 MB
+	payloadHuge := sandbox.EvalRequest{
+		Code: hugeCode + "1 + 1;",
+	}
+	bodyHuge, _ := json.Marshal(payloadHuge)
+	reqHuge := httptest.NewRequest("POST", "/api/sandbox/eval", bytes.NewReader(bodyHuge))
+	reqHuge.Header.Set("Content-Type", "application/json")
+	reqHuge.Header.Set("X-ConfigStudio-Web", "1")
+	recHuge := httptest.NewRecorder()
+	srv.ServeHTTP(recHuge, reqHuge)
+
+	if recHuge.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for payload exceeding 2MB, got %d: %s", recHuge.Code, recHuge.Body.String())
+	}
+
+	// 5. Audit log check
+	events := auditLogger.Query(audit.QueryFilter{Action: "sandbox.eval"})
+	if len(events.Events) == 0 {
+		t.Errorf("expected audit events for sandbox.eval, got 0")
+	}
 }
