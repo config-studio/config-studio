@@ -152,7 +152,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         .filter(Boolean);
 
       const parsedProxies = trustedProxies
-        .split('\n')
+        .split(/[\n,;]+/)
         .map((p) => p.trim())
         .filter(Boolean);
 

@@ -7,6 +7,7 @@ import {
   Check,
   ShieldCheck,
   Globe,
+  Info,
 } from 'lucide-react';
 import { Card, Input, Button, Toggle, Badge, SectionHeader } from '../../ui';
 
@@ -194,19 +195,34 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
         </p>
 
         <div className="space-y-2 pt-2 border-t border-base-border/60">
-          <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300">
-            {t.trustedProxiesLabel || 'Доверенные подсети / IP (по одному на строку)'}
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-[11px] font-semibold text-gray-800 dark:text-gray-200">
+              {t.trustedProxiesLabel || 'Доверенные подсети / IP прокси'}
+            </label>
+            <span className="text-[10px] text-accent font-medium px-2 py-0.5 rounded-md bg-accent/10 border border-accent/20">
+              Построчно или через запятую
+            </span>
+          </div>
+
           <textarea
             rows={3}
             value={trustedProxies}
             onChange={(e) => setTrustedProxies(e.target.value)}
-            placeholder="127.0.0.1/32&#10;::1/128&#10;192.168.0.0/16&#10;10.0.0.0/8"
+            placeholder="127.0.0.1/32&#10;::1/128&#10;192.168.10.9&#10;192.168.0.0/24"
             className="w-full px-3 py-2 bg-white dark:bg-black/30 border border-base-border rounded-xl text-xs font-mono text-gray-900 dark:text-white focus:outline-none focus:border-accent"
           />
-          <p className="text-[10px] text-gray-400 font-mono">
-            Примеры: <code>127.0.0.1/32</code>, <code>::1/128</code>, <code>192.168.10.0/24</code>, <code>10.0.0.0/8</code>
-          </p>
+
+          <div className="flex items-start space-x-2 text-[11px] text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/[0.04] p-2.5 rounded-xl border border-base-border/70">
+            <Info className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
+            <div className="space-y-0.5 leading-tight">
+              <div>
+                Разрешены как отдельные IP-адреса, так и диапазоны CIDR (через перенос строки, запятую или пробел).
+              </div>
+              <div className="text-[10px] text-gray-400 font-mono">
+                Примеры: <code>127.0.0.1/32</code>, <code>::1/128</code>, <code>192.168.10.9</code>, <code>192.168.0.0/24</code>, <code>10.0.0.0/8</code>
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
 

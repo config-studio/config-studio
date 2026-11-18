@@ -83,7 +83,7 @@
   "authSettings": "Security Settings",
   "trustedProxiesTitle": "Reverse Proxy & Trusted Networks",
   "trustedProxiesDesc": "Specify CIDR addresses for trusted reverse proxies (Traefik, Nginx, Caddy). Toggle enables authentication via proxy headers (Forward Auth: X-Forwarded-User).",
-  "trustedProxiesLabel": "Trusted Subnets / IPs (one per line)",
+  "trustedProxiesLabel": "Trusted Subnets / Proxy IPs",
   "enableAuth": "Enable Password Protection (Direct Login)",
   "authHelp": "When using Authentik / Authelia, SSO authentication happens transparently via reverse proxy headers.",
   "newPassword": "New Password (leave empty to keep current)",

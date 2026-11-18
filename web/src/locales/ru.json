@@ -83,7 +83,7 @@
   "authSettings": "Настройки безопасности",
   "trustedProxiesTitle": "Реверс-прокси и доверенные сети",
   "trustedProxiesDesc": "Укажите CIDR адреса доверенных обратных прокси (Traefik, Nginx, Caddy). Тумблер активирует авторизацию через заголовки прокси (Forward Auth: X-Forwarded-User).",
-  "trustedProxiesLabel": "Доверенные подсети / IP (по одному на строку)",
+  "trustedProxiesLabel": "Доверенные подсети / IP прокси",
   "enableAuth": "Включить защиту паролем (Direct Login)",
   "authHelp": "При использовании Authentik / Authelia авторизация проходит прозрачно через заголовки SSO.",
   "newPassword": "Новый пароль (оставьте пустым, если не меняется)",

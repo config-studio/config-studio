@@ -104,3 +104,36 @@ func TestSelfUpdate_RejectsUntrustedURL(t *testing.T) {
 		t.Fatalf("expected 400 Bad Request for untrusted download URL, got %d", w.Code)
 	}
 }
+
+func TestTrustedProxy_CommaSeparatedEntries(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "cs-proxy-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	cfgMgr, _ := config.NewManager(tempDir)
+	fsSvc, _ := appfs.NewService(tempDir)
+	runner := plugin.NewRunner()
+	pMgr, _ := plugin.NewManager(tempDir, runner)
+	auditLogger, _ := audit.NewLogger(tempDir)
+	secMgr, _ := secrets.NewManager(tempDir)
+	fleetMgr, _ := fleet.NewManager(tempDir)
+
+	srv := NewServer(Config{}, cfgMgr, fsSvc, pMgr, runner, auditLogger, secMgr, fleetMgr)
+
+	// User configured single string with comma: "192.168.0.0/24, 192.168.10.9"
+	_ = cfgMgr.Update(config.Settings{
+		TrustedProxies: []string{"192.168.0.0/24, 192.168.10.9"},
+	})
+
+	if !srv.isTrustedProxy("192.168.10.9:54321") {
+		t.Fatalf("expected 192.168.10.9 to be recognized as trusted proxy even if entered comma-separated")
+	}
+	if !srv.isTrustedProxy("192.168.0.50:12345") {
+		t.Fatalf("expected 192.168.0.50 to be recognized in 192.168.0.0/24 subnet even if entered comma-separated")
+	}
+	if srv.isTrustedProxy("10.1.2.3:12345") {
+		t.Fatalf("did not expect 10.1.2.3 to be trusted")
+	}
+}

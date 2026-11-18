@@ -225,7 +225,18 @@ func (m *Manager) Update(s Settings) error {
 	}
 	m.current.TrustForwardAuth = s.TrustForwardAuth
 	if s.TrustedProxies != nil {
-		m.current.TrustedProxies = s.TrustedProxies
+		var cleanProxies []string
+		for _, raw := range s.TrustedProxies {
+			for _, part := range strings.FieldsFunc(raw, func(r rune) bool {
+				return r == ',' || r == ';' || r == '\n' || r == '\r' || r == ' '
+			}) {
+				p := strings.TrimSpace(part)
+				if p != "" {
+					cleanProxies = append(cleanProxies, p)
+				}
+			}
+		}
+		m.current.TrustedProxies = cleanProxies
 	}
 	m.current.ApiEnabled = s.ApiEnabled
 	if s.ApiKey != "" {

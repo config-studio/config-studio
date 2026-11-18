@@ -60,20 +60,25 @@ func (s *Server) isTrustedProxy(remoteAddr string) bool {
 	}
 
 	settings := s.getSettings()
-	for _, entry := range settings.TrustedProxies {
-		entry = strings.TrimSpace(entry)
-		if entry == "" {
-			continue
-		}
-		if strings.Contains(entry, "/") {
-			_, ipNet, err := net.ParseCIDR(entry)
-			if err == nil && ipNet.Contains(ip) {
-				return true
+	for _, rawEntry := range settings.TrustedProxies {
+		subEntries := strings.FieldsFunc(rawEntry, func(r rune) bool {
+			return r == ',' || r == ';' || r == '\n' || r == '\r' || r == ' '
+		})
+		for _, entry := range subEntries {
+			entry = strings.TrimSpace(entry)
+			if entry == "" {
+				continue
 			}
-		} else {
-			targetIP := net.ParseIP(entry)
-			if targetIP != nil && targetIP.Equal(ip) {
-				return true
+			if strings.Contains(entry, "/") {
+				_, ipNet, err := net.ParseCIDR(entry)
+				if err == nil && ipNet.Contains(ip) {
+					return true
+				}
+			} else {
+				targetIP := net.ParseIP(entry)
+				if targetIP != nil && targetIP.Equal(ip) {
+					return true
+				}
 			}
 		}
 	}
