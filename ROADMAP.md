@@ -112,7 +112,7 @@ graph TD
 
 | Плагин / Репозиторий | Категория | Статус | Запланированный функционал | Выполненный объем vs Бэклог |
 |---|---|:---:|---|---|
-| **`config-studio-servers`** | Инфраструктура & Флот | ⚡ **Частично реализован** (v1.5.1) | Инвентарь `servers.yaml`, Universal Fleet Switcher, SSH Auto-Onboarding агента, Zero-Secret Vault, Embedded Agent Distribution (.cspkg), Массовая параллельная установка агента (Fleet Batch Provisioning). *(Отложено: Safe Rollout Diff & Approve / Canary-first, Fleet CLI).* | **Выполнено (v1.5.1):** Инвентарь, переключатель, SSH онбординг одиночного узла, стриминг бинарников агента из .cspkg, Vault, кастомные Dropdown с привязкой SSH хостов ядра и ручным вводом, Массовая параллельная установка агентов (Batch Provisioning Engine) с SSE-прогрессом.<br/>**Отложено в бэклог:** Массовая раскатка конфигов (Safe Rollout Engine) и Fleet CLI. |
+| **`config-studio-servers`** | Инфраструктура & Флот | ⚡ **Частично реализован** (v1.5.2) | Инвентарь `servers.yaml`, Universal Fleet Switcher, SSH Auto-Onboarding агента, Zero-Secret Vault, Embedded Agent Distribution (.cspkg), Массовая параллельная установка агента (Fleet Batch Provisioning). *(Отложено: Safe Rollout Diff & Approve / Canary-first, Fleet CLI).* | **Выполнено (v1.5.2):** Инвентарь, переключатель, SSH онбординг одиночного узла, стриминг бинарников агента из .cspkg, Vault, кастомные Dropdown с привязкой SSH хостов ядра и ручным вводом, Массовая параллельная установка агентов (Batch Provisioning Engine) с SSE-прогрессом.<br/>**Отложено в бэклог:** Массовая раскатка конфигов (Safe Rollout Engine) и Fleet CLI. |
 | **`config-studio-glance`** | Дашборды & Закладки | 📋 **Запланирован** | 1-Click Baremetal Binary Updater (`glanceapp/glance`), каталог Community Widgets, архитектура `$include`, Any-Document Bookmark Generator (`Alt+B`), 1-Click Traefik Sync, Live Split-Screen предпросмотр (:8080) с авторелоадом. | **Выполнено:** Ядро подготовило `batchRead` (v2.3.3) и Split Layout (v2.3.4).<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-docker`** | Контейнеризация | 📋 **Запланирован** | Визуальный конструктор Compose, библиотека Blueprints (Postgres, Redis, Traefik), Pre-Save удаленная проверка (`docker compose config`), тулбар (`Up -d`, `Down`, `Pull`), SSE-стриминг логов в нижний док, дашборд статусов контейнеров/портов. | **Выполнено:** Базовый синтаксический guard YAML и Log Streaming Service (v2.3.5) ядра.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-nginx`** | Веб-серверы & Прокси | 📋 **Запланирован** | Конструктор блоков `server`/`location`/`proxy_pass`, архитектурные шаблоны (SPA, WebSocket, SSL), Pre-Save удаленный синтаксический чекер `nginx -t`, 1-Click менеджер `sites-available` ➔ `sites-enabled`, монитор истечения SSL-сертификатов. | **Выполнено:** Поддержка подсветки `.conf` в ядре и SSH Headless API.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
@@ -141,10 +141,10 @@ graph TD
 
 ---
 
-### 1. `config-studio-servers` («Серверы и Флот» — v1.5.1)
+### 1. `config-studio-servers` («Серверы и Флот» — v1.5.2)
 *Единый центр управления физическими серверами, VPS и кластерами с возможностью массового развертывания агентов.*
 
-- **Текущее состояние:** Выпущены версии v1.0.0 — v1.5.1 (YAML инвентарь `servers.yaml`, Universal Fleet Switcher с кнопками `[ ⚡ Агент ]`, `[ 📁 SFTP ]`, `[ >_ Шелл ]`, 1-Click SSH Auto-Onboarding для одиночного узла, Embedded Agent Distribution с доставкой бинарников из `.cspkg`, интеграция с Core Vault, кастомные Dropdown, Массовая установка агентов с SSE-дашбордом).
+- **Текущее состояние:** Выпущены версии v1.0.0 — v1.5.2 (YAML инвентарь `servers.yaml`, Universal Fleet Switcher с кнопками `[ ⚡ Агент ]`, `[ 📁 SFTP ]`, `[ >_ Шелл ]`, 1-Click SSH Auto-Onboarding для одиночного узла, Embedded Agent Distribution с доставкой бинарников из `.cspkg`, интеграция с Core Vault, кастомные Dropdown, Массовая установка агентов с SSE-дашбордом).
 - **Файловые ассоциации (`fileMatches`):** `["servers.yaml", "servers.yml", "fleet.yaml"]`.
 - **Требуемые разрешения ядра (`permissions`):** `ssh.exec`, `secrets.read`, `fs.batchRead`, `ui.toolbar`, `ui.bottomDock`, `ui.modal`.
 

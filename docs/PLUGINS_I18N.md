@@ -67,7 +67,46 @@ window.ConfigStudio.i18n.onLanguageChange((newLang) => {
 Плагин может расширять список доступных языков всего интерфейса Config Studio (например, добавлять немецкий, французский, испанский и т.д.).
 
 ### 2.1 Определение языкового пакета
-В `plugin.json` объявляется секция `"localization"` (или отдельный файл `localization.json` в корне плагина):
+Языковой пакет может быть объявлен двумя способами:
+
+#### Способ А: Вынесенный файл `local.json` или `localization.json` (Рекомендуется)
+Чтобы не перегружать манифест сотнями строк переводов, словарь выносится в отдельный файл `local.json` (или `localization.json`) в корне плагина:
+
+`local.json`:
+```json
+{
+  "code": "de",
+  "name": "Deutsch",
+  "flag": "🇩🇪",
+  "translations": {
+    "settings": "Einstellungen",
+    "save": "Speichern",
+    "fileExplorer": "Datei-Explorer",
+    "newFile": "Neue Datei",
+    "themeDark": "Dunkel",
+    "themeLight": "Hell"
+  }
+}
+```
+
+А в `plugin.json` манифест остается легким и содержит только базовые метаданные:
+```json
+{
+  "id": "lang-de",
+  "name": "German Language Pack",
+  "version": "1.1.0",
+  "description": "Deutsche Benutzeroberfläche für Config Studio",
+  "minAppVersion": "2.3.6",
+  "localization": {
+    "code": "de",
+    "name": "Deutsch",
+    "flag": "🇩🇪"
+  }
+}
+```
+
+#### Способ Б: Встроенный блок в `plugin.json`
+В `plugin.json` напрямую объявляется полная секция `"localization"` со словарем `"translations"`:
 
 ```json
 {
