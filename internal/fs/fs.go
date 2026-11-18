@@ -447,23 +447,6 @@ func (s *Service) UploadFile(dirRel, filename string, r io.Reader) (string, erro
 	return s.UploadFileRoot("", dirRel, filename, r)
 }
 
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, in)
-	return err
-}
-
 // BatchReadRequest specifies paths or glob patterns to read in batch.
 type BatchReadRequest struct {
 	Root         string   `json:"root,omitempty"`

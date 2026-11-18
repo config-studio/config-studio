@@ -42,6 +42,7 @@ type WorkspaceManager struct {
 	defaultWorkDir string
 	defaultRoot    string
 	lastLoadedTime time.Time
+	lastStatTime   time.Time
 	mu             sync.RWMutex
 	roots          []WorkspaceRoot
 }
@@ -115,19 +116,30 @@ func NewInMemoryWorkspaceManager(workDir string) *WorkspaceManager {
 }
 
 // checkReload checks if workspaces.yaml has been modified on disk and reloads if needed.
+// Uses a short-lived batch cache (TTL <= 200ms) to prevent hammering the disk during directory scans,
+// while ensuring external edits are picked up promptly without desync.
 func (wm *WorkspaceManager) checkReload() {
 	if wm.filePath == "" {
 		return
 	}
+
+	now := time.Now()
+	wm.mu.RLock()
+	if now.Sub(wm.lastStatTime) < 200*time.Millisecond {
+		wm.mu.RUnlock()
+		return
+	}
+	wm.mu.RUnlock()
 
 	info, err := os.Stat(wm.filePath)
 	if err != nil {
 		return
 	}
 
-	wm.mu.RLock()
+	wm.mu.Lock()
+	wm.lastStatTime = now
 	needsReload := info.ModTime().After(wm.lastLoadedTime)
-	wm.mu.RUnlock()
+	wm.mu.Unlock()
 
 	if needsReload {
 		_ = wm.Reload()

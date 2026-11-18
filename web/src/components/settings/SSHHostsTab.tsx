@@ -2,25 +2,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Server,
   Plus,
-  Trash2,
-  Edit2,
   Key,
-  CheckCircle,
-  AlertCircle,
-  RefreshCw,
-  Copy,
-  Check,
   Shield,
-  Terminal,
-  Download,
-  Upload,
   FileCode,
   Lock,
 } from 'lucide-react';
-import { SSHHost, SSHKeyPair, SecretMeta } from '../../types';
+import { SSHHost, SecretMeta } from '../../types';
 import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
-import { Modal, ConfirmModal, EmptyState, Dropdown, DropdownOption, Badge, StatusBadge, Button, Input, Textarea, Card } from '../ui';
+import { ConfirmModal, EmptyState, Dropdown, DropdownOption, Button, Input, Textarea, Card } from '../ui';
+import { HostCard } from './hosts/HostCard';
+import { OpenSSHModal } from './hosts/OpenSSHModal';
+import { VaultBackupModal } from './hosts/VaultBackupModal';
 
 interface SSHHostsTabProps {
   accentColor?: string;
@@ -28,7 +21,6 @@ interface SSHHostsTabProps {
 }
 
 export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
-  accentColor = '#00d2b4',
   onOpenTerminal,
 }) => {
   const [hosts, setHosts] = useState<SSHHost[]>([]);
@@ -48,7 +40,6 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
 
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; success: boolean; latencyMs?: number; error?: string } | null>(null);
-
 
   // OpenSSH Modal
   const [isOpenSSHModalOpen, setIsOpenSSHModalOpen] = useState(false);
@@ -171,7 +162,6 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
       setTestingId(null);
     }
   };
-
 
   const handleOpenSSHModal = async () => {
     setOpenSSHStatus(null);
@@ -311,7 +301,6 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
         </div>
       </div>
 
-
       {/* Host Editing Form */}
       {isEditing && (
         <Card className="p-4 overflow-visible">
@@ -366,7 +355,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
               <Dropdown
                 label="Тип авторизации"
                 value={editingHost.authType || 'password'}
-                onChange={(val) => setEditingHost({ ...editingHost, authType: val })}
+                onChange={(val) => setEditingHost({ ...editingHost, authType: val as any })}
                 options={authTypeOptions}
                 size="sm"
               />
@@ -377,6 +366,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
               <Input
                 label="Пароль"
                 type="password"
+                peekable
                 placeholder="Введите пароль SSH"
                 value={editingHost.password || ''}
                 onChange={(e) => setEditingHost({ ...editingHost, password: e.target.value })}
@@ -397,6 +387,7 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
                 <Input
                   label="Passphrase ключа (если задан)"
                   type="password"
+                  peekable
                   placeholder="Оставьте пустым, если ключ без пароля"
                   value={editingHost.passphrase || ''}
                   onChange={(e) => setEditingHost({ ...editingHost, passphrase: e.target.value })}
@@ -455,90 +446,18 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
             description="Нажмите «Добавить хост» для подключения к серверам."
           />
         ) : (
-          hosts.map((host) => {
-            const isTesting = testingId === host.id;
-            const res = testResult?.id === host.id ? testResult : null;
-            return (
-              <div
-                key={host.id}
-                className="p-3.5 bg-base-surface rounded-xl border border-base-border flex items-center justify-between hover:border-base-border transition"
-              >
-                <div className="flex items-center space-x-3 min-w-0">
-                  <div className="p-2 rounded-lg bg-black/5 dark:bg-white/10 text-[var(--text-secondary)] shrink-0">
-                    <Server size={16} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
-                        {host.name || host.host}
-                      </span>
-                      <Badge variant="neutral" size="xs" className="font-mono">
-                        {host.user}@{host.host}:{host.port || 22}
-                      </Badge>
-                      <Badge variant={host.authType === 'vault' ? 'accent' : 'info'} size="xs" className="uppercase font-mono font-bold tracking-wider">
-                        {host.authType}
-                      </Badge>
-                    </div>
-                    <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono truncate">
-                      Путь: {host.defaultPath || '/etc'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status / Test result */}
-                <div className="flex items-center space-x-2">
-                  {res && (
-                    <StatusBadge
-                      status={res.success ? 'success' : 'error'}
-                      size="sm"
-                      icon={res.success ? <CheckCircle size={11} /> : <AlertCircle size={11} />}
-                      title={res.error}
-                    >
-                      {res.success ? `OK (${res.latencyMs}мс)` : 'Ошибка'}
-                    </StatusBadge>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleTestConnection(host)}
-                    disabled={isTesting}
-                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 rounded transition cursor-pointer"
-                    title="Проверить связь с сервером"
-                  >
-                    <RefreshCw size={13} className={isTesting ? 'animate-spin' : ''} />
-                  </button>
-
-                  {onOpenTerminal && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenTerminal(host)}
-                      className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-accent hover:bg-black/5 dark:hover:bg-white/10 rounded transition cursor-pointer"
-                      title="Открыть терминал к этому хосту"
-                    >
-                      <Terminal size={13} />
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(host)}
-                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 rounded transition cursor-pointer"
-                    title="Редактировать"
-                  >
-                    <Edit2 size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(host)}
-                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer"
-                    title="Удалить"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-            );
-          })
+          hosts.map((host) => (
+            <HostCard
+              key={host.id}
+              host={host}
+              isTesting={testingId === host.id}
+              testResult={testResult?.id === host.id ? testResult : null}
+              onTest={handleTestConnection}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onOpenTerminal={onOpenTerminal}
+            />
+          ))
         )}
       </div>
 
@@ -561,250 +480,39 @@ export const SSHHostsTab: React.FC<SSHHostsTabProps> = ({
       />
 
       {/* OpenSSH Interoperability Modal */}
-      <Modal
+      <OpenSSHModal
         isOpen={isOpenSSHModalOpen}
         onClose={() => setIsOpenSSHModalOpen(false)}
-        size="lg"
-      >
-        <Modal.Header
-          title="Интероперабельность со стандартом OpenSSH"
-          subtitle="Синхронизация с ~/.ssh/config для использования в терминале ОС и скриптах"
-          icon={<FileCode className="w-5 h-5 text-accent" />}
-        />
-        <Modal.Body className="p-5 space-y-4">
-          <div className="flex space-x-2 border-b border-base-border pb-3">
-            <button
-              type="button"
-              onClick={() => setOpenSSHTab('export')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                openSSHTab === 'export'
-                  ? 'bg-accent/20 text-accent font-semibold'
-                  : 'text-gray-400 hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-              }`}
-            >
-              Экспорт в ~/.ssh/config
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpenSSHTab('import')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                openSSHTab === 'import'
-                  ? 'bg-accent/20 text-accent font-semibold'
-                  : 'text-gray-400 hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-              }`}
-            >
-              Импорт из ~/.ssh/config
-            </button>
-          </div>
-
-          {openSSHTab === 'export' ? (
-            <div className="space-y-3">
-              <p className="text-xs text-gray-400">
-                Скопируйте этот блок в ваш файл <code className="text-accent bg-black/20 px-1 py-0.5 rounded">~/.ssh/config</code> для быстрого подключения к любому серверу командой <code className="text-accent">ssh &lt;имя_хоста&gt;</code>:
-              </p>
-              <textarea
-                readOnly
-                value={openSSHConfigText}
-                rows={12}
-                className="w-full font-mono text-xs p-3 bg-black/40 border border-base-border rounded-xl text-emerald-400 focus:outline-none select-all"
-              />
-              <div className="flex items-center justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(openSSHConfigText);
-                    setOpenSSHStatus('Скопировано в буфер обмена!');
-                    setTimeout(() => setOpenSSHStatus(null), 2000);
-                  }}
-                  icon={<Copy size={13} />}
-                >
-                  Копировать
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={handleDownloadOpenSSH}
-                  icon={<Download size={13} />}
-                >
-                  Скачать config
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs text-gray-400">
-                Вставьте содержимое файла <code className="text-accent bg-black/20 px-1 py-0.5 rounded">~/.ssh/config</code> для пакетного импорта хостов в ядро:
-              </p>
-              <textarea
-                value={importOpenSSHText}
-                onChange={(e) => setImportOpenSSHText(e.target.value)}
-                placeholder={'Host my-vps\n    HostName 10.0.0.5\n    User root\n    Port 22\n'}
-                rows={12}
-                className="w-full font-mono text-xs p-3 bg-black/40 border border-base-border rounded-xl text-gray-200 focus:outline-none focus:border-accent"
-              />
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-medium text-emerald-400">
-                  {openSSHStatus}
-                </div>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={handleImportOpenSSH}
-                  disabled={isImportingSSH || !importOpenSSHText.trim()}
-                  icon={<Upload size={13} />}
-                >
-                  {isImportingSSH ? 'Импорт...' : 'Импортировать хосты'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer justify="end">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsOpenSSHModalOpen(false)}
-          >
-            Закрыть
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        openSSHTab={openSSHTab}
+        setOpenSSHTab={setOpenSSHTab}
+        openSSHConfigText={openSSHConfigText}
+        importOpenSSHText={importOpenSSHText}
+        setImportOpenSSHText={setImportOpenSSHText}
+        openSSHStatus={openSSHStatus}
+        setOpenSSHStatus={setOpenSSHStatus}
+        isImportingSSH={isImportingSSH}
+        onDownloadOpenSSH={handleDownloadOpenSSH}
+        onImportOpenSSH={handleImportOpenSSH}
+      />
 
       {/* Migration & Vault Backup Modal */}
-      <Modal
+      <VaultBackupModal
         isOpen={isMigrationModalOpen}
         onClose={() => setIsMigrationModalOpen(false)}
-        size="lg"
-      >
-        <Modal.Header
-          title="Портативный бэкап и миграция Vault"
-          subtitle="Безопасный перенос ключей и паролей на другой сервер с защитой мастер-паролем"
-          icon={<Lock className="w-5 h-5 text-accent" />}
-        />
-        <Modal.Body className="p-5 space-y-4">
-          <div className="flex space-x-2 border-b border-base-border pb-3">
-            <button
-              type="button"
-              onClick={() => {
-                setMigrationTab('export');
-                setMigrationStatus(null);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                migrationTab === 'export'
-                  ? 'bg-accent/20 text-accent font-semibold'
-                  : 'text-gray-400 hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-              }`}
-            >
-              Создать бэкап (Экспорт)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMigrationTab('import');
-                setMigrationStatus(null);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                migrationTab === 'import'
-                  ? 'bg-accent/20 text-accent font-semibold'
-                  : 'text-gray-400 hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-              }`}
-            >
-              Восстановить из бэкапа (Импорт)
-            </button>
-          </div>
-
-          {migrationTab === 'export' ? (
-            <div className="space-y-4">
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
-                Архив шифруется по стандарту <b>AES-256-GCM</b> с выводом ключа через <b>PBKDF2 (100 000 итераций)</b>. Сохраните этот пароль: он понадобится при восстановлении на новом сервере.
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-300">Мастер-пароль для шифрования архива</label>
-                <input
-                  type="password"
-                  value={exportPassphrase}
-                  onChange={(e) => setExportPassphrase(e.target.value)}
-                  placeholder="Введите надежный пароль..."
-                  className="w-full text-xs px-3 py-2 bg-black/30 border border-base-border rounded-xl text-white focus:outline-none focus:border-accent"
-                />
-              </div>
-              {migrationStatus && (
-                <div className="text-xs font-semibold text-emerald-400">
-                  {migrationStatus}
-                </div>
-              )}
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={handleExportPortableBackup}
-                  disabled={isMigrating || !exportPassphrase.trim()}
-                  icon={<Download size={13} />}
-                >
-                  {isMigrating ? 'Шифрование...' : 'Скачать зашифрованный бэкап (.csenc)'}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-300">Файл бэкапа (.csenc)</label>
-                <input
-                  type="file"
-                  accept=".csenc,application/octet-stream"
-                  onChange={(e) => setSelectedBackupFile(e.target.files?.[0] || null)}
-                  className="w-full text-xs text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-accent/20 file:text-accent hover:file:bg-accent/30 cursor-pointer"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-300">Мастер-пароль от архива</label>
-                <input
-                  type="password"
-                  value={importPassphrase}
-                  onChange={(e) => setImportPassphrase(e.target.value)}
-                  placeholder="Пароль, заданный при экспорте..."
-                  className="w-full text-xs px-3 py-2 bg-black/30 border border-base-border rounded-xl text-white focus:outline-none focus:border-accent"
-                />
-              </div>
-              {migrationStatus && (
-                <div className={`text-xs font-semibold ${migrationStatus.includes('Ошибка') ? 'text-red-400' : 'text-emerald-400'}`}>
-                  {migrationStatus}
-                </div>
-              )}
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={handleImportPortableBackup}
-                  disabled={isMigrating || !selectedBackupFile || !importPassphrase.trim()}
-                  icon={<Upload size={13} />}
-                >
-                  {isMigrating ? 'Расшифровка...' : 'Восстановить секреты'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer justify="end">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsMigrationModalOpen(false)}
-          >
-            Закрыть
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        migrationTab={migrationTab}
+        setMigrationTab={setMigrationTab}
+        exportPassphrase={exportPassphrase}
+        setExportPassphrase={setExportPassphrase}
+        importPassphrase={importPassphrase}
+        setImportPassphrase={setImportPassphrase}
+        selectedBackupFile={selectedBackupFile}
+        setSelectedBackupFile={setSelectedBackupFile}
+        migrationStatus={migrationStatus}
+        setMigrationStatus={setMigrationStatus}
+        isMigrating={isMigrating}
+        onExportPortableBackup={handleExportPortableBackup}
+        onImportPortableBackup={handleImportPortableBackup}
+      />
     </div>
   );
 };
-
-export default SSHHostsTab;

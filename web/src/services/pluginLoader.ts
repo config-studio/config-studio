@@ -1,9 +1,5 @@
-import { api, setRemoteEndpoint } from './api';
-import { sshHostService } from './sshHosts';
-import { sysinfoService, formatBytes, formatUptime } from './sysinfo';
-import { telemetry } from './telemetry';
-import { logStreamService, OpenLogStreamOptions } from './logStream';
-import { mountDropdown } from '../components/ui/vanillaDropdown';
+import { setupGlobalAPI } from './pluginBridge';
+import { api } from './api';
 import {
   PluginItem,
   OpenFile,
@@ -11,17 +7,12 @@ import {
   ToolbarButtonDef,
   SplitPanelDef,
   HeaderItemDef,
-  ProcessInfo,
   OutlineNode,
-  ContextMenuItem,
-  ContextMenuTarget,
-  SecretItem,
 } from '../types';
 import { contextMenuRegistry } from './contextMenuRegistry';
 import {
   registerPluginLocales,
   unregisterPluginLocales,
-  getPluginT,
   registerLanguagePack,
   unregisterLanguagePack,
   LanguagePack,
@@ -52,45 +43,45 @@ export interface PluginSystemState {
 
 type Listener = (state: PluginSystemState) => void;
 
-class PluginLoader {
-  private plugins: PluginItem[] = [];
-  private toolbarButtons: ToolbarButtonDef[] = [];
-  private splitPanels: SplitPanelDef[] = [];
-  private bottomPanels: BottomPanelDef[] = [];
-  private headerItems: HeaderItemDef[] = [];
-  private activeSplitPanelId: string | null = null;
-  private activeBottomPanelId: string | null = null;
-  private currentLanguage: string = 'ru';
-  private languageChangeCallbacks: Set<(lang: string) => void> = new Set();
-  private registeredServices: Map<
+export class PluginLoader {
+  public plugins: PluginItem[] = [];
+  public toolbarButtons: ToolbarButtonDef[] = [];
+  public splitPanels: SplitPanelDef[] = [];
+  public bottomPanels: BottomPanelDef[] = [];
+  public headerItems: HeaderItemDef[] = [];
+  public activeSplitPanelId: string | null = null;
+  public activeBottomPanelId: string | null = null;
+  public currentLanguage: string = 'ru';
+  public languageChangeCallbacks: Set<(lang: string) => void> = new Set();
+  public registeredServices: Map<
     string,
     { serviceName: string; providerPluginId: string; implementation: any }
   > = new Map();
 
-  private onFileOpenCallbacks: Array<(file: OpenFile) => void> = [];
-  private onFileSaveCallbacks: Array<(file: OpenFile) => void> = [];
+  public onFileOpenCallbacks: Array<(file: OpenFile) => void> = [];
+  public onFileSaveCallbacks: Array<(file: OpenFile) => void> = [];
 
-  private listeners: Set<Listener> = new Set();
-  private activeFileGetter: () => OpenFile | null = () => null;
-  private activeContentSetter: (content: string) => void = () => {};
-  private notificationHandler: (msg: string, type?: 'info' | 'success' | 'error') => void = (m) => alert(m);
-  private confirmHandler: (command: string) => Promise<boolean> = async () => true;
+  public listeners: Set<Listener> = new Set();
+  public activeFileGetter: () => OpenFile | null = () => null;
+  public activeContentSetter: (content: string) => void = () => {};
+  public notificationHandler: (msg: string, type?: 'info' | 'success' | 'error') => void = (m) => alert(m);
+  public confirmHandler: (command: string) => Promise<boolean> = async () => true;
 
-  private monacoInstance: any = null;
-  private editorInstance: any = null;
-  private loadedPluginIds: Set<string> = new Set();
-  private queuedCompletionProviders: Array<{ language: string; provider: any }> = [];
-  private outlineProviders: Map<string, (content: string, filename: string) => OutlineNode[]> = new Map();
-  private pluginSettingsPanels: Map<string, (container: HTMLElement) => void> = new Map();
+  public monacoInstance: any = null;
+  public editorInstance: any = null;
+  public loadedPluginIds: Set<string> = new Set();
+  public queuedCompletionProviders: Array<{ language: string; provider: any }> = [];
+  public outlineProviders: Map<string, (content: string, filename: string) => OutlineNode[]> = new Map();
+  public pluginSettingsPanels: Map<string, (container: HTMLElement) => void> = new Map();
 
   getPluginSettingsRenderer(pluginId: string) {
     return this.pluginSettingsPanels.get(pluginId);
   }
 
-  private openFileHandler: (path: string, options?: OpenFileOptions) => Promise<void> = async () => {};
-  private createFileHandler: (path: string, content?: string) => Promise<void> = async () => {};
-  private refreshFilesHandler: () => Promise<void> = async () => {};
-  private openCustomTabHandler: (tab: any) => Promise<void> = async () => {};
+  public openFileHandler: (path: string, options?: OpenFileOptions) => Promise<void> = async () => {};
+  public createFileHandler: (path: string, content?: string) => Promise<void> = async () => {};
+  public refreshFilesHandler: () => Promise<void> = async () => {};
+  public openCustomTabHandler: (tab: any) => Promise<void> = async () => {};
 
   getOutlineProvider(languageOrExt: string) {
     if (!languageOrExt) return undefined;
@@ -123,601 +114,7 @@ class PluginLoader {
   }
 
   private setupGlobalAPI() {
-    (window as any).ConfigStudio = {
-      registerToolbarButton: (btn: ToolbarButtonDef) => {
-        // PLUGIN-002: Inherit fileMatches from plugin manifest if button omitted them
-        if ((!btn.fileMatches || btn.fileMatches.length === 0) && btn.pluginId) {
-          const plugin = this.plugins.find((p) => p.id === btn.pluginId);
-          if (plugin?.fileMatches && plugin.fileMatches.length > 0) {
-            btn.fileMatches = [...plugin.fileMatches];
-          }
-        }
-        this.toolbarButtons = this.toolbarButtons.filter((b) => b.id !== btn.id);
-        this.toolbarButtons.push(btn);
-        this.notify();
-      },
-
-      registerSplitPanel: (panel: SplitPanelDef) => {
-        this.splitPanels = this.splitPanels.filter((p) => p.id !== panel.id);
-        this.splitPanels.push(panel);
-        this.notify();
-      },
-
-      toggleSplitPanel: (panelDef: Partial<SplitPanelDef> & { id: string }) => {
-        let existing = this.splitPanels.find((p) => p.id === panelDef.id);
-        if (!existing && panelDef.render) {
-          existing = {
-            id: panelDef.id,
-            pluginId: panelDef.pluginId || 'unknown',
-            title: panelDef.title || 'Panel',
-            icon: panelDef.icon,
-            port: panelDef.port,
-            url: panelDef.url,
-            refreshOnSave: panelDef.refreshOnSave,
-            onReload: panelDef.onReload,
-            open: panelDef.open !== undefined ? panelDef.open : true,
-            render: panelDef.render,
-          };
-          this.splitPanels.push(existing);
-        } else if (existing) {
-          if (panelDef.open !== undefined) {
-            existing.open = panelDef.open;
-          } else {
-            existing.open = !existing.open;
-          }
-          if (panelDef.title) existing.title = panelDef.title;
-          if (panelDef.icon) existing.icon = panelDef.icon;
-          if (panelDef.port !== undefined) existing.port = panelDef.port;
-          if (panelDef.url) existing.url = panelDef.url;
-          if (panelDef.refreshOnSave !== undefined) existing.refreshOnSave = panelDef.refreshOnSave;
-          if (panelDef.onReload) existing.onReload = panelDef.onReload;
-          if (panelDef.render) existing.render = panelDef.render;
-        }
-
-        if (existing && existing.open) {
-          this.activeSplitPanelId = existing.id;
-        } else if (this.activeSplitPanelId === panelDef.id) {
-          const remaining = this.splitPanels.find((p) => p.id !== panelDef.id && p.open);
-          this.activeSplitPanelId = remaining ? remaining.id : null;
-        }
-        this.notify();
-      },
-
-      registerSplitWebview: (def: {
-        id: string;
-        pluginId: string;
-        title: string;
-        url: string;
-        icon?: string;
-        port?: number;
-        refreshOnSave?: boolean;
-        open?: boolean;
-      }) => {
-        let iframeEl: HTMLIFrameElement | null = null;
-        const currentUrl = def.url;
-
-        const renderWebview = (container: HTMLElement) => {
-          container.innerHTML = '';
-          const wrapper = document.createElement('div');
-          wrapper.className = 'w-full h-full flex flex-col bg-base overflow-hidden relative';
-
-          iframeEl = document.createElement('iframe');
-          iframeEl.src = currentUrl;
-          iframeEl.className = 'w-full h-full border-none flex-1';
-          iframeEl.setAttribute('allow', 'cross-origin-isolated; autoplay; clipboard-write; encrypted-media; fullscreen');
-
-          wrapper.appendChild(iframeEl);
-          container.appendChild(wrapper);
-        };
-
-        const panelDef: SplitPanelDef = {
-          id: def.id,
-          pluginId: def.pluginId,
-          title: def.title,
-          icon: def.icon,
-          port: def.port,
-          url: def.url,
-          refreshOnSave: def.refreshOnSave !== false,
-          open: def.open ?? true,
-          render: renderWebview,
-          onReload: () => {
-            if (iframeEl) {
-              iframeEl.src = iframeEl.src;
-            }
-          },
-        };
-
-        this.splitPanels = this.splitPanels.filter((p) => p.id !== panelDef.id);
-        this.splitPanels.push(panelDef);
-        if (panelDef.open) {
-          this.activeSplitPanelId = panelDef.id;
-        }
-        this.notify();
-      },
-
-      toggleSplitWebview: (id: string, updates?: any) => {
-        const existing = this.splitPanels.find((p) => p.id === id);
-        if (existing) {
-          (window as any).ConfigStudio.toggleSplitPanel({ id, ...updates });
-        } else if (updates && updates.url && updates.title) {
-          (window as any).ConfigStudio.registerSplitWebview({
-            id,
-            pluginId: updates.pluginId || 'unknown',
-            title: updates.title,
-            url: updates.url,
-            ...updates,
-          });
-        }
-      },
-
-      closeSplitWebview: (id?: string) => {
-        const targetId = id || this.activeSplitPanelId;
-        if (targetId) {
-          this.closeSplitPanel(targetId);
-        }
-      },
-
-      reloadSplitWebview: (id?: string) => {
-        const targetId = id || this.activeSplitPanelId;
-        if (targetId) {
-          const panel = this.splitPanels.find((p) => p.id === targetId);
-          if (panel && typeof panel.onReload === 'function') {
-            panel.onReload();
-          }
-        }
-      },
-
-      setActiveSplitPanel: (panelId: string) => {
-        this.setActiveSplitPanel(panelId);
-      },
-
-      registerBottomPanel: (panel: BottomPanelDef) => {
-        this.bottomPanels = this.bottomPanels.filter((p) => p.id !== panel.id);
-        this.bottomPanels.push(panel);
-        this.notify();
-      },
-
-      toggleBottomPanel: (panelDef: Partial<BottomPanelDef> & { id: string }) => {
-        let existing = this.bottomPanels.find((p) => p.id === panelDef.id);
-        if (!existing && panelDef.render) {
-          existing = {
-            id: panelDef.id,
-            pluginId: panelDef.pluginId || 'unknown',
-            title: panelDef.title || 'Bottom Panel',
-            open: true,
-            render: panelDef.render,
-          };
-          this.bottomPanels.push(existing);
-        } else if (existing) {
-          if (panelDef.open !== undefined) {
-            existing.open = panelDef.open;
-          } else {
-            existing.open = !existing.open;
-          }
-          if (panelDef.render) existing.render = panelDef.render;
-        }
-
-        this.activeBottomPanelId = existing && existing.open ? existing.id : null;
-        this.notify();
-      },
-
-      registerHeaderItem: (item: HeaderItemDef) => {
-        this.headerItems = this.headerItems.filter((h) => h.id !== item.id);
-        this.headerItems.push(item);
-        this.notify();
-      },
-
-      onFileOpen: (cb: (file: OpenFile) => void) => {
-        this.onFileOpenCallbacks.push(cb);
-      },
-
-      onFileSave: (cb: (file: OpenFile) => void) => {
-        this.onFileSaveCallbacks.push(cb);
-      },
-
-      getActiveFile: () => this.activeFileGetter(),
-      getActiveContent: () => this.activeFileGetter()?.content || '',
-      setActiveContent: (content: string) => this.activeContentSetter(content),
-
-      getMonaco: () => this.monacoInstance,
-      getEditor: () => this.editorInstance,
-      registerCompletionProvider: (language: string, provider: any) => {
-        if (this.monacoInstance) {
-          return this.monacoInstance.languages.registerCompletionItemProvider(language, provider);
-        }
-        this.queuedCompletionProviders.push({ language, provider });
-        return null;
-      },
-
-      registerOutlineProvider: (provider: {
-        language: string;
-        parse: (content: string, filename: string) => OutlineNode[];
-      }) => {
-        if (provider && provider.language && provider.parse) {
-          const origParse = provider.parse;
-          const safeParse = (content: string, filename: string): OutlineNode[] => {
-            try {
-              const raw = origParse(content, filename) || [];
-              const normalize = (nodes: any[]): OutlineNode[] => {
-                return (nodes || []).map((n, idx) => ({
-                  id: n.id || `node_${idx}_${Math.random().toString(36).substring(2, 7)}`,
-                  label: n.label || n.name || 'node',
-                  type: n.type || n.kind || 'section',
-                  line: typeof n.line === 'number' ? n.line : 1,
-                  value: n.value,
-                  children: n.children && n.children.length > 0 ? normalize(n.children) : undefined,
-                }));
-              };
-              return normalize(raw);
-            } catch (err) {
-              console.error(`[PluginLoader] Error in outline provider for ${provider.language}:`, err);
-              return [];
-            }
-          };
-          const lang = provider.language.toLowerCase();
-          this.outlineProviders.set(lang, safeParse);
-          if (lang === 'yaml') {
-            this.outlineProviders.set('yml', safeParse);
-          } else if (lang === 'yml') {
-            this.outlineProviders.set('yaml', safeParse);
-          }
-          console.log(`[PluginLoader] Registered custom outline provider for ${provider.language}`);
-          this.notify();
-        }
-      },
-
-      openFile: async (path: string, options?: OpenFileOptions) => {
-        await this.openFileHandler(path, options);
-      },
-      createFile: async (path: string, content?: string) => {
-        await this.createFileHandler(path, content);
-      },
-      refreshFiles: async () => {
-        await this.refreshFilesHandler();
-      },
-      openCustomTab: async (tab: {
-        path: string;
-        name: string;
-        content: string;
-        language?: string;
-        readOnly?: boolean;
-        badge?: string;
-        onSave?: (content: string) => Promise<void>;
-      }) => {
-        await this.openCustomTabHandler(tab);
-      },
-
-      fs: {
-        batchRead: async (req: {
-          root?: string;
-          paths?: string[];
-          patterns?: string[];
-          pattern?: string;
-          maxFiles?: number;
-          maxSizeBytes?: number;
-        }) => api.batchReadFiles(req),
-        readFile: async (path: string, root?: string) => {
-          const res = await api.getFile(path, root);
-          return res.content;
-        },
-      },
-      batchReadFiles: async (req: {
-        root?: string;
-        paths?: string[];
-        patterns?: string[];
-        pattern?: string;
-        maxFiles?: number;
-        maxSizeBytes?: number;
-      }) => api.batchReadFiles(req),
-      sftpBatchRead: async (req: Parameters<typeof api.sftpBatchRead>[0]) => api.sftpBatchRead(req),
-
-      showNotification: (msg: string, type?: 'info' | 'success' | 'error') => {
-        this.notificationHandler(msg, type);
-      },
-
-      showToast: (msg: string, type?: 'info' | 'success' | 'error') => {
-        this.notificationHandler(msg, type);
-      },
-
-      openTerminal: (host?: any) => {
-        window.dispatchEvent(new CustomEvent('cs:open-ssh-terminal', { detail: host }));
-      },
-
-      openSftp: (host?: any) => {
-        window.dispatchEvent(new CustomEvent('cs:open-sftp-host', { detail: host }));
-      },
-
-      ssh: sshHostService,
-
-      setRemoteEndpoint: (url: string | null, token?: string) => {
-        setRemoteEndpoint(url, token);
-      },
-
-      exec: async (req: {
-        pluginId: string;
-        command: string;
-        args?: string[];
-        cwd?: string;
-      }) => {
-        try {
-          const res = await api.execPluginCommand(
-            req.pluginId,
-            req.command,
-            req.args || [],
-            req.cwd,
-            false
-          );
-          if (res.requiresConfirm) {
-            const ok = await this.confirmHandler(
-              `${req.command} ${(req.args || []).join(' ')}`
-            );
-            if (!ok) throw new Error('Command execution denied by user');
-            return await api.execPluginCommand(
-              req.pluginId,
-              req.command,
-              req.args || [],
-              req.cwd,
-              true
-            );
-          }
-          return res;
-        } catch (err: any) {
-          throw err;
-        }
-      },
-
-      startProcess: async (req: {
-        pluginId: string;
-        command: string;
-        args?: string[];
-        cwd?: string;
-        port?: number;
-      }) => {
-        try {
-          return await api.startPluginProcess(
-            req.pluginId,
-            req.command,
-            req.args || [],
-            req.cwd,
-            req.port,
-            false
-          );
-        } catch (err: any) {
-          if (err.message && err.message.includes('needs confirmation')) {
-            const ok = await this.confirmHandler(
-              `${req.command} ${(req.args || []).join(' ')}`
-            );
-            if (!ok) throw new Error('Process launch denied by user');
-            return await api.startPluginProcess(
-              req.pluginId,
-              req.command,
-              req.args || [],
-              req.cwd,
-              req.port,
-              true
-            );
-          }
-          throw err;
-        }
-      },
-
-      stopProcess: async (procId: string) => {
-        await api.stopPluginProcess(procId);
-      },
-
-      getLanguage: () => this.currentLanguage,
-      i18n: {
-        getLanguage: () => this.currentLanguage,
-        onLanguageChange: (cb: (lang: string) => void) => {
-          this.languageChangeCallbacks.add(cb);
-          try {
-            cb(this.currentLanguage);
-          } catch (e) {
-            console.error(e);
-          }
-          return () => this.languageChangeCallbacks.delete(cb);
-        },
-        registerLocales: (pluginId: string, locales: Record<string, Record<string, string>>) => {
-          registerPluginLocales(pluginId, locales);
-        },
-        registerLanguagePack: (pack: LanguagePack) => {
-          registerLanguagePack(pack);
-        },
-        t: (pluginId: string, key: string, fallback?: string, params?: Record<string, any>) => {
-          return getPluginT(pluginId, this.currentLanguage)(key, fallback, params);
-        },
-        scoped: (pluginId: string) => {
-          const fn = (key: string, fallback?: string, params?: Record<string, any>) =>
-            getPluginT(pluginId, this.currentLanguage)(key, fallback, params);
-
-          return Object.assign(fn, {
-            t: fn,
-            getLanguage: () => this.currentLanguage,
-            onLanguageChange: (cb: (lang: string) => void) => {
-              this.languageChangeCallbacks.add(cb);
-              try {
-                cb(this.currentLanguage);
-              } catch (e) {
-                console.error(e);
-              }
-              return () => this.languageChangeCallbacks.delete(cb);
-            },
-          });
-        },
-      },
-
-      services: {
-        register: (serviceName: string, implementation: any, providerPluginId: string) => {
-          if (!serviceName || !implementation || !providerPluginId) {
-            throw new Error('[Services] register requires serviceName, implementation, and providerPluginId');
-          }
-          const provider = this.plugins.find((p) => p.id === providerPluginId);
-          if (!provider) {
-            console.warn(`[Services] Provider plugin '${providerPluginId}' not found in active plugins list`);
-          } else if (!provider.providesServices?.includes(serviceName)) {
-            console.warn(`[Services] Plugin '${providerPluginId}' did not declare providesServices: ['${serviceName}'] in its manifest`);
-          }
-          this.registeredServices.set(serviceName, {
-            serviceName,
-            providerPluginId,
-            implementation,
-          });
-          console.log(`[Services] Registered inter-plugin service '${serviceName}' from provider '${providerPluginId}'`);
-        },
-
-        get: async (serviceName: string, consumerPluginId: string) => {
-          if (!serviceName || !consumerPluginId) {
-            throw new Error('[Services] get requires serviceName and consumerPluginId');
-          }
-
-          const reg = this.registeredServices.get(serviceName);
-          if (!reg) {
-            throw new Error(`[Services] Service '${serviceName}' is not registered or provider is inactive`);
-          }
-
-          const consumer = this.plugins.find((p) => p.id === consumerPluginId);
-          if (!consumer) {
-            throw new Error(`[Services] Consumer plugin '${consumerPluginId}' not found`);
-          }
-
-          // 1. Dependency validation: consumer must declare provider in dependencies or optionalDependencies
-          const hasHardDep =
-            consumer.dependencies &&
-            Object.prototype.hasOwnProperty.call(consumer.dependencies, reg.providerPluginId);
-          const hasOptDep =
-            consumer.optionalDependencies &&
-            Object.prototype.hasOwnProperty.call(consumer.optionalDependencies, reg.providerPluginId);
-          if (!hasHardDep && !hasOptDep) {
-            throw new Error(
-              `[Services] Security violation: Plugin '${consumerPluginId}' cannot access service '${serviceName}'. Missing dependency '${reg.providerPluginId}' in manifest.dependencies or manifest.optionalDependencies`
-            );
-          }
-
-          // 2. Permission validation: consumer must have permission service:<name> or service.<name> or service:*
-          const hasPerm = consumer.permissions?.some(
-            (p) =>
-              p === `service:${serviceName}` ||
-              p === `service.${serviceName}` ||
-              p === 'service:*'
-          );
-          if (!hasPerm) {
-            throw new Error(
-              `[Services] Security violation: Plugin '${consumerPluginId}' lacks permission 'service:${serviceName}' in manifest.permissions`
-            );
-          }
-
-          // 3. Security Proxy wrapper
-          const target = reg.implementation;
-          return new Proxy(target, {
-            get(obj, prop, receiver) {
-              const orig = Reflect.get(obj, prop, receiver);
-              if (typeof orig === 'function') {
-                return async (...args: any[]) => {
-                  try {
-                    return await orig.apply(obj, args);
-                  } catch (err: any) {
-                    console.error(
-                      `[Services] Error calling ${serviceName}.${String(prop)} from ${consumerPluginId}:`,
-                      err
-                    );
-                    throw err;
-                  }
-                };
-              }
-              return orig;
-            },
-          });
-        },
-
-        has: (serviceName: string) => {
-          return this.registeredServices.has(serviceName);
-        },
-
-        getOptional: async (serviceName: string, consumerPluginId: string) => {
-          if (!serviceName || !consumerPluginId) {
-            return null;
-          }
-          if (!this.registeredServices.has(serviceName)) {
-            return null;
-          }
-          try {
-            return await (window as any).ConfigStudio.services.get(serviceName, consumerPluginId);
-          } catch {
-            return null;
-          }
-        },
-
-        list: () => {
-          return Array.from(this.registeredServices.keys());
-        },
-      },
-
-      registerContextMenu: (item: ContextMenuItem) => {
-        return contextMenuRegistry.register(item);
-      },
-
-      contextMenu: {
-        register: (item: ContextMenuItem) => contextMenuRegistry.register(item),
-        unregister: (id: string) => contextMenuRegistry.unregister(id),
-        getItemsForTarget: (target: ContextMenuTarget) =>
-          contextMenuRegistry.getItemsForTarget(target),
-      },
-
-      secrets: {
-        get: async (id: string) => api.getSecretValue(id),
-        set: async (item: SecretItem) => api.saveSecret(item),
-        delete: async (id: string) => api.deleteSecret(id),
-        listShared: async () => api.listSharedSecrets(),
-        list: async () => api.listSecrets(),
-        getStatus: async () => api.getSecretsStatus(),
-        unlock: async (password: string) => {
-          const res = await api.unlockSecrets(password);
-          return res.success;
-        },
-      },
-
-      registerPluginSettings: (pluginId: string, def: { render: (container: HTMLElement) => void }) => {
-        if (pluginId && def?.render) {
-          this.pluginSettingsPanels.set(pluginId, def.render);
-        }
-      },
-      getPluginSettings: (pluginId: string) => api.getPluginSettings(pluginId),
-      savePluginSettings: (pluginId: string, settings: Record<string, any>) => api.savePluginSettings(pluginId, settings),
-      ui: {
-        toast: (message: string, type?: 'info' | 'success' | 'error' | 'warning', title?: string) => {
-          this.notificationHandler(message, type as any);
-        },
-        renderDropdown: (container: HTMLElement, config: any) => {
-          return mountDropdown(container, config);
-        },
-      },
-      sysinfo: {
-        get: () => sysinfoService.getState().metrics,
-        getState: () => sysinfoService.getState(),
-        refresh: () => sysinfoService.refresh(),
-        setActiveNode: (id: string, name: string) => sysinfoService.setActiveNode(id, name),
-        subscribe: (cb: (state: any) => void) => sysinfoService.subscribe(cb),
-        formatBytes: formatBytes,
-        formatUptime: formatUptime,
-      },
-      telemetry: {
-        captureError: (err: Error, context?: Record<string, any>) => telemetry.captureError(err, context),
-        log: (action: string, details?: Record<string, any>, severity?: 'info' | 'warn' | 'critical') =>
-          telemetry.record({ action, details, severity: severity as any, source: 'plugin' }),
-      },
-      logs: {
-        openStream: (opts: OpenLogStreamOptions) => {
-          const id = logStreamService.openStream(opts);
-          window.dispatchEvent(new CustomEvent('cs:open-log-stream', { detail: opts }));
-          return id;
-        },
-        closeStream: (id: string) => logStreamService.closeStream(id),
-        getSessions: () => logStreamService.getSessions(),
-        clear: (id: string) => logStreamService.clear(id),
-        reconnect: (id: string) => logStreamService.reconnect(id),
-        subscribe: (cb: (sessions: any[], activeId: string) => void) => logStreamService.subscribe(cb),
-      },
-    };
+    setupGlobalAPI(this);
   }
 
   setLanguage(lang: string) {
@@ -833,7 +230,7 @@ class PluginLoader {
     }
   }
 
-  private async injectPluginAssets(p: PluginItem) {
+  public async injectPluginAssets(p: PluginItem) {
     // 0. Auto-register plugin locales if present in manifest
     if (p.locales) {
       registerPluginLocales(p.id, p.locales);
@@ -1010,7 +407,7 @@ class PluginLoader {
     this.notify();
   }
 
-  private notify() {
+  public notify() {
     const s = this.getState();
     this.listeners.forEach((l) => l(s));
   }

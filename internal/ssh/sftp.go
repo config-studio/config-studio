@@ -16,12 +16,11 @@ import (
 	"github.com/pkg/sftp"
 )
 
-// ListDirectory retrieves directory entries from a remote server via SFTP.
-func (m *ClientManager) ListDirectory(ctx context.Context, req *SFTPRequest) ([]SFTPFileInfo, error) {
-	if req.Path == "" {
-		req.Path = "."
+// withSFTP handles dialing, client lifecycle, error wrapping and cleanup in a single place.
+func (m *ClientManager) withSFTP(ctx context.Context, req *SFTPRequest, timeoutSec int, fn func(sftpClient *sftp.Client) error) error {
+	if timeoutSec <= 0 {
+		timeoutSec = 15
 	}
-
 	cfg := &Config{
 		Host:       req.Host,
 		Port:       req.Port,
@@ -32,60 +31,73 @@ func (m *ClientManager) ListDirectory(ctx context.Context, req *SFTPRequest) ([]
 		Passphrase: req.Passphrase,
 		IdentityID: req.IdentityID,
 		JumpHost:   req.JumpHost,
-		TimeoutSec: 15,
+		TimeoutSec: timeoutSec,
 	}
 
 	client, err := m.Dial(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("ssh dial failed: %w", err)
+		return fmt.Errorf("ssh dial failed: %w", err)
 	}
 	defer client.Close()
 
 	sftpClient, err := sftp.NewClient(client)
 	if err != nil {
-		return nil, fmt.Errorf("sftp client initialization failed: %w", err)
+		return fmt.Errorf("sftp client initialization failed: %w", err)
 	}
 	defer sftpClient.Close()
 
-	// Normalize target path
-	targetPath := req.Path
-	if targetPath == "~" || targetPath == "" {
-		targetPath = "."
+	return fn(sftpClient)
+}
+
+// ListDirectory retrieves directory entries from a remote server via SFTP.
+func (m *ClientManager) ListDirectory(ctx context.Context, req *SFTPRequest) ([]SFTPFileInfo, error) {
+	if req.Path == "" {
+		req.Path = "."
 	}
 
-	// Resolve absolute path if relative
-	if targetPath == "." {
-		if realPath, err := sftpClient.RealPath("."); err == nil {
-			targetPath = realPath
+	var result []SFTPFileInfo
+	err := m.withSFTP(ctx, req, 15, func(sftpClient *sftp.Client) error {
+		targetPath := req.Path
+		if targetPath == "~" || targetPath == "" {
+			targetPath = "."
 		}
-	}
 
-	entries, err := sftpClient.ReadDir(targetPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read remote directory %s: %w", targetPath, err)
-	}
+		if targetPath == "." {
+			if realPath, err := sftpClient.RealPath("."); err == nil {
+				targetPath = realPath
+			}
+		}
 
-	result := make([]SFTPFileInfo, 0, len(entries))
-	for _, entry := range entries {
-		entryPath := path.Join(targetPath, entry.Name())
-		result = append(result, SFTPFileInfo{
-			Name:    entry.Name(),
-			Path:    entryPath,
-			Size:    entry.Size(),
-			Mode:    entry.Mode().String(),
-			IsDir:   entry.IsDir(),
-			ModTime: entry.ModTime().Format(time.RFC3339),
+		entries, err := sftpClient.ReadDir(targetPath)
+		if err != nil {
+			return fmt.Errorf("failed to read remote directory %s: %w", targetPath, err)
+		}
+
+		result = make([]SFTPFileInfo, 0, len(entries))
+		for _, entry := range entries {
+			entryPath := path.Join(targetPath, entry.Name())
+			result = append(result, SFTPFileInfo{
+				Name:    entry.Name(),
+				Path:    entryPath,
+				Size:    entry.Size(),
+				Mode:    entry.Mode().String(),
+				IsDir:   entry.IsDir(),
+				ModTime: entry.ModTime().Format(time.RFC3339),
+			})
+		}
+
+		sort.Slice(result, func(i, j int) bool {
+			if result[i].IsDir != result[j].IsDir {
+				return result[i].IsDir
+			}
+			return strings.ToLower(result[i].Name) < strings.ToLower(result[j].Name)
 		})
-	}
-
-	// Sort directories first, then alphabetical
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].IsDir != result[j].IsDir {
-			return result[i].IsDir
-		}
-		return strings.ToLower(result[i].Name) < strings.ToLower(result[j].Name)
+		return nil
 	})
 
+	if err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -95,42 +107,25 @@ func (m *ClientManager) ReadFile(ctx context.Context, req *SFTPRequest) ([]byte,
 		return nil, errors.New("file path cannot be empty")
 	}
 
-	cfg := &Config{
-		Host:       req.Host,
-		Port:       req.Port,
-		User:       req.User,
-		AuthType:   req.AuthType,
-		Password:   req.Password,
-		PrivateKey: req.PrivateKey,
-		Passphrase: req.Passphrase,
-		IdentityID: req.IdentityID,
-		JumpHost:   req.JumpHost,
-		TimeoutSec: 15,
-	}
+	var data []byte
+	err := m.withSFTP(ctx, req, 15, func(sftpClient *sftp.Client) error {
+		f, err := sftpClient.Open(req.Path)
+		if err != nil {
+			return fmt.Errorf("failed to open remote file %s: %w", req.Path, err)
+		}
+		defer f.Close()
 
-	client, err := m.Dial(ctx, cfg)
+		var readErr error
+		data, readErr = io.ReadAll(f)
+		if readErr != nil {
+			return fmt.Errorf("failed to read remote file %s: %w", req.Path, readErr)
+		}
+		return nil
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("ssh dial failed: %w", err)
+		return nil, err
 	}
-	defer client.Close()
-
-	sftpClient, err := sftp.NewClient(client)
-	if err != nil {
-		return nil, fmt.Errorf("sftp client initialization failed: %w", err)
-	}
-	defer sftpClient.Close()
-
-	f, err := sftpClient.Open(req.Path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open remote file %s: %w", req.Path, err)
-	}
-	defer f.Close()
-
-	data, err := io.ReadAll(f)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read remote file %s: %w", req.Path, err)
-	}
-
 	return data, nil
 }
 
@@ -152,56 +147,35 @@ func (m *ClientManager) WriteFile(ctx context.Context, req *SFTPRequest) (int64,
 		rawBytes = []byte(req.Content)
 	}
 
-	cfg := &Config{
-		Host:       req.Host,
-		Port:       req.Port,
-		User:       req.User,
-		AuthType:   req.AuthType,
-		Password:   req.Password,
-		PrivateKey: req.PrivateKey,
-		Passphrase: req.Passphrase,
-		IdentityID: req.IdentityID,
-		JumpHost:   req.JumpHost,
-		TimeoutSec: 20,
-	}
+	var written int64
+	err = m.withSFTP(ctx, req, 20, func(sftpClient *sftp.Client) error {
+		dir := path.Dir(req.Path)
+		if dir != "" && dir != "/" && dir != "." {
+			_ = sftpClient.MkdirAll(dir)
+		}
 
-	client, err := m.Dial(ctx, cfg)
-	if err != nil {
-		return 0, fmt.Errorf("ssh dial failed: %w", err)
-	}
-	defer client.Close()
+		mode := os.FileMode(0644)
+		if req.Mode > 0 {
+			mode = os.FileMode(req.Mode)
+		}
 
-	sftpClient, err := sftp.NewClient(client)
-	if err != nil {
-		return 0, fmt.Errorf("sftp client initialization failed: %w", err)
-	}
-	defer sftpClient.Close()
+		f, err := sftpClient.OpenFile(req.Path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
+		if err != nil {
+			return fmt.Errorf("failed to open remote file %s for writing: %w", req.Path, err)
+		}
+		defer f.Close()
 
-	// Ensure parent directory exists
-	dir := path.Dir(req.Path)
-	if dir != "" && dir != "/" && dir != "." {
-		_ = sftpClient.MkdirAll(dir)
-	}
+		_ = f.Chmod(mode)
 
-	mode := os.FileMode(0644)
-	if req.Mode > 0 {
-		mode = os.FileMode(req.Mode)
-	}
+		n, err := f.Write(rawBytes)
+		written = int64(n)
+		if err != nil {
+			return fmt.Errorf("failed to write to remote file %s: %w", req.Path, err)
+		}
+		return nil
+	})
 
-	f, err := sftpClient.OpenFile(req.Path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
-	if err != nil {
-		return 0, fmt.Errorf("failed to open remote file %s for writing: %w", req.Path, err)
-	}
-	defer f.Close()
-
-	_ = f.Chmod(mode)
-
-	n, err := f.Write(rawBytes)
-	if err != nil {
-		return int64(n), fmt.Errorf("failed to write to remote file %s: %w", req.Path, err)
-	}
-
-	return int64(n), nil
+	return written, err
 }
 
 // StatFile inspects remote file or directory metadata via SFTP.
@@ -210,44 +184,28 @@ func (m *ClientManager) StatFile(ctx context.Context, req *SFTPRequest) (*SFTPFi
 		return nil, errors.New("path cannot be empty")
 	}
 
-	cfg := &Config{
-		Host:       req.Host,
-		Port:       req.Port,
-		User:       req.User,
-		AuthType:   req.AuthType,
-		Password:   req.Password,
-		PrivateKey: req.PrivateKey,
-		Passphrase: req.Passphrase,
-		IdentityID: req.IdentityID,
-		JumpHost:   req.JumpHost,
-		TimeoutSec: 15,
-	}
+	var fileInfo *SFTPFileInfo
+	err := m.withSFTP(ctx, req, 15, func(sftpClient *sftp.Client) error {
+		fi, err := sftpClient.Stat(req.Path)
+		if err != nil {
+			return fmt.Errorf("failed to stat remote path %s: %w", req.Path, err)
+		}
 
-	client, err := m.Dial(ctx, cfg)
+		fileInfo = &SFTPFileInfo{
+			Name:    fi.Name(),
+			Path:    req.Path,
+			Size:    fi.Size(),
+			Mode:    fi.Mode().String(),
+			IsDir:   fi.IsDir(),
+			ModTime: fi.ModTime().Format(time.RFC3339),
+		}
+		return nil
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("ssh dial failed: %w", err)
+		return nil, err
 	}
-	defer client.Close()
-
-	sftpClient, err := sftp.NewClient(client)
-	if err != nil {
-		return nil, fmt.Errorf("sftp client initialization failed: %w", err)
-	}
-	defer sftpClient.Close()
-
-	fi, err := sftpClient.Stat(req.Path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stat remote path %s: %w", req.Path, err)
-	}
-
-	return &SFTPFileInfo{
-		Name:    fi.Name(),
-		Path:    req.Path,
-		Size:    fi.Size(),
-		Mode:    fi.Mode().String(),
-		IsDir:   fi.IsDir(),
-		ModTime: fi.ModTime().Format(time.RFC3339),
-	}, nil
+	return fileInfo, nil
 }
 
 // MakeDirectory creates a remote directory (and any necessary parents) via SFTP.
@@ -256,32 +214,9 @@ func (m *ClientManager) MakeDirectory(ctx context.Context, req *SFTPRequest) err
 		return errors.New("path cannot be empty")
 	}
 
-	cfg := &Config{
-		Host:       req.Host,
-		Port:       req.Port,
-		User:       req.User,
-		AuthType:   req.AuthType,
-		Password:   req.Password,
-		PrivateKey: req.PrivateKey,
-		Passphrase: req.Passphrase,
-		IdentityID: req.IdentityID,
-		JumpHost:   req.JumpHost,
-		TimeoutSec: 15,
-	}
-
-	client, err := m.Dial(ctx, cfg)
-	if err != nil {
-		return fmt.Errorf("ssh dial failed: %w", err)
-	}
-	defer client.Close()
-
-	sftpClient, err := sftp.NewClient(client)
-	if err != nil {
-		return fmt.Errorf("sftp client initialization failed: %w", err)
-	}
-	defer sftpClient.Close()
-
-	return sftpClient.MkdirAll(req.Path)
+	return m.withSFTP(ctx, req, 15, func(sftpClient *sftp.Client) error {
+		return sftpClient.MkdirAll(req.Path)
+	})
 }
 
 // DeleteItem removes a remote file or recursively removes a directory via SFTP.
@@ -290,35 +225,12 @@ func (m *ClientManager) DeleteItem(ctx context.Context, req *SFTPRequest) error 
 		return errors.New("cannot delete empty path or root directory")
 	}
 
-	cfg := &Config{
-		Host:       req.Host,
-		Port:       req.Port,
-		User:       req.User,
-		AuthType:   req.AuthType,
-		Password:   req.Password,
-		PrivateKey: req.PrivateKey,
-		Passphrase: req.Passphrase,
-		IdentityID: req.IdentityID,
-		JumpHost:   req.JumpHost,
-		TimeoutSec: 20,
-	}
-
-	client, err := m.Dial(ctx, cfg)
-	if err != nil {
-		return fmt.Errorf("ssh dial failed: %w", err)
-	}
-	defer client.Close()
-
-	sftpClient, err := sftp.NewClient(client)
-	if err != nil {
-		return fmt.Errorf("sftp client initialization failed: %w", err)
-	}
-	defer sftpClient.Close()
-
-	if req.IsDir {
-		return sftpClient.RemoveAll(req.Path)
-	}
-	return sftpClient.Remove(req.Path)
+	return m.withSFTP(ctx, req, 20, func(sftpClient *sftp.Client) error {
+		if req.IsDir {
+			return sftpClient.RemoveAll(req.Path)
+		}
+		return sftpClient.Remove(req.Path)
+	})
 }
 
 // RenameItem renames or moves a remote file/directory via SFTP.
@@ -327,32 +239,9 @@ func (m *ClientManager) RenameItem(ctx context.Context, req *SFTPRequest) error 
 		return errors.New("path and newPath cannot be empty")
 	}
 
-	cfg := &Config{
-		Host:       req.Host,
-		Port:       req.Port,
-		User:       req.User,
-		AuthType:   req.AuthType,
-		Password:   req.Password,
-		PrivateKey: req.PrivateKey,
-		Passphrase: req.Passphrase,
-		IdentityID: req.IdentityID,
-		JumpHost:   req.JumpHost,
-		TimeoutSec: 15,
-	}
-
-	client, err := m.Dial(ctx, cfg)
-	if err != nil {
-		return fmt.Errorf("ssh dial failed: %w", err)
-	}
-	defer client.Close()
-
-	sftpClient, err := sftp.NewClient(client)
-	if err != nil {
-		return fmt.Errorf("sftp client initialization failed: %w", err)
-	}
-	defer sftpClient.Close()
-
-	return sftpClient.Rename(req.Path, req.NewPath)
+	return m.withSFTP(ctx, req, 15, func(sftpClient *sftp.Client) error {
+		return sftpClient.Rename(req.Path, req.NewPath)
+	})
 }
 
 func isBinarySFTP(data []byte) bool {
@@ -429,7 +318,7 @@ func matchSFTPGlob(pattern, relPath string) bool {
 
 // BatchReadFile reads multiple remote files matching paths or glob patterns via SFTP.
 func (m *ClientManager) BatchReadFile(ctx context.Context, req *SFTPBatchReadRequest) (*SFTPBatchReadResult, error) {
-	cfg := &Config{
+	sftpReq := &SFTPRequest{
 		Host:       req.Host,
 		Port:       req.Port,
 		User:       req.User,
@@ -439,20 +328,7 @@ func (m *ClientManager) BatchReadFile(ctx context.Context, req *SFTPBatchReadReq
 		Passphrase: req.Passphrase,
 		IdentityID: req.IdentityID,
 		JumpHost:   req.JumpHost,
-		TimeoutSec: 15,
 	}
-
-	client, err := m.Dial(ctx, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("ssh dial failed: %w", err)
-	}
-	defer client.Close()
-
-	sftpClient, err := sftp.NewClient(client)
-	if err != nil {
-		return nil, fmt.Errorf("sftp client initialization failed: %w", err)
-	}
-	defer sftpClient.Close()
 
 	maxFiles := req.MaxFiles
 	if maxFiles <= 0 {
@@ -473,106 +349,114 @@ func (m *ClientManager) BatchReadFile(ctx context.Context, req *SFTPBatchReadReq
 		Errors: make(map[string]string),
 	}
 
-	candSet := make(map[string]bool)
-	var candidateList []string
+	err := m.withSFTP(ctx, sftpReq, 15, func(sftpClient *sftp.Client) error {
+		candSet := make(map[string]bool)
+		var candidateList []string
 
-	// 1. Explicit paths
-	for _, p := range req.Paths {
-		clean := path.Clean(p)
-		if clean != "" && clean != "." && !candSet[clean] {
-			candSet[clean] = true
-			candidateList = append(candidateList, clean)
+		// 1. Explicit paths
+		for _, p := range req.Paths {
+			clean := path.Clean(p)
+			if clean != "" && clean != "." && !candSet[clean] {
+				candSet[clean] = true
+				candidateList = append(candidateList, clean)
+			}
 		}
-	}
 
-	// 2. Glob patterns
-	var patterns []string
-	if req.Pattern != "" {
-		patterns = append(patterns, req.Pattern)
-	}
-	patterns = append(patterns, req.Patterns...)
+		// 2. Glob patterns
+		var patterns []string
+		if req.Pattern != "" {
+			patterns = append(patterns, req.Pattern)
+		}
+		patterns = append(patterns, req.Patterns...)
 
-	baseDir := req.BaseDir
-	if baseDir == "" {
-		baseDir = "."
-	}
+		baseDir := req.BaseDir
+		if baseDir == "" {
+			baseDir = "."
+		}
 
-	if len(patterns) > 0 {
-		walker := sftpClient.Walk(baseDir)
-		for walker.Step() {
-			if err := walker.Err(); err != nil {
-				continue
-			}
-			stat := walker.Stat()
-			if stat.IsDir() {
-				if strings.HasPrefix(stat.Name(), ".") && stat.Name() != "." {
-					walker.SkipDir()
+		if len(patterns) > 0 {
+			walker := sftpClient.Walk(baseDir)
+			for walker.Step() {
+				if err := walker.Err(); err != nil {
+					continue
 				}
-				continue
-			}
-
-			remotePath := walker.Path()
-			relToBasename := path.Base(remotePath)
-			relPath := strings.TrimPrefix(remotePath, baseDir)
-			relPath = strings.TrimPrefix(relPath, "/")
-
-			for _, pat := range patterns {
-				if matched, _ := path.Match(pat, relToBasename); matched ||
-					matchSFTPGlob(pat, relPath) ||
-					matchSFTPGlob(pat, remotePath) {
-					if !candSet[remotePath] {
-						candSet[remotePath] = true
-						candidateList = append(candidateList, remotePath)
+				stat := walker.Stat()
+				if stat.IsDir() {
+					if strings.HasPrefix(stat.Name(), ".") && stat.Name() != "." {
+						walker.SkipDir()
 					}
-					break
+					continue
+				}
+
+				remotePath := walker.Path()
+				relToBasename := path.Base(remotePath)
+				relPath := strings.TrimPrefix(remotePath, baseDir)
+				relPath = strings.TrimPrefix(relPath, "/")
+
+				for _, pat := range patterns {
+					if matched, _ := path.Match(pat, relToBasename); matched ||
+						matchSFTPGlob(pat, relPath) ||
+						matchSFTPGlob(pat, remotePath) {
+						if !candSet[remotePath] {
+							candSet[remotePath] = true
+							candidateList = append(candidateList, remotePath)
+						}
+						break
+					}
 				}
 			}
 		}
-	}
 
-	sort.Strings(candidateList)
+		sort.Strings(candidateList)
 
-	var totalSize int64
-	for _, p := range candidateList {
-		if len(res.Files) >= maxFiles {
-			res.Truncated = true
-			break
+		var totalSize int64
+		for _, p := range candidateList {
+			if len(res.Files) >= maxFiles {
+				res.Truncated = true
+				break
+			}
+
+			st, err := sftpClient.Stat(p)
+			if err != nil {
+				res.Errors[p] = err.Error()
+				continue
+			}
+			if st.IsDir() {
+				continue
+			}
+
+			if (totalSize + st.Size()) > maxSizeBytes {
+				res.Truncated = true
+				break
+			}
+
+			f, err := sftpClient.Open(p)
+			if err != nil {
+				res.Errors[p] = err.Error()
+				continue
+			}
+
+			data, err := io.ReadAll(f)
+			_ = f.Close()
+			if err != nil {
+				res.Errors[p] = err.Error()
+				continue
+			}
+
+			if isBinarySFTP(data) {
+				res.Errors[p] = "binary file skipped"
+				continue
+			}
+
+			res.Files[p] = string(data)
+			totalSize += int64(len(data))
 		}
 
-		st, err := sftpClient.Stat(p)
-		if err != nil {
-			res.Errors[p] = err.Error()
-			continue
-		}
-		if st.IsDir() {
-			continue
-		}
+		return nil
+	})
 
-		if (totalSize + st.Size()) > maxSizeBytes {
-			res.Truncated = true
-			break
-		}
-
-		f, err := sftpClient.Open(p)
-		if err != nil {
-			res.Errors[p] = err.Error()
-			continue
-		}
-
-		data, err := io.ReadAll(f)
-		_ = f.Close()
-		if err != nil {
-			res.Errors[p] = err.Error()
-			continue
-		}
-
-		if isBinarySFTP(data) {
-			res.Errors[p] = "binary file skipped"
-			continue
-		}
-
-		res.Files[p] = string(data)
-		totalSize += int64(len(data))
+	if err != nil {
+		return nil, err
 	}
 
 	res.Count = len(res.Files)

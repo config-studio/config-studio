@@ -3,7 +3,6 @@ import {
   Key,
   Shield,
   ShieldCheck,
-  AlertTriangle,
   Lock,
   Unlock,
   CheckCircle2,
@@ -11,17 +10,10 @@ import {
   RefreshCw,
   Sparkles,
   Zap,
-  Eye,
-  EyeOff,
-  Copy,
-  Edit3,
-  Trash2,
-  Check,
   Globe,
   Layers,
   FileCheck,
   Sliders,
-  Search,
   Filter,
 } from 'lucide-react';
 import { SecretMeta, SecretsStatus, SecretType, SecretScope, SSHKeyPair } from '../../../types';
@@ -31,21 +23,19 @@ import {
   Modal,
   Card,
   Input,
-  Textarea,
-  Select,
   Button,
   Badge,
-  ScrollArea,
   EmptyState,
   SearchInput,
   ConfirmModal,
   SectionHeader,
   PillTabs,
   PillTabItem,
-  Dropdown,
   DropdownOption,
   Callout,
 } from '../../ui';
+import { SecretCard } from '../secrets/SecretCard';
+import { SecretEditModal } from '../secrets/SecretEditModal';
 
 interface SecretsTabProps {
   authEnabled: boolean;
@@ -407,150 +397,6 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
     }
   };
 
-  const renderSecretCard = (item: SecretMeta) => {
-    const isRevealed = revealedSecrets[item.id] !== undefined;
-    const valueStr = isRevealed ? revealedSecrets[item.id] : '••••••••••••••••••••••••';
-    const isCopied = copiedSecretId === item.id;
-    const typeMeta = getTypeMeta(item.type);
-
-    return (
-      <Card
-        key={item.id}
-        className="p-4 space-y-3 hover:border-gray-500/30 transition"
-      >
-        {/* Top row: Title + badges */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="p-1.5 rounded-lg bg-black/5 dark:bg-black/30 border border-base-border shrink-0">
-              {typeMeta.icon}
-            </div>
-            <div className="min-w-0">
-              <h4 className="text-xs font-semibold text-gray-900 dark:text-white truncate">
-                {item.title}
-              </h4>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 font-mono truncate">
-                ID: <span className="text-gray-700 dark:text-gray-300">{item.id}</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-1.5 shrink-0">
-            <Badge
-              variant={item.scope === 'shared' ? 'info' : 'accent'}
-              size="sm"
-              title={
-                item.scope === 'shared'
-                  ? 'Общий секрет для серверов и хостов'
-                  : 'Секрет конкретного плагина'
-              }
-            >
-              {item.scope === 'shared' ? (
-                <span className="inline-flex items-center">
-                  <Globe className="w-2.5 h-2.5 mr-1 shrink-0" />Shared
-                </span>
-              ) : (
-                <span className="inline-flex items-center">
-                  <Layers className="w-2.5 h-2.5 mr-1 shrink-0" />
-                  {item.pluginId || 'Plugin'}
-                </span>
-              )}
-            </Badge>
-            <Badge variant="neutral" size="sm">
-              {typeMeta.label}
-            </Badge>
-          </div>
-        </div>
-
-        {/* Middle row: Masked/Revealed secret container */}
-        <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/5 dark:bg-black/30 border border-base-border font-mono text-xs">
-          <div className="flex-1 truncate pr-3 select-all">
-            {isRevealed ? (
-              <span className="text-emerald-400 font-mono text-[11px] whitespace-pre-wrap break-all">
-                {valueStr}
-              </span>
-            ) : (
-              <span className="text-gray-500 select-none tracking-widest text-[11px]">
-                {valueStr}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Bottom row: Timestamps & Action buttons */}
-        <div className="flex items-center justify-between pt-1 border-t border-base-border/50 text-[10px] text-gray-400">
-          <div>
-            {item.updatedAt && (
-              <span>
-                {language === 'en' ? 'Updated' : 'Обновлен'}:{' '}
-                {new Date(item.updatedAt).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center space-x-1.5">
-            {/* Reveal / Hide */}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleToggleRevealSecret(item)}
-              disabled={revealingId === item.id}
-              icon={
-                revealingId === item.id ? (
-                  <RefreshCw size={11} className="animate-spin" />
-                ) : isRevealed ? (
-                  <EyeOff size={11} />
-                ) : (
-                  <Eye size={11} />
-                )
-              }
-              title={isRevealed ? t.hideSecret : t.revealSecret}
-            >
-              {isRevealed ? t.hideSecret : t.revealSecret}
-            </Button>
-
-            {/* Copy value */}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleCopySecretValue(item)}
-              icon={
-                isCopied ? (
-                  <Check size={11} className="text-emerald-400" />
-                ) : (
-                  <Copy size={11} />
-                )
-              }
-              title={t.copiedToClipboard}
-            >
-              {isCopied ? t.copied : 'Copy'}
-            </Button>
-
-            {/* Edit */}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleOpenEditSecret(item)}
-              icon={<Edit3 size={11} />}
-              title={language === 'en' ? 'Edit secret' : 'Редактировать секрет'}
-            />
-
-            {/* Delete */}
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => handleDeleteSecret(item)}
-              icon={<Trash2 size={11} />}
-              title={t.delete}
-            />
-          </div>
-        </div>
-      </Card>
-    );
-  };
-
   return (
     <div className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
       {/* Header info banner */}
@@ -583,7 +429,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
         </div>
       </Card>
 
-      {/* Condition 1: Password protection disabled (local development notice) */}
+      {/* Condition 1: Password protection disabled */}
       {!authEnabled && (
         <Callout
           variant="neutral"
@@ -691,9 +537,8 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
           }
         />
 
-        {/* Filter Pills + Search (Variant A: Dynamic Hugging Width) */}
+        {/* Filter Pills + Search */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 min-w-0">
-          {/* Categories Pill Bar - Dynamic Width (Variant A) */}
           <div className="overflow-x-auto no-scrollbar max-w-full shrink-0">
             <PillTabs
               items={categoryTabItems}
@@ -705,7 +550,6 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
             />
           </div>
 
-          {/* Search Input - Fixed width protection (UI-003) */}
           <SearchInput
             value={searchQuery}
             onChange={setSearchQuery}
@@ -746,7 +590,6 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
             }
           />
         ) : groupedSections ? (
-          /* Grouped by categories when "Все" is selected without search filter */
           <div className="space-y-5">
             {groupedSections.map((group) => (
               <div key={group.category} className="space-y-2.5">
@@ -758,15 +601,46 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
                   </Badge>
                 </div>
                 <div className="space-y-2.5">
-                  {group.items.map((item) => renderSecretCard(item))}
+                  {group.items.map((item) => (
+                    <SecretCard
+                      key={item.id}
+                      item={item}
+                      isRevealed={revealedSecrets[item.id] !== undefined}
+                      valueStr={revealedSecrets[item.id] !== undefined ? revealedSecrets[item.id] : '••••••••••••••••••••••••'}
+                      isCopied={copiedSecretId === item.id}
+                      isRevealing={revealingId === item.id}
+                      language={language}
+                      t={t}
+                      typeMeta={getTypeMeta(item.type)}
+                      onToggleReveal={handleToggleRevealSecret}
+                      onCopy={handleCopySecretValue}
+                      onEdit={handleOpenEditSecret}
+                      onDelete={handleDeleteSecret}
+                    />
+                  ))}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          /* Flat list for single selected category or search results */
           <div className="space-y-2.5">
-            {filteredSecrets.map((item) => renderSecretCard(item))}
+            {filteredSecrets.map((item) => (
+              <SecretCard
+                key={item.id}
+                item={item}
+                isRevealed={revealedSecrets[item.id] !== undefined}
+                valueStr={revealedSecrets[item.id] !== undefined ? revealedSecrets[item.id] : '••••••••••••••••••••••••'}
+                isCopied={copiedSecretId === item.id}
+                isRevealing={revealingId === item.id}
+                language={language}
+                t={t}
+                typeMeta={getTypeMeta(item.type)}
+                onToggleReveal={handleToggleRevealSecret}
+                onCopy={handleCopySecretValue}
+                onEdit={handleOpenEditSecret}
+                onDelete={handleDeleteSecret}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -793,6 +667,7 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
 
             <Input
               type="password"
+              peekable
               value={unlockPassword}
               onChange={(e) => setUnlockPassword(e.target.value)}
               placeholder={t.unlockPasswordPlaceholder}
@@ -827,120 +702,31 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
       </Modal>
 
       {/* Create / Edit Secret Modal */}
-      <Modal
+      <SecretEditModal
         isOpen={isSecretEditorOpen}
         onClose={() => {
           setIsSecretEditorOpen(false);
           setSecretEditorError('');
         }}
-        size="md"
-      >
-        <Modal.Header
-          title={editingSecretId ? t.editSecretModalTitle : t.addSecretModalTitle}
-          icon={<Key className="w-4 h-4 text-accent" />}
-        />
-
-        <form onSubmit={handleSaveSecret}>
-          <Modal.Body className="p-5 space-y-4">
-            {/* Title */}
-            <Input
-              label={t.secretTitleLabel}
-              value={secretTitle}
-              onChange={(e) => setSecretTitle(e.target.value)}
-              placeholder={t.secretTitlePlaceholder}
-              autoFocus
-            />
-
-            {/* ID Identifier */}
-            <Input
-              label={t.secretIdLabel}
-              value={secretId}
-              onChange={(e) => setSecretId(e.target.value)}
-              placeholder={t.secretIdPlaceholder}
-              disabled={!!editingSecretId}
-              className="font-mono"
-              description={
-                !editingSecretId
-                  ? language === 'en'
-                    ? 'Leave blank to generate automatically from title'
-                    : 'Оставьте пустым для автогенерации из названия'
-                  : undefined
-              }
-            />
-
-            {/* Secret Type & Scope grid (Dropdown v2) */}
-            <div className="grid grid-cols-2 gap-3">
-              <Dropdown
-                label={t.secretTypeLabel}
-                value={secretType}
-                onChange={(val) => setSecretType(val as SecretType)}
-                options={secretTypeOptions}
-                size="sm"
-              />
-
-              <Dropdown
-                label={t.secretScopeLabel}
-                value={secretScope}
-                onChange={(val) => setSecretScope(val as SecretScope)}
-                options={secretScopeOptions}
-                size="sm"
-              />
-            </div>
-
-            {/* Secret Value */}
-            {secretType === 'ssh_key' || secretType === 'certificate' || secretType === 'env' ? (
-              <Textarea
-                label={t.secretValueLabel}
-                rows={5}
-                value={secretValue}
-                onChange={(e) => setSecretValue(e.target.value)}
-                placeholder={
-                  secretType === 'certificate'
-                    ? '-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----'
-                    : secretType === 'ssh_key'
-                    ? '-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----'
-                    : 'KEY=value\nANOTHER_KEY=value'
-                }
-                className="font-mono text-xs"
-              />
-            ) : (
-              <Input
-                type="password"
-                label={t.secretValueLabel}
-                value={secretValue}
-                onChange={(e) => setSecretValue(e.target.value)}
-                placeholder={t.secretValuePlaceholder}
-                className="font-mono"
-              />
-            )}
-
-            {secretEditorError && (
-              <p className="text-[11px] text-rose-500 font-medium">{secretEditorError}</p>
-            )}
-          </Modal.Body>
-
-          <Modal.Footer justify="end">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => {
-                setIsSecretEditorOpen(false);
-                setSecretEditorError('');
-              }}
-            >
-              {t.cancel}
-            </Button>
-            <Button
-              variant="primary"
-              type="submit"
-              loading={isSavingSecret}
-              icon={<Check size={12} />}
-            >
-              {t.saveSecretBtn}
-            </Button>
-          </Modal.Footer>
-        </form>
-      </Modal>
+        editingSecretId={editingSecretId}
+        secretTitle={secretTitle}
+        setSecretTitle={setSecretTitle}
+        secretId={secretId}
+        setSecretId={setSecretId}
+        secretType={secretType}
+        setSecretType={setSecretType}
+        secretScope={secretScope}
+        setSecretScope={setSecretScope}
+        secretValue={secretValue}
+        setSecretValue={setSecretValue}
+        secretEditorError={secretEditorError}
+        isSavingSecret={isSavingSecret}
+        onSave={handleSaveSecret}
+        secretTypeOptions={secretTypeOptions}
+        secretScopeOptions={secretScopeOptions}
+        language={language}
+        t={t}
+      />
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal
