@@ -123,6 +123,7 @@ export const App: React.FC = () => {
     currentFileRef,
     getTabKey,
     openFile,
+    openCustomTab,
     handleOpenSftpFile,
     handleCloseTab,
     handleContentChange,
@@ -236,6 +237,9 @@ export const App: React.FC = () => {
       openFile: async (path: string, options?: OpenFileOptions) => {
         const root = currentFileRef.current?.root || workspacesRef.current?.[0]?.id || '';
         await openFile(path, root, options);
+      },
+      openCustomTab: async (tab: any) => {
+        await openCustomTab(tab);
       },
       createFile: async (path: string, content: string = '') => {
         let root = currentFileRef.current?.root || workspacesRef.current?.[0]?.id || '';

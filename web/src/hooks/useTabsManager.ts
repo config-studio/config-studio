@@ -211,6 +211,48 @@ export function useTabsManager({
     }
   };
 
+  const openCustomTab = async (tab: {
+    path: string;
+    name: string;
+    content: string;
+    language?: string;
+    readOnly?: boolean;
+    badge?: string;
+    onSave?: (content: string) => Promise<void>;
+  }) => {
+    const tabKey = tab.path;
+    const existing = tabs.find((t) => getTabKey(t) === tabKey || t.path === tab.path || t.fullRelPath === tabKey);
+    if (existing) {
+      setActiveTabKey(getTabKey(existing));
+      return;
+    }
+
+    const savedRevisions = revisionHistoryService.getRevisions(tabKey);
+    const tabId = `tab-custom-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+    const newTab: OpenFile = {
+      id: tabId,
+      path: tab.path,
+      root: 'custom',
+      fullRelPath: tabKey,
+      name: tab.name,
+      content: tab.content,
+      initialContent: tab.content,
+      isDirty: false,
+      readOnly: tab.readOnly ?? false,
+      language: tab.language || tab.name.split('.').pop() || '',
+      revisions: savedRevisions,
+      badge: tab.badge,
+      onCustomSave: tab.onSave,
+    };
+
+    setTabs((prev) => {
+      const isAlreadyOpen = prev.some((t) => getTabKey(t) === tabKey || t.path === tab.path || t.fullRelPath === tabKey);
+      if (isAlreadyOpen) return prev;
+      return [...prev, newTab];
+    });
+    setActiveTabKey(tabKey);
+  };
+
   const handleCloseTab = (tabKey: string) => {
     const idx = tabs.findIndex(
       (t) => (t.id && t.id === tabKey) || getTabKey(t) === tabKey || (t.fullRelPath && t.fullRelPath === tabKey)
@@ -289,6 +331,7 @@ export function useTabsManager({
     currentFileRef,
     getTabKey,
     openFile,
+    openCustomTab,
     handleOpenSftpFile,
     handleCloseTab,
     handleContentChange,

@@ -495,7 +495,11 @@ function updateBadgeCounter(count: number) {
 
 function extractBodySnippet(body: any): string | undefined {
   if (!body) return undefined;
-  if (typeof body === 'string') return sanitizeString(body.slice(0, 200));
+  if (typeof body === 'string') {
+    const maxLen = 400;
+    const text = body.length > maxLen ? `${body.slice(0, maxLen)} ... [truncated ${body.length} chars]` : body;
+    return sanitizeString(text);
+  }
   if (body instanceof FormData) return '[FormData]';
   return undefined;
 }
