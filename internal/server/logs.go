@@ -16,7 +16,7 @@ func (s *Server) handleLogsStream(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		// Read from JSON body
 		if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
-			http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+			jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 			return
 		}
 	} else {
@@ -35,8 +35,18 @@ func (s *Server) handleLogsStream(w http.ResponseWriter, r *http.Request) {
 
 	cleanCmd := strings.TrimSpace(opts.Cmd)
 	if cleanCmd == "" {
-		http.Error(w, "cmd parameter cannot be empty", http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "cmd parameter cannot be empty")
 		return
+	}
+
+	// Local execution requires unrestricted mode to prevent arbitrary command execution via logs stream
+	isLocal := opts.HostID == "" || opts.HostID == "localhost" || opts.HostID == "local"
+	if isLocal {
+		cfg := s.config.Get()
+		if !cfg.PluginExecUnrestricted {
+			jsonError(w, http.StatusForbidden, "local log command execution is disabled unless unrestricted execution is enabled")
+			return
+		}
 	}
 
 	var sshCfg *ssh.Config

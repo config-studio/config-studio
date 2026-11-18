@@ -37,17 +37,15 @@ import { TerminalHostLauncher } from './terminal/TerminalHostLauncher';
 import { LogStreamLauncher } from './logs/LogStreamLauncher';
 import { EditHostModal } from './terminal/EditHostModal';
 import type { XTerminalHandle } from './terminal/XTerminal';
+import { ProblemsTab } from './dock/ProblemsTab';
+import { OutputTab } from './dock/OutputTab';
+import { useTerminalSessions } from './dock/useTerminalSessions';
+export type { TerminalSession } from './dock/useTerminalSessions';
+
 
 const XTerminal = lazy(() => import('./terminal/XTerminal'));
 
-export interface TerminalSession {
-  id: string;
-  hostId: string;
-  host: SSHHost;
-  title: string;
-  status: 'connecting' | 'connected' | 'disconnected' | 'error';
-  errorMessage?: string;
-}
+
 
 interface BottomDockStripProps {
   panels: BottomPanelDef[];
@@ -96,16 +94,29 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
   // SSH Hosts & Multi-Session Terminal State
   const [sshHosts, setSshHosts] = useState<SSHHost[]>(() => sshHostService.list());
-  const [sessions, setSessions] = useState<TerminalSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string>('launcher');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingHost, setEditingHost] = useState<SSHHost | null>(null);
-  const [hostToDelete, setHostToDelete] = useState<SSHHost | null>(null);
 
   // Streaming Log Sessions State
   const [logSessions, setLogSessions] = useState<LogStreamSession[]>(() => logStreamService.getSessions());
   const [activeLogSessionId, setActiveLogSessionId] = useState<string>(() => logStreamService.getActiveSessionId());
-  const termRefs = useRef<Record<string, XTerminalHandle | null>>({});
+
+  const {
+    sessions,
+    activeSessionId,
+    setActiveSessionId,
+    termRefs,
+    hostToDelete,
+    setHostToDelete,
+    handleSelectHost,
+    handleCloseSession,
+    handleReconnectActive,
+    handleClearActive,
+    handleSessionStatusChange,
+    handleDeleteHost,
+    handleConfirmDelete,
+    terminalSessionTabs,
+  } = useTerminalSessions(setSshHosts);
 
   const mountContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -125,67 +136,6 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
   const { metrics: sysMetrics, error: sysError, activeNodeName: sysNodeName } = sysInfoState;
 
-  const handleSelectHost = useCallback((host: SSHHost) => {
-    setSessions((prev) => {
-      const existingForHost = prev.filter((s) => s.hostId === host.id);
-      const title =
-        existingForHost.length > 0
-          ? `${host.name || host.host} (${existingForHost.length + 1})`
-          : (host.name || host.host);
-
-      const newSess: TerminalSession = {
-        id: 'sess-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        hostId: host.id,
-        host,
-        title,
-        status: 'connecting',
-      };
-      setActiveSessionId(newSess.id);
-      sshHostService.setLastActiveHostId(host.id);
-      return [...prev, newSess];
-    });
-  }, []);
-
-  const handleCloseSession = useCallback((sessionId: string) => {
-    setSessions((prev) => {
-      const next = prev.filter((s) => s.id !== sessionId);
-      delete termRefs.current[sessionId];
-      if (activeSessionId === sessionId) {
-        if (next.length > 0) {
-          setActiveSessionId(next[next.length - 1].id);
-        } else {
-          setActiveSessionId('launcher');
-        }
-      }
-      return next;
-    });
-  }, [activeSessionId]);
-
-  const handleReconnectActive = useCallback(() => {
-    if (activeSessionId && activeSessionId !== 'launcher') {
-      termRefs.current[activeSessionId]?.reconnect();
-    }
-  }, [activeSessionId]);
-
-  const handleClearActive = useCallback(() => {
-    if (activeSessionId && activeSessionId !== 'launcher') {
-      termRefs.current[activeSessionId]?.clear();
-    }
-  }, [activeSessionId]);
-
-  const handleSessionStatusChange = useCallback(
-    (sessionId: string, status: TerminalSession['status'], error?: string) => {
-      setSessions((prev) => {
-        const target = prev.find((s) => s.id === sessionId);
-        if (target && target.status === status && target.errorMessage === (error || '')) {
-          return prev;
-        }
-        return prev.map((s) => (s.id === sessionId ? { ...s, status, errorMessage: error || '' } : s));
-      });
-    },
-    []
-  );
-
   const handleSaveHost = useCallback(
     (hostToSave: SSHHost, autoConnect: boolean = false) => {
       sshHostService.save(hostToSave);
@@ -195,43 +145,6 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
     },
     [handleSelectHost]
   );
-
-  const handleDeleteHost = useCallback((host: SSHHost) => {
-    setHostToDelete(host);
-  }, []);
-
-  const handleConfirmDelete = useCallback(() => {
-    if (hostToDelete) {
-      sshHostService.delete(hostToDelete.id);
-      setSessions((prev) => {
-        const next = prev.filter((s) => s.hostId !== hostToDelete.id);
-        if (next.length === 0) {
-          setActiveSessionId('launcher');
-        } else if (!next.some((s) => s.id === activeSessionId)) {
-          setActiveSessionId(next[next.length - 1].id);
-        }
-        return next;
-      });
-      setHostToDelete(null);
-    }
-  }, [hostToDelete, activeSessionId]);
-
-  useEffect(() => {
-    const handleOpenSSH = (e: any) => {
-      const detail = e.detail;
-      const hosts = sshHostService.list();
-      setSshHosts(hosts);
-      if (detail && detail.id) {
-        const match = hosts.find((h) => h.id === detail.id);
-        if (match) handleSelectHost(match);
-      } else if (detail && detail.host) {
-        const match = hosts.find((h) => h.host === detail.host);
-        if (match) handleSelectHost(match);
-      }
-    };
-    window.addEventListener('cs:open-ssh-terminal', handleOpenSSH);
-    return () => window.removeEventListener('cs:open-ssh-terminal', handleOpenSSH);
-  }, [handleSelectHost]);
 
   // Subscribe to Log Stream Service
   useEffect(() => {
@@ -256,34 +169,6 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
     window.addEventListener('cs:open-log-stream', handleOpenLogStream);
     return () => window.removeEventListener('cs:open-log-stream', handleOpenLogStream);
   }, [isOpen, onSelectPanel, onToggleOpen]);
-
-  const terminalSessionTabs = useMemo<PillTabItem[]>(() => {
-    const items: PillTabItem[] = [
-      {
-        id: 'launcher',
-        label: 'Хосты',
-        icon: <Server size={12} />,
-        closable: false,
-      },
-    ];
-
-    sessions.forEach((s) => {
-      let statusDot: PillTabItem['statusDot'] = 'amber';
-      if (s.status === 'connected') statusDot = 'green';
-      else if (s.status === 'connecting') statusDot = 'amber';
-      else if (s.status === 'disconnected' || s.status === 'error') statusDot = 'red';
-
-      items.push({
-        id: s.id,
-        label: s.title,
-        icon: <Terminal size={12} />,
-        statusDot,
-        closable: true,
-      });
-    });
-
-    return items;
-  }, [sessions]);
 
   const logSessionTabs = useMemo<PillTabItem[]>(() => {
     const items: PillTabItem[] = [
@@ -809,220 +694,24 @@ export const BottomDockStrip: React.FC<BottomDockStripProps> = ({
 
             {/* 2. Built-in: Problems Tab */}
             {activePanelId === 'problems' && (
-              <div className="space-y-1 p-2">
-                {guardResult && guardResult.issues.length > 0 ? (
-                  guardResult.issues.map((iss, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => onJumpToLine?.(iss.line, iss.column)}
-                      className={`flex items-start justify-between p-3 rounded-xl cursor-pointer transition border select-none ${
-                        iss.severity === 'critical'
-                          ? 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/15'
-                          : 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15'
-                      }`}
-                    >
-                      <div className="flex items-start space-x-2.5 min-w-0 flex-1">
-                        <AlertCircle
-                          size={15}
-                          className={`shrink-0 mt-0.5 ${
-                            iss.severity === 'critical' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
-                          }`}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className={`font-semibold text-xs leading-snug ${
-                            iss.severity === 'critical'
-                              ? 'text-rose-950 dark:text-rose-100'
-                              : 'text-amber-950 dark:text-amber-100'
-                          }`}>
-                            {iss.message}
-                          </div>
-                          {iss.snippet && (
-                            <pre className={`text-[11px] font-mono leading-relaxed mt-2 p-2.5 rounded-lg border overflow-x-auto select-text shadow-2xs ${
-                              iss.severity === 'critical'
-                                ? 'bg-white/95 text-slate-800 border-rose-200/80 dark:bg-black/50 dark:text-slate-200 dark:border-rose-900/40'
-                                : 'bg-white/95 text-slate-800 border-amber-200/80 dark:bg-black/50 dark:text-slate-200 dark:border-amber-900/40'
-                            }`}>
-                              {iss.snippet.split('\n').map((line, lIdx) => {
-                                const isTarget = line.startsWith('>');
-                                return (
-                                  <div
-                                    key={lIdx}
-                                    className={
-                                      isTarget
-                                        ? 'bg-rose-500/15 text-rose-900 dark:text-rose-200 font-bold px-1.5 py-0.5 rounded -mx-1 border-l-2 border-rose-500'
-                                        : 'text-slate-600 dark:text-gray-400'
-                                    }
-                                  >
-                                    {line}
-                                  </div>
-                                );
-                              })}
-                            </pre>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0 pl-3">
-                        <Badge
-                          variant={iss.severity === 'critical' ? 'error' : 'warning'}
-                          size="xs"
-                          className="font-mono font-medium"
-                        >
-                          {iss.file}:{iss.line}:{iss.column}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="py-6">
-                    <EmptyState
-                      icon={<CheckCircle2 size={24} className="text-emerald-500" />}
-                      title={t.dockNoProblems}
-                    />
-                  </div>
-                )}
-              </div>
+              <ProblemsTab
+                guardResult={guardResult}
+                onJumpToLine={onJumpToLine}
+                emptyText={t.dockNoProblems}
+              />
             )}
 
             {/* 3. Built-in: Output / Audit Tab */}
             {activePanelId === 'output' && (
-              <div className="space-y-1.5 p-2">
-                {/* Category Filter Pills */}
-                <div className="flex items-center gap-1 pb-1.5 border-b border-base-border overflow-x-auto text-[11px] no-scrollbar">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuditCategory('');
-                      loadRecentAudit('');
-                    }}
-                    className={`px-2 py-0.5 rounded transition font-medium cursor-pointer ${
-                      auditCategory === ''
-                        ? 'bg-accent/15 text-accent border border-accent/40 font-semibold'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    {t.auditFilterAll}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuditCategory('error');
-                      loadRecentAudit('error');
-                    }}
-                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 cursor-pointer ${
-                      auditCategory === 'error'
-                        ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/40 font-semibold'
-                        : 'text-[var(--text-muted)] hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-500/5'
-                    }`}
-                  >
-                    <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
-                    <span>{t.auditCatError || 'Ошибки'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuditCategory('user');
-                      loadRecentAudit('user');
-                    }}
-                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 cursor-pointer ${
-                      auditCategory === 'user'
-                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 font-semibold'
-                        : 'text-[var(--text-muted)] hover:text-emerald-600 dark:hover:text-emerald-300 hover:bg-emerald-500/5'
-                    }`}
-                  >
-                    <User className="w-3 h-3 text-emerald-500 shrink-0" />
-                    <span>{t.auditCatUser || 'Действия'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuditCategory('network');
-                      loadRecentAudit('network');
-                    }}
-                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 cursor-pointer ${
-                      auditCategory === 'network'
-                        ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/40 font-semibold'
-                        : 'text-[var(--text-muted)] hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-500/5'
-                    }`}
-                  >
-                    <Globe className="w-3 h-3 text-indigo-500 shrink-0" />
-                    <span>{t.auditCatNetwork || 'Сеть'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuditCategory('system');
-                      loadRecentAudit('system');
-                    }}
-                    className={`px-2 py-0.5 rounded transition font-medium flex items-center space-x-1 cursor-pointer ${
-                      auditCategory === 'system'
-                        ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/40 font-semibold'
-                        : 'text-[var(--text-muted)] hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-500/5'
-                    }`}
-                  >
-                    <Cpu className="w-3 h-3 text-slate-500 shrink-0" />
-                    <span>{t.auditCatSystem || 'Система'}</span>
-                  </button>
-                </div>
-
-                {recentAudit.length > 0 ? (
-                  recentAudit.map((evt) => (
-                    <div
-                      key={evt.id}
-                      className="flex flex-col py-1 px-2 hover:bg-base-surface-hover/80 rounded text-[11px] text-[var(--text-secondary)] border-b border-base-border/50"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2 truncate">
-                          <Clock size={11} className="text-[var(--text-muted)] shrink-0" />
-                          <span className="text-[var(--text-muted)] shrink-0 font-mono text-[10px]">
-                            {new Date(evt.timestamp).toLocaleTimeString()}
-                          </span>
-                          <Badge
-                            variant={
-                              evt.category === 'error' || evt.severity === 'error'
-                                ? 'error'
-                                : evt.category === 'network'
-                                ? 'info'
-                                : evt.category === 'system'
-                                ? 'neutral'
-                                : 'success'
-                            }
-                            size="xs"
-                            className="uppercase font-mono font-bold tracking-wider"
-                          >
-                            {evt.category || 'user'}
-                          </Badge>
-                          <Badge
-                            variant={
-                              evt.severity === 'error' || evt.severity === 'critical'
-                                ? 'error'
-                                : evt.severity === 'warn'
-                                ? 'warning'
-                                : 'neutral'
-                            }
-                            size="xs"
-                            className="font-mono font-medium"
-                          >
-                            {evt.action}
-                          </Badge>
-                          <span className="font-mono text-[var(--text-primary)] truncate">{evt.target}</span>
-                        </div>
-                        <span className="text-[var(--text-muted)] text-[10px] shrink-0 font-mono">
-                          {evt.user} {evt.source ? `[${evt.source}]` : ''}
-                        </span>
-                      </div>
-                      {evt.details && Object.keys(evt.details).length > 0 && (
-                        <div className="text-[10px] text-[var(--text-muted)] font-mono pl-6 pt-0.5 truncate">
-                          {JSON.stringify(evt.details)}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="py-8 text-center text-gray-500">
-                    <span>{t.dockNoOutput}</span>
-                  </div>
-                )}
-              </div>
+              <OutputTab
+                recentAudit={recentAudit}
+                auditCategory={auditCategory}
+                onCategoryChange={(cat) => {
+                  setAuditCategory(cat);
+                  loadRecentAudit(cat);
+                }}
+                emptyText={t.dockNoOutput}
+              />
             )}
 
             {/* 4. Plugin Mount Targets */}

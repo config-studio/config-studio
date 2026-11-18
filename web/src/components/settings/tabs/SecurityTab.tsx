@@ -6,6 +6,8 @@ import {
   Copy,
   Check,
   ShieldCheck,
+  Globe,
+  Info,
 } from 'lucide-react';
 import { Card, Input, Button, Toggle, Badge, SectionHeader } from '../../ui';
 
@@ -24,6 +26,10 @@ interface SecurityTabProps {
   setStructureGuardEnabled: (v: boolean) => void;
   criticalPatterns: string;
   setCriticalPatterns: (v: string) => void;
+  trustedProxies: string;
+  setTrustedProxies: (v: string) => void;
+  trustForwardAuth: boolean;
+  setTrustForwardAuth: (v: boolean) => void;
   t: any;
 }
 
@@ -42,6 +48,10 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
   setStructureGuardEnabled,
   criticalPatterns,
   setCriticalPatterns,
+  trustedProxies,
+  setTrustedProxies,
+  trustForwardAuth,
+  setTrustForwardAuth,
   t,
 }) => {
   const [copiedKey, setCopiedKey] = useState(false);
@@ -164,6 +174,56 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
             <span>{t.apiDisabledNote}</span>
           </div>
         )}
+      </Card>
+
+      {/* Reverse Proxy & Trusted Networks Card */}
+      <Card className="p-4 space-y-3">
+        <SectionHeader
+          icon={<Globe className="w-4 h-4 text-accent" />}
+          title={t.trustedProxiesTitle || 'Реверс-прокси и доверенные сети'}
+          rightElement={
+            <Toggle
+              checked={trustForwardAuth}
+              onChange={setTrustForwardAuth}
+              size="md"
+            />
+          }
+        />
+
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+          {t.trustedProxiesDesc || 'Укажите CIDR адреса доверенных обратных прокси (Traefik, Nginx, Caddy). Тумблер справа активирует авторизацию через внешние заголовки прокси (Forward Auth: X-Forwarded-User).'}
+        </p>
+
+        <div className="space-y-2 pt-2 border-t border-base-border/60">
+          <div className="flex items-center justify-between">
+            <label className="block text-[11px] font-semibold text-gray-800 dark:text-gray-200">
+              {t.trustedProxiesLabel || 'Доверенные подсети / IP прокси'}
+            </label>
+            <span className="text-[10px] text-accent font-medium px-2 py-0.5 rounded-md bg-accent/10 border border-accent/20">
+              Построчно или через запятую
+            </span>
+          </div>
+
+          <textarea
+            rows={3}
+            value={trustedProxies}
+            onChange={(e) => setTrustedProxies(e.target.value)}
+            placeholder="127.0.0.1/32&#10;::1/128&#10;192.168.10.9&#10;192.168.0.0/24"
+            className="w-full px-3 py-2 bg-white dark:bg-black/30 border border-base-border rounded-xl text-xs font-mono text-gray-900 dark:text-white focus:outline-none focus:border-accent"
+          />
+
+          <div className="flex items-start space-x-2 text-[11px] text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/[0.04] p-2.5 rounded-xl border border-base-border/70">
+            <Info className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
+            <div className="space-y-0.5 leading-tight">
+              <div>
+                Разрешены как отдельные IP-адреса, так и диапазоны CIDR (через перенос строки, запятую или пробел).
+              </div>
+              <div className="text-[10px] text-gray-400 font-mono">
+                Примеры: <code>127.0.0.1/32</code>, <code>::1/128</code>, <code>192.168.10.9</code>, <code>192.168.0.0/24</code>, <code>10.0.0.0/8</code>
+              </div>
+            </div>
+          </div>
+        </div>
       </Card>
 
       {/* Structure Guard (Deep Pre-Save Validation) Card */}

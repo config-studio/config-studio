@@ -59,6 +59,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [criticalPatterns, setCriticalPatterns] = useState(
     (settings.criticalPatterns || []).join('\n')
   );
+  const [trustedProxies, setTrustedProxies] = useState(
+    (settings.trustedProxies || []).join('\n')
+  );
+  const [trustForwardAuth, setTrustForwardAuth] = useState(
+    settings.trustForwardAuth || false
+  );
 
   // Plugins unrestricted mode
   const [pluginExecUnrestricted, setPluginExecUnrestricted] = useState(
@@ -90,6 +96,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setApiKey(settings.apiKey || '');
       setStructureGuardEnabled(settings.structureGuardEnabled !== false);
       setCriticalPatterns((settings.criticalPatterns || []).join('\n'));
+      setTrustedProxies((settings.trustedProxies || []).join('\n'));
+      setTrustForwardAuth(settings.trustForwardAuth || false);
       setPluginExecUnrestricted(settings.pluginExecUnrestricted || false);
       if (initialTab) setActiveTab(initialTab);
     }
@@ -143,6 +151,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         .map((p) => p.trim())
         .filter(Boolean);
 
+      const parsedProxies = trustedProxies
+        .split(/[\n,;]+/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+
       await onSaveSettings({
         appTitle: title.trim() || 'Config Studio',
         baseColor,
@@ -158,6 +171,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         structureGuardEnabled,
         criticalPatterns: parsedPatterns,
         pluginExecUnrestricted,
+        trustedProxies: parsedProxies,
+        trustForwardAuth,
       });
       onClose();
     } catch (err: any) {
@@ -180,6 +195,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setBottomDockMode('auto');
     setStructureGuardEnabled(true);
     setCriticalPatterns('');
+    setTrustedProxies('127.0.0.1/32\n::1/128');
+    setTrustForwardAuth(false);
     setPluginExecUnrestricted(false);
     setIsResetConfirmOpen(false);
   };
@@ -270,6 +287,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               setStructureGuardEnabled={setStructureGuardEnabled}
               criticalPatterns={criticalPatterns}
               setCriticalPatterns={setCriticalPatterns}
+              trustedProxies={trustedProxies}
+              setTrustedProxies={setTrustedProxies}
+              trustForwardAuth={trustForwardAuth}
+              setTrustForwardAuth={setTrustForwardAuth}
               t={t}
             />
           )}

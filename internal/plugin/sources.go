@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"config-studio/internal/fsutil"
 	"context"
 	"encoding/json"
 	"errors"
@@ -238,7 +239,7 @@ func (sm *SourcesManager) saveSourcesLocked() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(sm.sourcesFile, data, 0644)
+	return fsutil.SafeWriteFile(sm.sourcesFile, data, 0644)
 }
 
 func (sm *SourcesManager) ListSources() []Source {
@@ -340,6 +341,37 @@ func (sm *SourcesManager) DeleteSource(id string) error {
 
 // SyncSources polls all enabled sources, merges catalogs, updates stats, and writes to cache
 func (sm *SourcesManager) SyncSources(installedPlugins []Plugin) ([]CatalogItem, error) {
+	// 1. Snapshot sources under read lock to avoid blocking other readers during network I/O
+	sm.mu.RLock()
+	sourcesToSync := make([]Source, len(sm.sources))
+	copy(sourcesToSync, sm.sources)
+	sm.mu.RUnlock()
+
+	type fetchedSourceResult struct {
+		index    int
+		sourceID string
+		official bool
+		items    []CatalogItem
+	}
+
+	var fetched []fetchedSourceResult
+	for i, src := range sourcesToSync {
+		if !src.Enabled {
+			continue
+		}
+		items, err := sm.fetchCatalog(src)
+		if err != nil {
+			continue
+		}
+		fetched = append(fetched, fetchedSourceResult{
+			index:    i,
+			sourceID: src.ID,
+			official: src.Official,
+			items:    items,
+		})
+	}
+
+	// 2. Acquire lock briefly to update metadata and write cache
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
@@ -352,23 +384,15 @@ func (sm *SourcesManager) SyncSources(installedPlugins []Plugin) ([]CatalogItem,
 		installedMap[p.Manifest.ID] = p
 	}
 
-	for i, src := range sm.sources {
-		if !src.Enabled {
-			continue
+	for _, res := range fetched {
+		if res.index < len(sm.sources) && sm.sources[res.index].ID == res.sourceID {
+			sm.sources[res.index].LastSync = &now
+			sm.sources[res.index].PluginsCount = len(res.items)
 		}
 
-		items, err := sm.fetchCatalog(src)
-		if err != nil {
-			// Do not crash the entire sync on single source failure
-			continue
-		}
-
-		sm.sources[i].LastSync = &now
-		sm.sources[i].PluginsCount = len(items)
-
-		for _, item := range items {
-			item.SourceID = src.ID
-			item.Official = src.Official
+		for _, item := range res.items {
+			item.SourceID = res.sourceID
+			item.Official = res.official
 
 			if p, ok := installedMap[item.ID]; ok {
 				item.Installed = true
@@ -385,7 +409,7 @@ func (sm *SourcesManager) SyncSources(installedPlugins []Plugin) ([]CatalogItem,
 	if len(allItems) > 0 {
 		cacheBytes, err := json.MarshalIndent(allItems, "", "  ")
 		if err == nil {
-			_ = os.WriteFile(sm.cacheFile, cacheBytes, 0644)
+			_ = fsutil.SafeWriteFile(sm.cacheFile, cacheBytes, 0644)
 		}
 	} else {
 		// Fallback to cached items if network fetch failed for all sources

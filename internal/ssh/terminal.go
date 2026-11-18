@@ -1,10 +1,13 @@
 package ssh
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,7 +19,15 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  8192,
 	WriteBufferSize: 8192,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Config Studio handles origin validation in auth middleware
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		u, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+		return strings.EqualFold(u.Host, r.Host)
 	},
 }
 
@@ -138,12 +149,8 @@ func (m *ClientManager) HandleWebSocket(w http.ResponseWriter, r *http.Request) 
 
 	_ = safeWS.WriteMessage(websocket.TextMessage, []byte("\x1b[32mSSH Session Connected.\x1b[0m\r\n"))
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// Pump stdout/stderr to WebSocket
-	pumpOutput := func(r io.Reader) {
-		defer wg.Done()
+	// Pump stdout/stderr concurrently to WebSocket to prevent buffer deadlock
+	pumpStream := func(r io.Reader) {
 		buf := make([]byte, 4096)
 		for {
 			n, readErr := r.Read(buf)
@@ -158,12 +165,21 @@ func (m *ClientManager) HandleWebSocket(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	go pumpOutput(io.MultiReader(stdoutPipe, stderrPipe))
+	termCtx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	defer func() {
+		_ = session.Signal(gossh.SIGHUP)
+		_ = session.Close()
+	}()
+
+	go pumpStream(stdoutPipe)
+	go pumpStream(stderrPipe)
 
 	// Pump WebSocket messages to stdin & handle control messages
 	go func() {
-		defer wg.Done()
 		defer stdinPipe.Close()
+		defer cancel()
 
 		for {
 			mType, data, readErr := ws.ReadMessage()
@@ -209,6 +225,17 @@ func (m *ClientManager) HandleWebSocket(w http.ResponseWriter, r *http.Request) 
 		}
 	}()
 
-	_ = session.Wait()
-	_ = safeWS.WriteMessage(websocket.TextMessage, []byte("\r\n\x1b[33m[Connection closed by remote host]\x1b[0m\r\n"))
+	waitDone := make(chan struct{})
+	go func() {
+		_ = session.Wait()
+		close(waitDone)
+	}()
+
+	select {
+	case <-termCtx.Done():
+		_ = session.Signal(gossh.SIGHUP)
+		_ = session.Close()
+	case <-waitDone:
+		_ = safeWS.WriteMessage(websocket.TextMessage, []byte("\r\n\x1b[33m[Connection closed by remote host]\x1b[0m\r\n"))
+	}
 }

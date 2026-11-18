@@ -14,24 +14,23 @@ func (s *Server) handleSSHWebSocket(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSSHTest(w http.ResponseWriter, r *http.Request) {
 	var cfg ssh.Config
 	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
 	res := s.ssh.Test(r.Context(), &cfg)
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(res)
+	jsonResponse(w, http.StatusOK, res)
 }
 
 func (s *Server) handleSSHExec(w http.ResponseWriter, r *http.Request) {
 	var req ssh.ExecRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
 	if req.Cmd == "" {
-		http.Error(w, "cmd cannot be empty", http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "cmd cannot be empty")
 		return
 	}
 
@@ -67,12 +66,11 @@ func (s *Server) handleSSHExec(w http.ResponseWriter, r *http.Request) {
 
 	res, err := s.ssh.ExecuteCommand(r.Context(), req.Config, &req)
 	if err != nil {
-		http.Error(w, "execution error: "+err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "execution error: "+err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(res)
+	jsonResponse(w, http.StatusOK, res)
 }
 
 func (s *Server) handleSSHGenerateKey(w http.ResponseWriter, r *http.Request) {
@@ -83,29 +81,27 @@ func (s *Server) handleSSHGenerateKey(w http.ResponseWriter, r *http.Request) {
 
 	kp, err := ssh.GenerateEd25519KeyPair(req.Comment)
 	if err != nil {
-		http.Error(w, "failed to generate key pair: "+err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "failed to generate key pair: "+err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(kp)
+	jsonResponse(w, http.StatusOK, kp)
 }
 
 func (s *Server) handleSFTPList(w http.ResponseWriter, r *http.Request) {
 	var req ssh.SFTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
 	entries, err := s.ssh.ListDirectory(r.Context(), &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"path":    req.Path,
 		"entries": entries,
 	})
@@ -114,13 +110,13 @@ func (s *Server) handleSFTPList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSFTPRead(w http.ResponseWriter, r *http.Request) {
 	var req ssh.SFTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
 	data, err := s.ssh.ReadFile(r.Context(), &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -130,8 +126,7 @@ func (s *Server) handleSFTPRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"path":    req.Path,
 		"content": string(data),
 		"size":    len(data),
@@ -141,18 +136,17 @@ func (s *Server) handleSFTPRead(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSFTPWrite(w http.ResponseWriter, r *http.Request) {
 	var req ssh.SFTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
 	n, err := s.ssh.WriteFile(r.Context(), &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"success":      true,
 		"path":         req.Path,
 		"bytesWritten": n,
@@ -162,34 +156,32 @@ func (s *Server) handleSFTPWrite(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSFTPStat(w http.ResponseWriter, r *http.Request) {
 	var req ssh.SFTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
 	fi, err := s.ssh.StatFile(r.Context(), &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(fi)
+	jsonResponse(w, http.StatusOK, fi)
 }
 
 func (s *Server) handleSFTPMkdir(w http.ResponseWriter, r *http.Request) {
 	var req ssh.SFTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
 	if err := s.ssh.MakeDirectory(r.Context(), &req); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"success": true,
 		"path":    req.Path,
 	})
@@ -198,17 +190,16 @@ func (s *Server) handleSFTPMkdir(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSFTPDelete(w http.ResponseWriter, r *http.Request) {
 	var req ssh.SFTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
 	if err := s.ssh.DeleteItem(r.Context(), &req); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"success": true,
 		"path":    req.Path,
 	})
@@ -217,17 +208,16 @@ func (s *Server) handleSFTPDelete(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSFTPRename(w http.ResponseWriter, r *http.Request) {
 	var req ssh.SFTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
 	if err := s.ssh.RenameItem(r.Context(), &req); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"success": true,
 		"oldPath": req.Path,
 		"newPath": req.NewPath,
@@ -237,16 +227,15 @@ func (s *Server) handleSFTPRename(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSFTPBatchRead(w http.ResponseWriter, r *http.Request) {
 	var req ssh.SFTPBatchReadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
 	res, err := s.ssh.BatchReadFile(r.Context(), &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(res)
+	jsonResponse(w, http.StatusOK, res)
 }

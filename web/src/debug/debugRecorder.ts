@@ -232,6 +232,70 @@ export function initDebugRecorder() {
     }
   };
 
+  // 4b. Intercept window.WebSocket for live terminal & socket telemetry
+  if (typeof window.WebSocket !== 'undefined') {
+    const OriginalWebSocket = window.WebSocket;
+    const PatchedWebSocket = function (url: string | URL, protocols?: string | string[]) {
+      const ws = new OriginalWebSocket(url, protocols);
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      const corrId = getOrGenerateCorrId();
+
+      recordDebugEvent(
+        'TERMINAL',
+        'network',
+        `WS_CONNECT: ${urlStr}`,
+        urlStr,
+        { url: urlStr },
+        undefined,
+        corrId
+      );
+
+      ws.addEventListener('open', () => {
+        recordDebugEvent(
+          'TERMINAL',
+          'network',
+          `WS_OPEN: Connected to ${urlStr}`,
+          urlStr,
+          { url: urlStr },
+          undefined,
+          corrId
+        );
+      });
+
+      ws.addEventListener('error', () => {
+        recordDebugEvent(
+          'RUNTIME_ERROR',
+          'network',
+          `WS_ERROR: Connection failed on ${urlStr}`,
+          urlStr,
+          { url: urlStr },
+          undefined,
+          corrId
+        );
+      });
+
+      ws.addEventListener('close', (e: CloseEvent) => {
+        recordDebugEvent(
+          'TERMINAL',
+          'network',
+          `WS_CLOSE: Code ${e.code} (${e.reason || 'closed'}) on ${urlStr}`,
+          urlStr,
+          { code: e.code, reason: e.reason },
+          undefined,
+          corrId
+        );
+      });
+
+      return ws;
+    };
+    PatchedWebSocket.prototype = OriginalWebSocket.prototype;
+    (PatchedWebSocket as any).CONNECTING = OriginalWebSocket.CONNECTING;
+    (PatchedWebSocket as any).OPEN = OriginalWebSocket.OPEN;
+    (PatchedWebSocket as any).CLOSING = OriginalWebSocket.CLOSING;
+    (PatchedWebSocket as any).CLOSED = OriginalWebSocket.CLOSED;
+    window.WebSocket = PatchedWebSocket as any;
+  }
+
   // 5. Intercept DOM Mutation for Modals & Toasts
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((m) => {
@@ -431,7 +495,11 @@ function updateBadgeCounter(count: number) {
 
 function extractBodySnippet(body: any): string | undefined {
   if (!body) return undefined;
-  if (typeof body === 'string') return sanitizeString(body.slice(0, 200));
+  if (typeof body === 'string') {
+    const maxLen = 400;
+    const text = body.length > maxLen ? `${body.slice(0, maxLen)} ... [truncated ${body.length} chars]` : body;
+    return sanitizeString(text);
+  }
   if (body instanceof FormData) return '[FormData]';
   return undefined;
 }

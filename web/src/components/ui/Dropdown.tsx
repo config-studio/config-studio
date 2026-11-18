@@ -42,6 +42,8 @@ export interface DropdownProps {
   accentColor?: string;
   renderOption?: (option: DropdownOption, isSelected: boolean) => React.ReactNode;
   renderSelected?: (option: DropdownOption) => React.ReactNode;
+  renderTrigger?: (selected?: DropdownOption, isOpen?: boolean) => React.ReactNode;
+  align?: 'left' | 'right';
 }
 
 export const Dropdown: React.FC<DropdownProps> = ({
@@ -63,6 +65,8 @@ export const Dropdown: React.FC<DropdownProps> = ({
   accentColor = '#00d2b4',
   renderOption,
   renderSelected,
+  renderTrigger,
+  align = 'left',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
@@ -283,64 +287,74 @@ export const Dropdown: React.FC<DropdownProps> = ({
         </label>
       )}
 
-      {/* Trigger Button */}
-      <div
-        tabIndex={disabled ? -1 : 0}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full ${
-          size === 'sm' ? 'min-h-[30px] px-2.5 py-1 text-xs' : 'min-h-[36px] px-3 py-1.5 text-xs'
-        } bg-base-surface border rounded-xl flex items-center justify-between cursor-pointer transition select-none ${
-          error
-            ? 'border-red-500 ring-1 ring-red-500'
-            : isOpen
-            ? 'border-accent ring-1 ring-accent/30'
-            : 'border-base-border hover:border-accent hover:bg-base-surface-hover'
-        } ${disabled ? 'opacity-50 cursor-not-allowed bg-black/20' : ''}`}
-      >
-        <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
-          {selectedOption ? (
-            renderSelected ? (
-              renderSelected(selectedOption)
+      {/* Trigger */}
+      {renderTrigger ? (
+        <div
+          tabIndex={disabled ? -1 : 0}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          className={`cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
+        >
+          {renderTrigger(selectedOption, isOpen)}
+        </div>
+      ) : (
+        <div
+          tabIndex={disabled ? -1 : 0}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          className={`w-full ${
+            size === 'sm' ? 'min-h-[30px] px-2.5 py-1 text-xs' : 'min-h-[36px] px-3 py-1.5 text-xs'
+          } bg-base-surface border rounded-xl flex items-center justify-between cursor-pointer transition select-none ${
+            error
+              ? 'border-red-500 ring-1 ring-red-500'
+              : isOpen
+              ? 'border-accent ring-1 ring-accent/30'
+              : 'border-base-border hover:border-accent hover:bg-base-surface-hover'
+          } ${disabled ? 'opacity-50 cursor-not-allowed bg-black/20' : ''}`}
+        >
+          <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+            {selectedOption ? (
+              renderSelected ? (
+                renderSelected(selectedOption)
+              ) : (
+                <>
+                  {selectedOption.statusDot && <StatusDot status={selectedOption.statusDot} size="sm" />}
+                  {selectedOption.icon && <span className="shrink-0 text-[var(--text-muted)]">{selectedOption.icon}</span>}
+                  <div className="truncate flex items-center space-x-1.5 min-w-0 flex-1">
+                    <span className="truncate text-[var(--text-primary)] font-medium">{selectedOption.label}</span>
+                    {selectedOption.badge && (
+                      <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded shrink-0 ${getBadgeClass(selectedOption.badgeColor)}`}>
+                        {selectedOption.badge}
+                      </span>
+                    )}
+                  </div>
+                </>
+              )
             ) : (
-              <>
-                {selectedOption.statusDot && <StatusDot status={selectedOption.statusDot} size="sm" />}
-                {selectedOption.icon && <span className="shrink-0 text-[var(--text-muted)]">{selectedOption.icon}</span>}
-                <div className="truncate flex items-center space-x-1.5 min-w-0 flex-1">
-                  <span className="truncate text-[var(--text-primary)] font-medium">{selectedOption.label}</span>
-                  {selectedOption.badge && (
-                    <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded shrink-0 ${getBadgeClass(selectedOption.badgeColor)}`}>
-                      {selectedOption.badge}
-                    </span>
-                  )}
-                </div>
-              </>
-            )
-          ) : (
-            <span className="text-[var(--text-muted)] truncate">{placeholder}</span>
-          )}
-        </div>
+              <span className="text-[var(--text-muted)] truncate">{placeholder}</span>
+            )}
+          </div>
 
-        <div className="flex items-center space-x-1.5 shrink-0 text-[var(--text-muted)]">
-          {clearable && selectedOption && !disabled && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="p-0.5 hover:text-[var(--text-primary)] rounded transition"
-            >
-              <X size={13} />
-            </button>
-          )}
-          <ChevronDown
-            size={14}
-            className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-[var(--text-primary)]' : ''}`}
-          />
+          <div className="flex items-center space-x-1.5 shrink-0 text-[var(--text-muted)]">
+            {clearable && selectedOption && !disabled && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="p-0.5 hover:text-[var(--text-primary)] rounded transition"
+              >
+                <X size={13} />
+              </button>
+            )}
+            <ChevronDown
+              size={14}
+              className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-[var(--text-primary)]' : ''}`}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Floating Dropdown Menu */}
       {isOpen && (
         <div
-          className={`absolute left-0 min-w-full z-50 bg-base-surface border border-base-border rounded-xl shadow-2xl overflow-hidden text-xs animate-in fade-in zoom-in-95 duration-100 flex flex-col ${
+          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} min-w-full z-50 bg-base-surface border border-base-border rounded-xl shadow-2xl overflow-hidden text-xs animate-in fade-in zoom-in-95 duration-100 flex flex-col ${
             openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
           } ${menuClassName}`}
           style={{ maxHeight: '280px' }}

@@ -277,3 +277,34 @@ func TestBatchReadRoot(t *testing.T) {
 		t.Errorf("expected 2 files and truncated=true, got files=%d, truncated=%v", len(res.Files), res.Truncated)
 	}
 }
+
+func TestSafePathRootSymlinkEscape(t *testing.T) {
+	svc, workDir, cleanup := setupTestService(t)
+	defer cleanup()
+
+	// Create an external secret file outside the workDir
+	outsideDir, err := os.MkdirTemp("", "cs-outside-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(outsideDir)
+
+	secretFile := filepath.Join(outsideDir, "secret.conf")
+	if err := os.WriteFile(secretFile, []byte("super-secret"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	symlinkPath := filepath.Join(workDir, "leak-link.conf")
+	err = os.Symlink(secretFile, symlinkPath)
+	if err != nil {
+		t.Skipf("skipping symlink test (OS does not permit symlink creation): %v", err)
+	}
+
+	_, _, err = svc.SafePathRoot("default", "leak-link.conf")
+	if err == nil {
+		t.Fatalf("expected error accessing symlink pointing outside working directory, got nil")
+	}
+	if !strings.Contains(err.Error(), "symlink") && !strings.Contains(err.Error(), "access denied") {
+		t.Errorf("expected symlink or access denied error, got: %v", err)
+	}
+}

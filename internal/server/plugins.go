@@ -367,17 +367,27 @@ func (s *Server) handleExecPluginCommand(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Capability check: if plugin is specified, verify it has shell.exec capability
-	if req.PluginID != "" && req.PluginID != "core" {
+	settings := s.config.Get()
+	unrestricted := settings.PluginExecUnrestricted
+
+	// Capability check: if plugin is specified, verify it has shell.exec or terminal.exec capability.
+	// Empty or "core" plugin IDs cannot bypass permission check unless unrestricted mode is enabled.
+	if req.PluginID == "" || req.PluginID == "core" {
+		if !unrestricted {
+			jsonError(w, http.StatusForbidden, "unrestricted execution is disabled; command requires a valid plugin with 'shell.exec' or 'terminal.exec' capability")
+			return
+		}
+	} else {
 		p, err := s.plugins.GetPlugin(req.PluginID)
-		if err == nil && !hasPluginPermission(p.Permissions, "shell.exec") {
-			jsonError(w, http.StatusForbidden, fmt.Sprintf("plugin %q lacks required 'shell.exec' capability", req.PluginID))
+		if err != nil {
+			jsonError(w, http.StatusNotFound, fmt.Sprintf("plugin %q not found", req.PluginID))
+			return
+		}
+		if !hasPluginPermission(p.Permissions, "shell.exec") && !hasPluginPermission(p.Permissions, "terminal.exec") {
+			jsonError(w, http.StatusForbidden, fmt.Sprintf("plugin %q lacks required 'shell.exec' or 'terminal.exec' capability", req.PluginID))
 			return
 		}
 	}
-
-	settings := s.config.Get()
-	unrestricted := settings.PluginExecUnrestricted
 
 	// If no cwd specified, default to workdir
 	if req.Cwd == "" {
@@ -433,11 +443,23 @@ func (s *Server) handleStartPluginProcess(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Capability check: if plugin is specified, verify it has shell.exec capability
-	if req.PluginID != "" && req.PluginID != "core" {
+	settings := s.config.Get()
+	unrestricted := settings.PluginExecUnrestricted
+
+	// Capability check: if plugin is specified, verify it has shell.exec or terminal.exec capability
+	if req.PluginID == "" || req.PluginID == "core" {
+		if !unrestricted {
+			jsonError(w, http.StatusForbidden, "execution with core/empty pluginId requires unrestricted plugin execution to be enabled")
+			return
+		}
+	} else {
 		p, err := s.plugins.GetPlugin(req.PluginID)
-		if err == nil && !hasPluginPermission(p.Permissions, "shell.exec") {
-			jsonError(w, http.StatusForbidden, fmt.Sprintf("plugin %q lacks required 'shell.exec' capability", req.PluginID))
+		if err != nil {
+			jsonError(w, http.StatusNotFound, fmt.Sprintf("plugin %q not found", req.PluginID))
+			return
+		}
+		if !hasPluginPermission(p.Permissions, "shell.exec") && !hasPluginPermission(p.Permissions, "terminal.exec") {
+			jsonError(w, http.StatusForbidden, fmt.Sprintf("plugin %q lacks required 'shell.exec' or 'terminal.exec' capability", req.PluginID))
 			return
 		}
 	}
@@ -445,9 +467,6 @@ func (s *Server) handleStartPluginProcess(w http.ResponseWriter, r *http.Request
 	if req.Cwd == "" {
 		req.Cwd = s.fs.WorkDir
 	}
-
-	settings := s.config.Get()
-	unrestricted := settings.PluginExecUnrestricted
 
 	info, err := s.pluginRunner.StartProcess(req.PluginID, req.Command, req.Args, req.Cwd, req.Port, unrestricted, req.Confirmed)
 	if err != nil {

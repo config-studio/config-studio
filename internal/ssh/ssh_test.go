@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -272,12 +273,17 @@ func TestRealAlpineVM(t *testing.T) {
 	}
 	_ = conn.Close()
 
+	pass := os.Getenv("CS_TEST_SSH_PASSWORD")
+	if pass == "" {
+		t.Skip("CS_TEST_SSH_PASSWORD not set, skipping live Alpine VM test")
+	}
+
 	mgr := NewClientManager(nil)
 	cfg := &Config{
 		Host:     "192.168.0.161",
 		Port:     22,
 		User:     "root",
-		Password: "odusib22",
+		Password: pass,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -294,7 +300,7 @@ func TestRealAlpineVM(t *testing.T) {
 		Host:     "192.168.0.161",
 		Port:     22,
 		User:     "root",
-		Password: "odusib22",
+		Password: pass,
 		Path:     "/etc",
 	})
 	if err != nil {
@@ -307,11 +313,65 @@ func TestRealAlpineVM(t *testing.T) {
 		Host:     "192.168.0.161",
 		Port:     22,
 		User:     "root",
-		Password: "odusib22",
+		Password: pass,
 		Path:     "/etc/hosts",
 	})
 	if err != nil {
 		t.Fatalf("SFTP ReadFile failed: %v", err)
 	}
 	t.Logf("SFTP Read /etc/hosts (%d bytes):\n%s", len(hostsData), string(hostsData))
+}
+
+func TestTOFUHostKeyVerification(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-tofu-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	knownHostsFile := filepath.Join(tmpDir, "known_hosts")
+	mgr := NewClientManager(nil)
+	mgr.SetKnownHostsPath(knownHostsFile)
+
+	cb := mgr.buildHostKeyCallback()
+
+	// Generate key A
+	pubA, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate ed25519 key: %v", err)
+	}
+	sshPubA, err := gossh.NewPublicKey(pubA)
+	if err != nil {
+		t.Fatalf("failed to parse ssh pubkey: %v", err)
+	}
+
+	remoteAddr, _ := net.ResolveTCPAddr("tcp", "10.0.0.5:22")
+
+	// 1. First connection: TOFU should record key A and return nil
+	if err := cb("10.0.0.5:22", remoteAddr, sshPubA); err != nil {
+		t.Fatalf("expected TOFU to succeed on first connect, got %v", err)
+	}
+
+	// Verify file was written
+	data, err := os.ReadFile(knownHostsFile)
+	if err != nil || len(data) == 0 {
+		t.Fatalf("expected known_hosts file to be populated, err: %v", err)
+	}
+
+	// 2. Second connection with same key: should succeed without error
+	if err := cb("10.0.0.5:22", remoteAddr, sshPubA); err != nil {
+		t.Fatalf("expected known key to match, got %v", err)
+	}
+
+	// 3. Third connection with DIFFERENT key B: MITM attack simulation!
+	pubB, _, _ := ed25519.GenerateKey(rand.Reader)
+	sshPubB, _ := gossh.NewPublicKey(pubB)
+
+	errMismatch := cb("10.0.0.5:22", remoteAddr, sshPubB)
+	if errMismatch == nil {
+		t.Fatal("expected error on host key mismatch, but got nil!")
+	}
+	if !strings.Contains(errMismatch.Error(), "possible MITM attack") {
+		t.Errorf("expected MITM error message, got: %v", errMismatch)
+	}
 }

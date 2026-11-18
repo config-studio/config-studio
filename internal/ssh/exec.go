@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -145,12 +146,37 @@ func (m *ClientManager) executeRemoteSSHCommand(ctx context.Context, cfg *Config
 	session.Stdout = &stdoutBuf
 	session.Stderr = &stderrBuf
 
+	var stdinPipe io.WriteCloser
 	finalCmd := command
 	if req.Sudo && cfg.User != "root" && cfg.Password != "" {
-		finalCmd = fmt.Sprintf("echo '%s' | sudo -S -p '' %s", strings.ReplaceAll(cfg.Password, "'", `'\''`), command)
+		finalCmd = fmt.Sprintf("sudo -S -p '' %s", command)
+		pipe, err := session.StdinPipe()
+		if err == nil {
+			stdinPipe = pipe
+		}
 	}
 
-	runErr := session.Run(finalCmd)
+	if stdinPipe != nil {
+		go func() {
+			_, _ = io.WriteString(stdinPipe, cfg.Password+"\n")
+			_ = stdinPipe.Close()
+		}()
+	}
+
+	runChan := make(chan error, 1)
+	go func() {
+		runChan <- session.Run(finalCmd)
+	}()
+
+	var runErr error
+	select {
+	case <-ctx.Done():
+		_ = session.Signal(gossh.SIGKILL)
+		_ = session.Close()
+		runErr = ctx.Err()
+	case err := <-runChan:
+		runErr = err
+	}
 	durationMs := time.Since(start).Milliseconds()
 
 	exitCode := 0

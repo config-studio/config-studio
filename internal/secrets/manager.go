@@ -1,6 +1,7 @@
 package secrets
 
 import (
+	"config-studio/internal/fsutil"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -43,7 +44,11 @@ func NewManager(dataDir string) (*Manager, error) {
 	}
 
 	if err := m.loadMetadata(); err != nil {
-		_ = m.saveMetadata()
+		if os.IsNotExist(err) {
+			_ = m.saveMetadata()
+		} else {
+			return nil, fmt.Errorf("failed to load secrets metadata: %w", err)
+		}
 	}
 
 	return m, nil
@@ -80,22 +85,17 @@ func (m *Manager) loadMetadata() error {
 	}
 
 	if migrated {
-		// unlock mu temporarily or save asynchronously without lock deadlock
-		go func() {
-			_ = m.saveMetadata()
-		}()
+		_ = m.saveMetadataLocked()
 	}
 
 	return nil
 }
 
-func (m *Manager) saveMetadata() error {
-	m.mu.RLock()
+func (m *Manager) saveMetadataLocked() error {
 	list := make([]SecretMeta, 0, len(m.items))
 	for _, it := range m.items {
 		list = append(list, it)
 	}
-	m.mu.RUnlock()
 
 	sort.Slice(list, func(i, j int) bool {
 		return list[i].Title < list[j].Title
@@ -106,7 +106,13 @@ func (m *Manager) saveMetadata() error {
 		return err
 	}
 
-	return os.WriteFile(m.metadataFile, data, 0644)
+	return fsutil.SafeWriteFile(m.metadataFile, data, 0600)
+}
+
+func (m *Manager) saveMetadata() error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.saveMetadataLocked()
 }
 
 func (m *Manager) Status(authEnabled bool, sessionToken string) StoreStatus {
@@ -248,7 +254,9 @@ func (m *Manager) Delete(id string) error {
 	}
 
 	// 1. Remove from secure provider
-	_ = m.provider.Delete(cleanID)
+	if err := m.provider.Delete(cleanID); err != nil {
+		return fmt.Errorf("failed to delete secret from provider: %w", err)
+	}
 
 	// 2. Remove from metadata
 	m.mu.Lock()
@@ -266,7 +274,15 @@ func (m *Manager) UnlockSession(sessionToken string, duration time.Duration) {
 	}
 	m.privMu.Lock()
 	defer m.privMu.Unlock()
-	m.privSessions[sessionToken] = time.Now().Add(duration)
+
+	now := time.Now()
+	for tok, exp := range m.privSessions {
+		if now.After(exp) {
+			delete(m.privSessions, tok)
+		}
+	}
+
+	m.privSessions[sessionToken] = now.Add(duration)
 }
 
 func (m *Manager) LockSession(sessionToken string) {

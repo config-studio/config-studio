@@ -145,8 +145,9 @@ func (m *Manager) BatchInstallAgents(
 					st.Status = "error"
 					st.Step = "Прервано"
 					st.Error = "Контекст выполнения отменен"
-					emitProgress(*st)
+					snap := *st
 					mu.Unlock()
+					emitProgress(snap)
 					continue
 				default:
 				}
@@ -164,8 +165,9 @@ func (m *Manager) BatchInstallAgents(
 						st.Step = "Агент уже активен"
 						st.AgentURL = srv.Connection.Agent.URL
 						st.Logs = append(st.Logs, "Узел пропущен: обнаружен рабочий агент на "+srv.Connection.Agent.URL)
-						emitProgress(*st)
+						snap := *st
 						mu.Unlock()
+						emitProgress(snap)
 						continue
 					}
 					if resp != nil {
@@ -181,8 +183,9 @@ func (m *Manager) BatchInstallAgents(
 					st.Step = "Ошибка SSH"
 					st.Error = "SSH подключение не настроено для узла"
 					st.Logs = append(st.Logs, "Ошибка: SSH подключение отключено или не сконфигурировано")
-					emitProgress(*st)
+					snap := *st
 					mu.Unlock()
+					emitProgress(snap)
 					continue
 				}
 
@@ -191,8 +194,9 @@ func (m *Manager) BatchInstallAgents(
 				st := statusMap[srv.ID]
 				st.Status = "connecting"
 				st.Step = "Подключение..."
-				emitProgress(*st)
+				snap := *st
 				mu.Unlock()
+				emitProgress(snap)
 
 				// Perform InstallAgent
 				res, err := m.InstallAgent(ctx, srv.ID, opts.Options, sshMgr, secMgr)
@@ -211,13 +215,14 @@ func (m *Manager) BatchInstallAgents(
 				} else {
 					st.Status = "success"
 					st.Step = "Успешно"
-					st.AgentURL = res.AgentURL
 					if res != nil {
+						st.AgentURL = res.AgentURL
 						st.Logs = append(st.Logs, res.Logs...)
 					}
 				}
-				emitProgress(*st)
+				snap = *st
 				mu.Unlock()
+				emitProgress(snap)
 			}
 		}()
 	}

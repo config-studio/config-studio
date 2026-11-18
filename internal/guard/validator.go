@@ -291,13 +291,20 @@ func validateConf(filePath string, content []byte) []GuardIssue {
 		// Count braces while ignoring quotes
 		inDoubleQuote := false
 		inSingleQuote := false
+		isEscaped := false
 
 		for cIdx, ch := range rawLine {
-			if ch == '"' && !inSingleQuote {
+			if ch == '\\' {
+				isEscaped = !isEscaped
+				continue
+			}
+
+			if ch == '"' && !inSingleQuote && !isEscaped {
 				inDoubleQuote = !inDoubleQuote
-			} else if ch == '\'' && !inDoubleQuote {
+			} else if ch == '\'' && !inDoubleQuote && !isEscaped {
 				inSingleQuote = !inSingleQuote
 			}
+			isEscaped = false
 
 			if !inDoubleQuote && !inSingleQuote {
 				if ch == '{' {

@@ -3,7 +3,6 @@ package server
 import (
 	"io"
 	"net/http"
-	"time"
 )
 
 // handleDebugProxy proxies debug telemetry requests to the local debug server (:9998).
@@ -23,7 +22,7 @@ func (s *Server) handleDebugProxy(w http.ResponseWriter, r *http.Request) {
 		proxyReq.Header.Set("Content-Type", ct)
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := s.getProxyClient()
 	resp, err := client.Do(proxyReq)
 	if err != nil {
 		jsonError(w, http.StatusBadGateway, "debug server :9998 unreachable: "+err.Error())

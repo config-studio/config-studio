@@ -206,3 +206,49 @@ func TestSecretsEndpoints(t *testing.T) {
 		t.Fatalf("secret should be deleted")
 	}
 }
+
+func TestSecrets_AutoGenerateIDFromTitle(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-server-secrets-auto-id-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	cfgMgr, _ := config.NewManager(tmpDir)
+	fsSvc, _ := appfs.NewService(tmpDir)
+	runner := plugin.NewRunner()
+	defer runner.Shutdown()
+	pMgr, _ := plugin.NewManager(tmpDir, runner)
+	auditLogger, _ := audit.NewLogger(tmpDir)
+	defer auditLogger.Close()
+	secMgr, _ := secrets.NewManager(tmpDir)
+
+	srv := NewServer(Config{}, cfgMgr, fsSvc, pMgr, runner, auditLogger, secMgr)
+
+	// User provides empty ID, title "1111"
+	saveBody, _ := json.Marshal(map[string]any{
+		"id":    "",
+		"title": "1111",
+		"type":  "password",
+		"scope": "shared",
+		"value": "MyPass123",
+	})
+	req := httptest.NewRequest("POST", "/api/secrets/save", bytes.NewReader(saveBody))
+	req.Header.Set("X-ConfigStudio-Web", "1")
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK with auto-generated ID, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	generatedID, _ := resp["id"].(string)
+	if generatedID == "" {
+		t.Fatalf("expected non-empty generated ID, got empty")
+	}
+	if !secMgr.Has(generatedID) {
+		t.Fatalf("expected secret with id %q to exist in vault", generatedID)
+	}
+}

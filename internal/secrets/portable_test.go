@@ -2,6 +2,7 @@ package secrets
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -96,5 +97,35 @@ func TestPortableVault_ExportAndImport(t *testing.T) {
 	}
 	if val2 != "SuperSecretP@ssword123!" {
 		t.Errorf("value mismatch for sec-pwd-1: %s", val2)
+	}
+}
+
+func TestPortableVault_ExportAbortsOnSecretRetrievalFailure(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs_portable_err_*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mgr, err := NewManager(tmpDir)
+	if err != nil {
+		t.Fatalf("NewManager failed: %v", err)
+	}
+
+	// Inject metadata for a secret that does not exist in provider
+	mgr.mu.Lock()
+	mgr.items["ghost-secret"] = SecretMeta{
+		ID:    "ghost-secret",
+		Title: "Ghost",
+	}
+	mgr.mu.Unlock()
+
+	// Export should fail with descriptive error rather than silently omitting it
+	_, err = mgr.ExportPortable("test-passphrase")
+	if err == nil {
+		t.Fatal("expected ExportPortable to fail when a secret is missing from provider, but succeeded")
+	}
+	if !strings.Contains(err.Error(), "ghost-secret") {
+		t.Errorf("expected error to mention failing secret ID, got: %v", err)
 	}
 }

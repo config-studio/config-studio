@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"config-studio/internal/fsutil"
 	"gopkg.in/yaml.v3"
 )
 
@@ -323,7 +324,11 @@ func (m *Manager) maybeReload() {
 	if err != nil {
 		return
 	}
-	if fi.ModTime().After(m.lastLoadedTime) {
+	m.mu.RLock()
+	lastLoaded := m.lastLoadedTime
+	m.mu.RUnlock()
+
+	if fi.ModTime().After(lastLoaded) {
 		_ = m.load()
 	}
 }
@@ -373,13 +378,7 @@ func (m *Manager) saveLocked() error {
 	header := []byte("# servers.yaml v2 — Config Studio Fleet Inventory\n")
 	content := append(header, data...)
 
-	tmpPath := m.filePath + ".tmp"
-	if err := os.WriteFile(tmpPath, content, 0644); err != nil {
-		return err
-	}
-
-	if err := os.Rename(tmpPath, m.filePath); err != nil {
-		_ = os.Remove(tmpPath)
+	if err := fsutil.SafeWriteFile(m.filePath, content, 0644); err != nil {
 		return err
 	}
 
@@ -535,12 +534,7 @@ func (m *Manager) SetRawYAML(rawContent string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	tmpPath := m.filePath + ".tmp"
-	if err := os.WriteFile(tmpPath, []byte(rawContent), 0644); err != nil {
-		return err
-	}
-	if err := os.Rename(tmpPath, m.filePath); err != nil {
-		_ = os.Remove(tmpPath)
+	if err := fsutil.SafeWriteFile(m.filePath, []byte(rawContent), 0644); err != nil {
 		return err
 	}
 

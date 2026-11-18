@@ -288,3 +288,42 @@ func TestFleet_GetAgentBinaryStream(t *testing.T) {
 		t.Errorf("expected source to contain binary name, got %q", src)
 	}
 }
+
+func TestFleet_SafeWrite_Atomic(t *testing.T) {
+	tempDir := t.TempDir()
+	mgr, err := NewManager(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create manager: %v", err)
+	}
+
+	err = mgr.AddOrUpdateServer(ServerNode{
+		ID:   "safe-srv-1",
+		Name: "Safe Server 1",
+		Host: "192.168.1.100",
+	})
+	if err != nil {
+		t.Fatalf("failed to add server: %v", err)
+	}
+
+	// Verify no temporary files are left behind
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		t.Fatalf("failed to read tempDir: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".tmp") {
+			t.Errorf("found leftover tmp file: %s", entry.Name())
+		}
+	}
+
+	// Verify SetRawYAML also uses atomic safe write without leftover temp files
+	newYAML := "servers:\n  - id: safe-srv-2\n    name: Safe Server 2\n    host: 192.168.1.101\n"
+	if err := mgr.SetRawYAML(newYAML); err != nil {
+		t.Fatalf("SetRawYAML failed: %v", err)
+	}
+
+	srv, err := mgr.GetServer("safe-srv-2")
+	if err != nil || srv.Name != "Safe Server 2" {
+		t.Errorf("expected server 2 after SetRawYAML, got: %+v, err: %v", srv, err)
+	}
+}

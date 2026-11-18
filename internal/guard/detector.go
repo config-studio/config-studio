@@ -82,7 +82,18 @@ func MatchPattern(pattern, path string) bool {
 			prefix := strings.TrimSuffix(parts[0], "/")
 			suffix := strings.TrimPrefix(parts[1], "/")
 
-			hasPrefix := prefix == "" || strings.HasPrefix(lowerPath, prefix) || strings.Contains(lowerPath, prefix)
+			hasPrefix := false
+			if prefix == "" {
+				hasPrefix = true
+			} else {
+				normPrefix := strings.Trim(prefix, "/")
+				normPath := strings.Trim(lowerPath, "/")
+				if normPath == normPrefix ||
+					strings.HasPrefix(normPath, normPrefix+"/") ||
+					strings.Contains("/"+normPath+"/", "/"+normPrefix+"/") {
+					hasPrefix = true
+				}
+			}
 			hasSuffix := false
 			if suffix == "" {
 				hasSuffix = true

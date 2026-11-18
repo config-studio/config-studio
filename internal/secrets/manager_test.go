@@ -213,3 +213,55 @@ func TestSecretsManager_AgentMigration(t *testing.T) {
 		t.Fatalf("Expected auto-migrated type to be %s, got %s", TypeAgentCredentials, meta.Type)
 	}
 }
+
+func TestVault_NoDataLossOnReadError(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "cs-vault-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	v, err := NewEncryptedVaultProvider(tempDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := v.Set("k1", "v1"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Corrupt vault file
+	if err := os.WriteFile(v.filePath, []byte("corrupt-garbage-bytes"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Calling Set with corrupted vault must return an error and NOT overwrite with only {"k2": "v2"}
+	err = v.Set("k2", "v2")
+	if err == nil {
+		t.Fatalf("expected error from Set() when vault is corrupt, got nil")
+	}
+}
+
+func TestManager_NoMetadataOverwriteOnLoadFailure(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "cs-meta-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	metaFile := filepath.Join(tempDir, "secrets_metadata.json")
+	if err := os.WriteFile(metaFile, []byte("{invalid-json}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = NewManager(tempDir)
+	if err == nil {
+		t.Fatalf("expected NewManager to fail on corrupt metadata JSON, got nil")
+	}
+
+	// Verify original file was not overwritten with empty metadata
+	content, _ := os.ReadFile(metaFile)
+	if string(content) != "{invalid-json}" {
+		t.Fatalf("corrupt metadata file was unexpectedly overwritten: %s", string(content))
+	}
+}

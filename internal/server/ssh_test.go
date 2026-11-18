@@ -153,3 +153,26 @@ func TestServerSSHExecEndpoint(t *testing.T) {
 		t.Errorf("Expected 'remote-exec-test' in stdout, got: %q", res.Stdout)
 	}
 }
+
+func TestServerSSHWebSocket_HandshakeAuth(t *testing.T) {
+	srv, cleanup := createTestServerWithSSH(t)
+	defer cleanup()
+
+	// Browser WebSocket handshake cannot send custom headers (like X-ConfigStudio-Web: 1).
+	// It relies on query param ?web=1 and Upgrade: websocket with loopback / matching Origin.
+	req := httptest.NewRequest("GET", "/api/ssh/ws?web=1", nil)
+	req.Header.Set("Upgrade", "websocket")
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+	req.Header.Set("Sec-WebSocket-Version", "13")
+	req.Header.Set("Origin", "http://"+req.Host)
+	w := httptest.NewRecorder()
+
+	srv.ServeHTTP(w, req)
+
+	// Before fix: returns 403 Forbidden because authMiddleware rejects non-WebUI requests when ApiEnabled is false.
+	// After fix: authMiddleware accepts it as WebUI and passes to WebSocket upgrader (which proceeds to handshake or 101/400).
+	if w.Code == http.StatusForbidden {
+		t.Fatalf("Expected WebSocket request to pass authMiddleware, but was blocked with 403 Forbidden: %s", w.Body.String())
+	}
+}

@@ -2,9 +2,13 @@ package config
 
 import (
 	"bytes"
+	"config-studio/internal/fsutil"
+	"crypto/subtle"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -22,6 +26,8 @@ type Settings struct {
 	AuthEnabled   bool   `json:"authEnabled" yaml:"auth_enabled"`
 	AuthUser      string `json:"authUser" yaml:"auth_user"`
 	AuthPass      string `json:"authPass,omitempty" yaml:"auth_pass,omitempty"`
+	TrustForwardAuth       bool     `json:"trustForwardAuth" yaml:"trust_forward_auth"`
+	TrustedProxies         []string `json:"trustedProxies" yaml:"trusted_proxies"`
 	ApiEnabled             bool     `json:"apiEnabled" yaml:"api_enabled"`
 	ApiKey                 string   `json:"apiKey,omitempty" yaml:"api_key,omitempty"`
 	PluginExecUnrestricted bool     `json:"pluginExecUnrestricted" yaml:"plugin_exec_unrestricted"`
@@ -48,6 +54,8 @@ func DefaultSettings() Settings {
 		AuthEnabled:   false,
 		AuthUser:      "admin",
 		AuthPass:      "admin",
+		TrustForwardAuth:       false,
+		TrustedProxies:         []string{"127.0.0.1/32", "::1/128"},
 		ApiEnabled:             false,
 		ApiKey:                 "",
 		PluginExecUnrestricted: false,
@@ -150,7 +158,7 @@ func (m *Manager) save() error {
 		return err
 	}
 	header := []byte("# Config Studio Application Settings\n# You can edit this file directly or via the Web UI\n\n")
-	return os.WriteFile(m.settingsPath(), append(header, data...), 0644)
+	return fsutil.SafeWriteFile(m.settingsPath(), append(header, data...), 0644)
 }
 
 func (m *Manager) Get() Settings {
@@ -161,16 +169,23 @@ func (m *Manager) Get() Settings {
 	return s
 }
 
+var svgXSSRegex = regexp.MustCompile(`(?i)(<script[\s>]|javascript:|xlink:href\s*=\s*["']javascript:|on\w+\s*=|<foreignObject)`)
+
 func (m *Manager) CheckAuth(user, pass string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.current.AuthUser == user && m.current.AuthPass == pass
+	userMatch := subtle.ConstantTimeCompare([]byte(m.current.AuthUser), []byte(user)) == 1
+	passMatch := subtle.ConstantTimeCompare([]byte(m.current.AuthPass), []byte(pass)) == 1
+	return userMatch && passMatch
 }
 
 func (m *Manager) CheckPass(pass string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.current.AuthPass != "" && m.current.AuthPass == pass
+	if m.current.AuthPass == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(m.current.AuthPass), []byte(pass)) == 1
 }
 
 func (m *Manager) GetIconMime() string {
@@ -208,6 +223,21 @@ func (m *Manager) Update(s Settings) error {
 	if s.AuthPass != "" {
 		m.current.AuthPass = s.AuthPass
 	}
+	m.current.TrustForwardAuth = s.TrustForwardAuth
+	if s.TrustedProxies != nil {
+		var cleanProxies []string
+		for _, raw := range s.TrustedProxies {
+			for _, part := range strings.FieldsFunc(raw, func(r rune) bool {
+				return r == ',' || r == ';' || r == '\n' || r == '\r' || r == ' '
+			}) {
+				p := strings.TrimSpace(part)
+				if p != "" {
+					cleanProxies = append(cleanProxies, p)
+				}
+			}
+		}
+		m.current.TrustedProxies = cleanProxies
+	}
 	m.current.ApiEnabled = s.ApiEnabled
 	if s.ApiKey != "" {
 		m.current.ApiKey = s.ApiKey
@@ -231,16 +261,6 @@ func (m *Manager) SaveIcon(src io.Reader, filename string) error {
 		return err
 	}
 
-	dst, err := os.Create(m.IconPath())
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
-
-	if _, err := dst.Write(data); err != nil {
-		return err
-	}
-
 	// Detect MIME type reliably
 	mime := "image/png"
 	lowerName := strings.ToLower(filename)
@@ -248,12 +268,19 @@ func (m *Manager) SaveIcon(src io.Reader, filename string) error {
 
 	if strings.HasSuffix(lowerName, ".svg") || strings.Contains(lowerContent, "<svg") || strings.Contains(lowerContent, "<?xml") {
 		mime = "image/svg+xml"
+		if svgXSSRegex.Match(data) {
+			return errors.New("uploaded SVG icon contains active scripting or unsafe event handlers (rejected for security)")
+		}
 	} else if strings.HasSuffix(lowerName, ".ico") || bytes.HasPrefix(data, []byte("\x00\x00\x01\x00")) {
 		mime = "image/x-icon"
 	} else if strings.HasSuffix(lowerName, ".webp") || (bytes.HasPrefix(data, []byte("RIFF")) && len(data) > 12 && string(data[8:12]) == "WEBP") {
 		mime = "image/webp"
 	} else if bytes.HasPrefix(data, []byte("\x89PNG")) {
 		mime = "image/png"
+	}
+
+	if err := fsutil.SafeWriteFile(m.IconPath(), data, 0644); err != nil {
+		return err
 	}
 
 	m.current.HasCustomIcon = true

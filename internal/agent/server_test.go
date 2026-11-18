@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -161,5 +162,76 @@ func TestServerAdopt(t *testing.T) {
 	srv.srv.Handler.ServeHTTP(w, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("Expected 403 on second adopt call, got %d", w.Code)
+	}
+}
+
+func TestServerAdopt_WithToken(t *testing.T) {
+	srv, cfg, _ := setupTestServer(t)
+	cfg.AdoptToken = "secret-adopt-token-123"
+
+	// 1. Without header -> 401 Unauthorized
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/adopt", nil)
+	srv.srv.Handler.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("Expected 401 on adopt without token, got %d", w.Code)
+	}
+
+	// 2. With wrong token -> 401 Unauthorized
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/adopt", nil)
+	req.Header.Set("X-CS-Adopt-Token", "wrong-token")
+	srv.srv.Handler.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("Expected 401 on adopt with wrong token, got %d", w.Code)
+	}
+
+	// 3. With correct token -> 200 OK
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/adopt", nil)
+	req.Header.Set("X-CS-Adopt-Token", "secret-adopt-token-123")
+	srv.srv.Handler.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200 on adopt with correct token, got %d", w.Code)
+	}
+}
+
+func TestAgent_WriteFile_BackupPreservesOriginal(t *testing.T) {
+	srv, cfg, tmpDir := setupTestServer(t)
+
+	targetFile := filepath.Join(tmpDir, "config.json")
+	initialContent := []byte(`{"version": 1, "data": "initial"}`)
+	if err := os.WriteFile(targetFile, initialContent, 0644); err != nil {
+		t.Fatalf("failed to write initial file: %v", err)
+	}
+
+	otp, _ := GenerateTOTP(cfg.Master.Secret, time.Now(), 6)
+	body, _ := json.Marshal(map[string]string{
+		"path":    targetFile,
+		"content": `{"version": 2, "data": "updated"}`,
+	})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/fs/file", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+cfg.Master.KeyID+":"+otp)
+	req.Header.Set("X-Nonce", "nonce-backup-test-1")
+	srv.srv.Handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 from fs/file, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify target file has updated content
+	updatedData, err := os.ReadFile(targetFile)
+	if err != nil || string(updatedData) != `{"version": 2, "data": "updated"}` {
+		t.Errorf("target file content mismatch: %s", string(updatedData))
+	}
+
+	// Verify .csbak file has ORIGINAL content
+	backupData, err := os.ReadFile(targetFile + ".csbak")
+	if err != nil {
+		t.Fatalf("failed to read backup file: %v", err)
+	}
+	if string(backupData) != string(initialContent) {
+		t.Errorf("backup file must contain initial content %q, got %q", string(initialContent), string(backupData))
 	}
 }

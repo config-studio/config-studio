@@ -16,6 +16,8 @@ export interface Settings {
   pluginExecUnrestricted?: boolean;
   structureGuardEnabled?: boolean;
   criticalPatterns?: string[];
+  trustedProxies?: string[];
+  trustForwardAuth?: boolean;
   bottomDockMode?: 'auto' | 'always' | 'hidden';
 }
 

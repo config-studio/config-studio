@@ -55,6 +55,8 @@ func (l *Logger) loadRecentFromDisk() {
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
+	buf := make([]byte, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
 	var all []Event
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -135,7 +137,8 @@ func (l *Logger) Log(evt Event) error {
 
 	// Append to in-memory buffer
 	if len(l.ring) >= maxMemoryEvents {
-		l.ring = append(l.ring[1:], evt)
+		copy(l.ring, l.ring[1:])
+		l.ring[len(l.ring)-1] = evt
 	} else {
 		l.ring = append(l.ring, evt)
 	}
@@ -213,11 +216,8 @@ func (l *Logger) Query(filter QueryFilter) QueryResult {
 	}
 }
 
-// Export streams the raw audit.jsonl file content.
+// Export streams the raw audit.jsonl file content without holding lock across client download.
 func (l *Logger) Export(w io.Writer) error {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-
 	f, err := os.Open(l.filePath)
 	if err != nil {
 		return err

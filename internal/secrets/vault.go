@@ -1,10 +1,10 @@
 package secrets
 
 import (
+	"config-studio/internal/fsutil"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,15 +21,22 @@ type EncryptedVaultProvider struct {
 
 func NewEncryptedVaultProvider(dataDir string) (*EncryptedVaultProvider, error) {
 	vaultPath := filepath.Join(dataDir, ".secrets.enc")
+	keyPath := filepath.Join(dataDir, ".vault.key")
 
-	// Derive machine-specific key
-	hostname, _ := os.Hostname()
-	salt := "ConfigStudio:SecretVault:v1:2026"
-	hash := sha256.Sum256([]byte(hostname + ":" + dataDir + ":" + salt))
+	key, err := os.ReadFile(keyPath)
+	if err != nil || len(key) != 32 {
+		key = make([]byte, 32)
+		if _, err := io.ReadFull(rand.Reader, key); err != nil {
+			return nil, fmt.Errorf("failed to generate random vault key: %w", err)
+		}
+		if err := fsutil.SafeWriteFile(keyPath, key, 0600); err != nil {
+			return nil, fmt.Errorf("failed to save vault key: %w", err)
+		}
+	}
 
 	return &EncryptedVaultProvider{
 		filePath: vaultPath,
-		key:      hash[:],
+		key:      key,
 	}, nil
 }
 
@@ -97,7 +104,7 @@ func (p *EncryptedVaultProvider) writeMap(m map[string]string) error {
 	}
 
 	ciphertext := gcm.Seal(nonce, nonce, raw, nil)
-	return os.WriteFile(p.filePath, ciphertext, 0600)
+	return fsutil.SafeWriteFile(p.filePath, ciphertext, 0600)
 }
 
 func (p *EncryptedVaultProvider) Get(key string) (string, error) {
@@ -122,7 +129,7 @@ func (p *EncryptedVaultProvider) Set(key, value string) error {
 
 	m, err := p.readMap()
 	if err != nil {
-		m = make(map[string]string)
+		return fmt.Errorf("cannot write to vault: read failed: %w", err)
 	}
 
 	m[key] = value
@@ -135,7 +142,7 @@ func (p *EncryptedVaultProvider) Delete(key string) error {
 
 	m, err := p.readMap()
 	if err != nil {
-		return nil
+		return fmt.Errorf("cannot delete from vault: read failed: %w", err)
 	}
 
 	delete(m, key)

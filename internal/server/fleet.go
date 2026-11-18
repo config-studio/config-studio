@@ -439,18 +439,23 @@ func (s *Server) handleBatchInstallAgents(w http.ResponseWriter, r *http.Request
 		}
 
 		if s.audit != nil {
+			details := map[string]any{}
+			if res != nil {
+				details["total"] = res.Total
+				details["success"] = res.Success
+				details["failed"] = res.Failed
+				details["skipped"] = res.Skipped
+			}
+			if err != nil {
+				details["error"] = err.Error()
+			}
 			_ = s.audit.Log(audit.Event{
 				User:     s.getAuditUser(r),
 				IP:       r.RemoteAddr,
 				Action:   "fleet.agent.batch_install",
 				Severity: audit.SeverityInfo,
 				Target:   "fleet",
-				Details: map[string]any{
-					"total":   res.Total,
-					"success": res.Success,
-					"failed":  res.Failed,
-					"skipped": res.Skipped,
-				},
+				Details:  details,
 			})
 		}
 		return
@@ -463,18 +468,20 @@ func (s *Server) handleBatchInstallAgents(w http.ResponseWriter, r *http.Request
 	}
 
 	if s.audit != nil {
+		details := map[string]any{}
+		if res != nil {
+			details["total"] = res.Total
+			details["success"] = res.Success
+			details["failed"] = res.Failed
+			details["skipped"] = res.Skipped
+		}
 		_ = s.audit.Log(audit.Event{
 			User:     s.getAuditUser(r),
 			IP:       r.RemoteAddr,
 			Action:   "fleet.agent.batch_install",
 			Severity: audit.SeverityInfo,
 			Target:   "fleet",
-			Details: map[string]any{
-				"total":   res.Total,
-				"success": res.Success,
-				"failed":  res.Failed,
-				"skipped": res.Skipped,
-			},
+			Details:  details,
 		})
 	}
 

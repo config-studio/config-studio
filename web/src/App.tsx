@@ -3,23 +3,21 @@ import { Header } from './components/Header';
 import { FileExplorer } from './components/FileExplorer';
 import { Editor } from './components/Editor';
 import { StructureOutline } from './components/StructureOutline';
-import { SettingsModal } from './components/SettingsModal';
 import { SettingsTab } from './components/settings/types';
-import { FilePropertiesModal } from './components/FilePropertiesModal';
 import { LoginScreen } from './components/LoginScreen';
-import { AddWorkspaceModal } from './components/AddWorkspaceModal';
 import { PluginSplitPanel } from './components/PluginSplitPanel';
 import { BottomDockStrip } from './components/BottomDockStrip';
-import { CommandConfirmModal } from './components/CommandConfirmModal';
-import { PreSaveGuardModal } from './components/PreSaveGuardModal';
-import { api, getRemoteEndpoint, PreSaveGuardError } from './services/api';
+import { AppModals } from './components/AppModals';
+import { api, PreSaveGuardError } from './services/api';
 import { pluginManager, PluginSystemState } from './services/pluginLoader';
 import { showGlobalToast } from './components/ui';
 import { revisionHistoryService } from './services/revisionHistory';
-import { Settings, FileItem, OpenFile, OpenFileOptions, FileRevision, GuardIssue, GuardValidationResult, WorkspaceRoot, SSHHost } from './types';
+import { Settings, OpenFileOptions, FileRevision, GuardIssue, GuardValidationResult, WorkspaceRoot, SSHHost } from './types';
 import { parseContentToOutline } from './utils/astParser';
 import { translations, Language, DEFAULT_LANGUAGE } from './utils/i18n';
 import { adjustBrightness, getLuminance } from './utils/color';
+import { useTabsManager } from './hooks/useTabsManager';
+import { useWorkspaceTree } from './hooks/useWorkspaceTree';
 
 export const App: React.FC = () => {
   const [settings, setSettings] = useState<Settings>({
@@ -48,15 +46,8 @@ export const App: React.FC = () => {
     user: string;
   }>({ authRequired: false, authenticated: true, user: 'guest' });
 
-  const [workspaces, setWorkspaces] = useState<WorkspaceRoot[]>([]);
-  const [itemsByRoot, setItemsByRoot] = useState<Record<string, { currentDir: string; items: FileItem[]; loading?: boolean; error?: string }>>({});
   const [isAddWorkspaceOpen, setIsAddWorkspaceOpen] = useState<boolean>(false);
   const [editingWorkspace, setEditingWorkspace] = useState<WorkspaceRoot | null>(null);
-
-  const [currentDir, setCurrentDir] = useState<string>('');
-  const [dirItems, setDirItems] = useState<FileItem[]>([]);
-  const [tabs, setTabs] = useState<OpenFile[]>([]);
-  const [activeTabKey, setActiveTabKey] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -71,6 +62,109 @@ export const App: React.FC = () => {
   const [isMobileFileDrawerOpen, setIsMobileFileDrawerOpen] = useState<boolean>(false);
   const [isMobileOutlineDrawerOpen, setIsMobileOutlineDrawerOpen] = useState<boolean>(false);
   const [isTimeMachineOpen, setIsTimeMachineOpen] = useState<boolean>(false);
+
+  const editorRef = useRef<any>(null);
+  const t = translations[settings.language] || translations.ru;
+
+  const handleJumpToLine = (
+    line: number,
+    colOrFocus?: number | boolean,
+    shouldFocus: boolean = true,
+    highlight: boolean = false
+  ) => {
+    let col = 1;
+    let focus = shouldFocus;
+    if (typeof colOrFocus === 'number') {
+      col = colOrFocus;
+    } else if (typeof colOrFocus === 'boolean') {
+      focus = colOrFocus;
+    }
+
+    if (editorRef.current) {
+      editorRef.current.revealLineInCenter(line);
+      if (focus) {
+        editorRef.current.setPosition({ lineNumber: line, column: col });
+        editorRef.current.focus();
+      }
+      if (highlight) {
+        try {
+          const monacoObj = (window as any).monaco;
+          if (monacoObj && monacoObj.Range) {
+            const decorations = editorRef.current.deltaDecorations([], [
+              {
+                range: new monacoObj.Range(line, 1, line, 1),
+                options: {
+                  isWholeLine: true,
+                  className: 'cs-line-highlight-flash',
+                },
+              },
+            ]);
+            setTimeout(() => {
+              if (editorRef.current) {
+                editorRef.current.deltaDecorations(decorations, []);
+              }
+            }, 1600);
+          }
+        } catch (_) {
+          // ignore decorative animation error
+        }
+      }
+    }
+  };
+
+  // Tabs management
+  const dummyWorkspacesRef = useRef<WorkspaceRoot[]>([]);
+  const {
+    tabs,
+    setTabs,
+    activeTabKey,
+    setActiveTabKey,
+    currentFile,
+    currentFileRef,
+    getTabKey,
+    openFile,
+    openCustomTab,
+    handleOpenSftpFile,
+    handleCloseTab,
+    handleContentChange,
+    handleRestoreRevision,
+    handleDownload,
+  } = useTabsManager({
+    workspacesRef: dummyWorkspacesRef,
+    language: settings.language,
+    unsavedWarningText: t.unsavedWarning,
+    onJumpToLine: handleJumpToLine,
+    editorRef,
+  });
+
+  // Workspace tree management
+  const {
+    workspaces,
+    setWorkspaces,
+    workspacesRef,
+    itemsByRoot,
+    setItemsByRoot,
+    currentDir,
+    dirItems,
+    setDirItems,
+    loadWorkspaces,
+    loadDir,
+    handleCreateItem,
+    handleDeleteItem,
+    handleRenameItem,
+    handleUploadFile,
+    handleDeleteWorkspace,
+  } = useWorkspaceTree({
+    tabs,
+    setTabs,
+    currentFile,
+    setActiveTabKey,
+    getTabKey,
+    openFile,
+  });
+
+  // Update dummy reference to point to actual workspaces
+  dummyWorkspacesRef.current = workspaces;
 
   // Open bottom dock if a plugin requested a bottom panel
   useEffect(() => {
@@ -95,30 +189,28 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const editorRef = useRef<any>(null);
-  const hasAutoOpenedRef = useRef(false);
-  const t = translations[settings.language] || translations.ru;
+  const checkAuthAndInit = async () => {
+    try {
+      const status = await api.getAuthStatus();
+      setAuthStatus(status);
+      if (!status.authRequired || status.authenticated) {
+        await loadSettings();
+        await loadWorkspaces();
+        await pluginManager.loadPlugins();
+      }
+    } catch (e) {
+      console.error('Failed to init auth:', e);
+    }
+  };
 
-  const getTabKey = (tab: { root?: string; path: string; fullRelPath?: string }) =>
-    tab.fullRelPath || (tab.root ? `${tab.root}:${tab.path}` : tab.path);
-
-  const currentFile = useMemo(
-    () =>
-      tabs.find(
-        (t) =>
-          getTabKey(t) === activeTabKey ||
-          (t.fullRelPath && t.fullRelPath === activeTabKey) ||
-          (!t.root && t.path === activeTabKey)
-      ) || null,
-    [tabs, activeTabKey]
-  );
-
-  const currentFileRef = useRef(currentFile);
-  currentFileRef.current = currentFile;
-  const currentDirRef = useRef(currentDir);
-  currentDirRef.current = currentDir;
-  const workspacesRef = useRef(workspaces);
-  workspacesRef.current = workspaces;
+  const loadSettings = async () => {
+    try {
+      const data = await api.getSettings();
+      setSettings(data);
+    } catch (e) {
+      console.error('Failed to load settings:', e);
+    }
+  };
 
   // Check initial authentication and load settings
   useEffect(() => {
@@ -146,6 +238,9 @@ export const App: React.FC = () => {
         const root = currentFileRef.current?.root || workspacesRef.current?.[0]?.id || '';
         await openFile(path, root, options);
       },
+      openCustomTab: async (tab: any) => {
+        await openCustomTab(tab);
+      },
       createFile: async (path: string, content: string = '') => {
         let root = currentFileRef.current?.root || workspacesRef.current?.[0]?.id || '';
         let cleanPath = path;
@@ -157,50 +252,12 @@ export const App: React.FC = () => {
             cleanPath = cleanPath.substring(idx + 1);
           }
         }
-        cleanPath = cleanPath.replace(/^\/+/, '');
-        const requestRoot = (!root || root === 'default') ? '' : root;
-        await api.createItem(cleanPath, false, requestRoot);
-        if (content) {
-          await api.saveFile(cleanPath, content, false, false, requestRoot);
-        }
-        await loadDir(currentDirRef.current, requestRoot);
-        await openFile(cleanPath, requestRoot);
+        await api.saveFile(cleanPath, content, true, false, root);
+        await loadDir('', root);
+        await openFile(cleanPath, root);
       },
       refreshFiles: async () => {
         await loadWorkspaces();
-      },
-      openCustomTab: async (customTab: {
-        path: string;
-        name: string;
-        content: string;
-        language?: string;
-        readOnly?: boolean;
-        badge?: string;
-        onSave?: (content: string) => Promise<void>;
-      }) => {
-        setTabs((prev) => {
-          const isAlreadyOpen = prev.some(
-            (t) => t.path === customTab.path || getTabKey(t) === customTab.path
-          );
-          if (isAlreadyOpen) {
-            return prev;
-          }
-          const newTab: OpenFile = {
-            id: `tab-custom-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`,
-            path: customTab.path,
-            name: customTab.name,
-            content: customTab.content,
-            initialContent: customTab.content,
-            isDirty: false,
-            readOnly: customTab.readOnly,
-            badge: customTab.badge,
-            language: customTab.language || customTab.name.split('.').pop() || '',
-            revisions: [],
-            onCustomSave: customTab.onSave,
-          };
-          return [...prev, newTab];
-        });
-        setActiveTabKey(customTab.path);
       },
     });
 
@@ -208,6 +265,7 @@ export const App: React.FC = () => {
       setPluginState(state);
     });
 
+    // Auto-load active plugins on startup
     pluginManager.loadPlugins();
 
     return () => {
@@ -215,7 +273,7 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Dispatch onFileOpen whenever active tab changes
+  // Sync active file to plugin manager
   useEffect(() => {
     if (currentFile) {
       pluginManager.notifyFileOpen(currentFile);
@@ -228,303 +286,6 @@ export const App: React.FC = () => {
       pluginManager.setLanguage(settings.language);
     }
   }, [settings.language]);
-
-  const checkAuthAndInit = async () => {
-    try {
-      const status = await api.getAuthStatus();
-      setAuthStatus(status);
-      if (!status.authRequired || status.authenticated) {
-        await loadSettings();
-        await loadWorkspaces();
-      }
-    } catch (e) {
-      console.error('Failed to init auth:', e);
-    }
-  };
-
-  const loadSettings = async () => {
-    try {
-      const data = await api.getSettings();
-      setSettings(data);
-    } catch (e) {
-      console.error('Failed to load settings:', e);
-    }
-  };
-
-  const loadWorkspaces = async () => {
-    try {
-      setItemsByRoot({});
-      const res = await api.getWorkspaces();
-      const wsList = res.workspaces || [];
-      setWorkspaces(wsList);
-      if (wsList.length === 0) {
-        setDirItems([]);
-      }
-      for (const ws of wsList) {
-        await loadDir('', ws.id);
-      }
-    } catch (err) {
-      console.error('Failed to load workspaces:', err);
-      // Fallback: load default root only if no remote endpoint is set
-      const { endpoint } = getRemoteEndpoint();
-      if (!endpoint) {
-        await loadDir('');
-      } else {
-        setWorkspaces([]);
-        setItemsByRoot({});
-        setDirItems([]);
-      }
-    }
-  };
-
-  const loadDir = async (path: string, rootId?: string) => {
-    const root = rootId || workspaces[0]?.id || 'default';
-    try {
-      const res = await api.getTree(path, root);
-      const targetDir = res.path || '';
-      const targetItems = res.items || [];
-
-      setItemsByRoot((prev) => ({
-        ...prev,
-        [root]: { currentDir: targetDir, items: targetItems, loading: false },
-      }));
-
-      // Keep legacy single dir state in sync with first workspace
-      if (!workspaces.length || root === (workspaces[0]?.id || 'default')) {
-        setCurrentDir(targetDir);
-        setDirItems(targetItems);
-      }
-
-      // Auto-open first yaml/json file once if no tabs open
-      if (!hasAutoOpenedRef.current && tabs.length === 0 && targetItems.length > 0) {
-        const first = targetItems.find(
-          (i) =>
-            !i.isDir &&
-            (i.extension === '.yml' ||
-              i.extension === '.yaml' ||
-              i.extension === '.json')
-        );
-        if (first) {
-          hasAutoOpenedRef.current = true;
-          openFile(first.path, root);
-        }
-      }
-    } catch (err: any) {
-      console.error(`Failed to list directory for root ${root}:`, err);
-      setItemsByRoot((prev) => ({
-        ...prev,
-        [root]: { currentDir: path, items: [], loading: false, error: err.message },
-      }));
-      if (!workspaces.length || root === (workspaces[0]?.id || 'default')) {
-        setDirItems([]);
-      }
-    }
-  };
-
-  // Open file into multi-tab system
-  const openFile = async (filePath: string, rootId?: string, options?: OpenFileOptions) => {
-    let root = rootId || '';
-    let cleanPath = filePath;
-
-    // Check if filePath is compound "root:path"
-    if (cleanPath.includes(':')) {
-      const idx = cleanPath.indexOf(':');
-      const prefix = cleanPath.substring(0, idx);
-      if (prefix.length > 1) {
-        if (!root || root === 'default') {
-          root = prefix;
-        }
-        cleanPath = cleanPath.substring(idx + 1);
-      }
-    }
-    cleanPath = cleanPath.replace(/^\/+/, '');
-    if (!root || root === 'default') {
-      root = currentFileRef.current?.root || workspacesRef.current?.[0]?.id || '';
-    }
-
-    const targetKey = root ? `${root}:${cleanPath}` : cleanPath;
-    const existing = tabs.find(
-      (t) =>
-        getTabKey(t) === targetKey ||
-        (root && t.root === root && t.path === cleanPath) ||
-        (!root && !t.root && t.path === cleanPath) ||
-        t.fullRelPath === targetKey
-    );
-    if (existing) {
-      setActiveTabKey(getTabKey(existing));
-      if (options?.line) {
-        setTimeout(() => {
-          handleJumpToLine(options.line!, options.column || 1, true, options.highlight);
-        }, 50);
-      }
-      return;
-    }
-
-    try {
-      const fileData = await api.getFile(cleanPath, root === 'default' ? '' : root);
-      const tabRoot = fileData.root || root;
-      const fullRelPath =
-        fileData.fullRelPath || (tabRoot ? `${tabRoot}:${cleanPath}` : cleanPath);
-
-      const savedRevisions = revisionHistoryService.getRevisions(fullRelPath);
-      const tabId = `tab-${tabRoot ? tabRoot + '-' : ''}${cleanPath.replace(/[^a-zA-Z0-9_-]/g, '_')}-${Date.now().toString(36)}`;
-      const newTab: OpenFile = {
-        id: tabId,
-        path: fileData.path,
-        root: tabRoot,
-        fullRelPath,
-        name: fileData.name,
-        content: fileData.content,
-        initialContent: fileData.content,
-        isDirty: false,
-        readOnly: fileData.readOnly,
-        language: fileData.name.split('.').pop() || '',
-        revisions: savedRevisions,
-      };
-
-      setTabs((prev) => {
-        const isAlreadyOpen = prev.some(
-          (t) =>
-            getTabKey(t) === fullRelPath ||
-            (tabRoot && t.root === tabRoot && t.path === fileData.path) ||
-            (!tabRoot && !t.root && t.path === fileData.path) ||
-            t.fullRelPath === fullRelPath
-        );
-        if (isAlreadyOpen) {
-          return prev;
-        }
-        return [...prev, newTab];
-      });
-      setActiveTabKey(fullRelPath);
-      if (options?.line) {
-        setTimeout(() => {
-          handleJumpToLine(options.line!, options.column || 1, true, options.highlight);
-        }, 120);
-      }
-    } catch (err: any) {
-      alert(`Error reading file: ${err.message}`);
-    }
-  };
-
-  const handleOpenSftpFile = async (host: SSHHost, remotePath: string) => {
-    try {
-      setIsSaving(true);
-      const fileData = await api.sftpRead({
-        host: host.host,
-        port: host.port || 22,
-        user: host.user || 'root',
-        authType: host.authType,
-        identityId: host.identityId,
-        password: host.password,
-        privateKey: host.privateKey,
-        passphrase: host.passphrase,
-        path: remotePath,
-      });
-
-      const fileName = remotePath.split('/').pop() || remotePath;
-      const sftpKey = `sftp://${host.host}:${host.port || 22}${remotePath}`;
-
-      // If already open, switch to it
-      const existing = tabs.find((t) => getTabKey(t) === sftpKey);
-      if (existing) {
-        setActiveTabKey(sftpKey);
-        return;
-      }
-
-      const savedRevisions = revisionHistoryService.getRevisions(sftpKey);
-      const tabId = `tab-sftp-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
-      const newTab: OpenFile = {
-        id: tabId,
-        path: remotePath,
-        root: `sftp:${host.id || host.host}`,
-        fullRelPath: sftpKey,
-        name: fileName,
-        content: fileData.content || '',
-        initialContent: fileData.content || '',
-        isDirty: false,
-        readOnly: false,
-        language: fileName.split('.').pop() || '',
-        revisions: savedRevisions,
-        badge: `SFTP: ${host.name || host.host}`,
-        onCustomSave: async (newContent: string) => {
-          await api.sftpWrite({
-            host: host.host,
-            port: host.port || 22,
-            user: host.user || 'root',
-            authType: host.authType,
-            identityId: host.identityId,
-            password: host.password,
-            privateKey: host.privateKey,
-            passphrase: host.passphrase,
-            path: remotePath,
-            content: newContent,
-          });
-        },
-      };
-
-      setTabs((prev) => {
-        const isAlreadyOpen = prev.some(
-          (t) => getTabKey(t) === sftpKey || t.fullRelPath === sftpKey
-        );
-        if (isAlreadyOpen) {
-          return prev;
-        }
-        return [...prev, newTab];
-      });
-      setActiveTabKey(sftpKey);
-      showGlobalToast(
-        settings.language === 'ru'
-          ? `Файл ${fileName} открыт с сервера ${host.name || host.host}`
-          : `Opened ${fileName} from ${host.name || host.host}`,
-        'success'
-      );
-    } catch (err: any) {
-      alert(`Ошибка чтения файла по SFTP: ${err.message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleCloseTab = (tabKey: string) => {
-    const idx = tabs.findIndex(
-      (t) => (t.id && t.id === tabKey) || getTabKey(t) === tabKey || (t.fullRelPath && t.fullRelPath === tabKey)
-    );
-    if (idx === -1) return;
-
-    const tabToClose = tabs[idx];
-    if (tabToClose?.isDirty) {
-      const msg = t.unsavedWarning.replace('{name}', tabToClose.name);
-      if (!confirm(msg)) {
-        return;
-      }
-    }
-
-    const keyToClose = getTabKey(tabToClose);
-    const nextTabs = tabs.filter((_, i) => i !== idx);
-    setTabs(nextTabs);
-
-    if (activeTabKey === keyToClose || activeTabKey === tabToClose.path || activeTabKey === tabKey) {
-      if (nextTabs.length === 0) {
-        setActiveTabKey(null);
-      } else {
-        const nextIdx = Math.min(Math.max(0, idx - 1), nextTabs.length - 1);
-        setActiveTabKey(getTabKey(nextTabs[nextIdx]));
-      }
-    }
-  };
-
-  // Window beforeunload prompt if any tab is dirty
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      const hasDirty = tabs.some((tab) => tab.isDirty);
-      if (hasDirty) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [tabs]);
 
   // Listen for terminal and SFTP requests from plugins
   useEffect(() => {
@@ -539,15 +300,12 @@ export const App: React.FC = () => {
   // Listen for remote endpoint changes (switching between Localhost and Fleet Agents)
   useEffect(() => {
     const handleRemoteEndpointChanged = async (e: any) => {
-      hasAutoOpenedRef.current = false;
       const { endpoint } = e.detail || {};
       if (endpoint) {
-        // Switched to Remote Agent: load remote files
         setWorkspaces([]);
         setItemsByRoot({});
         await loadDir('');
       } else {
-        // Switched to Localhost: reload local workspaces
         await loadWorkspaces();
       }
     };
@@ -628,22 +386,6 @@ export const App: React.FC = () => {
     pluginState,
   ]);
 
-  const handleContentChange = (newContent: string) => {
-    if (!currentFile) return;
-    const activeKey = getTabKey(currentFile);
-    setTabs((prev) =>
-      prev.map((tab) =>
-        getTabKey(tab) === activeKey
-          ? {
-              ...tab,
-              content: newContent,
-              isDirty: newContent !== tab.initialContent,
-            }
-          : tab
-      )
-    );
-  };
-
   // Background real-time Structure Guard check
   useEffect(() => {
     if (!currentFile) {
@@ -717,12 +459,10 @@ export const App: React.FC = () => {
         currentFile.root
       );
 
-      // Create and persist revision snapshot
       const activeKey = getTabKey(currentFile);
       const currentLines = currentFile.content.split('\n').length;
       const initialLines = currentFile.initialContent.split('\n').length;
 
-      // If this is the first save of this file, record baseline before changes
       if (currentFile.revisions.length === 0 && currentFile.initialContent) {
         const baseRev: FileRevision = {
           id: `rev_base_${Date.now() - 1000}`,
@@ -786,150 +526,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleRestoreRevision = (content: string) => {
-    if (!currentFile) return;
-    if (editorRef.current) {
-      editorRef.current.setValue(content);
-    }
-    handleContentChange(content);
-    showGlobalToast(
-      settings.language === 'ru'
-        ? `Откат к версии выполнен (${currentFile.name})`
-        : `Restored revision for ${currentFile.name}`,
-      'info'
-    );
-  };
-
-  const handleDownload = () => {
-    if (!currentFile) return;
-    const url = api.getDownloadUrl(currentFile.path);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = currentFile.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
-  const handleJumpToLine = (
-    line: number,
-    colOrFocus?: number | boolean,
-    shouldFocus: boolean = true,
-    highlight: boolean = false
-  ) => {
-    let col = 1;
-    let focus = shouldFocus;
-    if (typeof colOrFocus === 'number') {
-      col = colOrFocus;
-    } else if (typeof colOrFocus === 'boolean') {
-      focus = colOrFocus;
-    }
-
-    if (editorRef.current) {
-      editorRef.current.revealLineInCenter(line);
-      if (focus) {
-        editorRef.current.setPosition({ lineNumber: line, column: col });
-        editorRef.current.focus();
-      }
-      if (highlight) {
-        try {
-          const monacoObj = (window as any).monaco;
-          if (monacoObj && monacoObj.Range) {
-            const decorations = editorRef.current.deltaDecorations([], [
-              {
-                range: new monacoObj.Range(line, 1, line, 1),
-                options: {
-                  isWholeLine: true,
-                  className: 'cs-line-highlight-flash',
-                },
-              },
-            ]);
-            setTimeout(() => {
-              if (editorRef.current) {
-                editorRef.current.deltaDecorations(decorations, []);
-              }
-            }, 1600);
-          }
-        } catch (_) {
-          // ignore decorative animation error
-        }
-      }
-    }
-  };
-
-  const handleCreateItem = async (path: string, isDir: boolean, rootId?: string) => {
-    const root = rootId || workspaces[0]?.id || 'default';
-    try {
-      await api.createItem(path, isDir, root);
-      const dirToRefresh = itemsByRoot[root]?.currentDir || '';
-      await loadDir(dirToRefresh, root);
-      if (!isDir) {
-        await openFile(path, root);
-      }
-    } catch (err: any) {
-      alert(`Error creating item: ${err.message}`);
-    }
-  };
-
-  const handleDeleteItem = async (path: string, rootId?: string) => {
-    const root = rootId || workspaces[0]?.id || 'default';
-    try {
-      await api.deleteItem(path, root);
-      const targetKey = `${root}:${path}`;
-      const remaining = tabs.filter(
-        (t) => !(getTabKey(t) === targetKey || (t.path === path && t.root === root))
-      );
-      setTabs(remaining);
-      if (currentFile && (getTabKey(currentFile) === targetKey || (currentFile.path === path && currentFile.root === root))) {
-        setActiveTabKey(remaining.length > 0 ? getTabKey(remaining[0]) : null);
-      }
-      const dirToRefresh = itemsByRoot[root]?.currentDir || '';
-      await loadDir(dirToRefresh, root);
-    } catch (err: any) {
-      alert(`Error deleting item: ${err.message}`);
-    }
-  };
-
-  const handleRenameItem = async (oldPath: string, newPath: string, rootId?: string) => {
-    const root = rootId || workspaces[0]?.id || 'default';
-    try {
-      await api.renameItem(oldPath, newPath, root);
-      const oldKey = `${root}:${oldPath}`;
-      const newKey = `${root}:${newPath}`;
-      setTabs((prev) =>
-        prev.map((t) =>
-          getTabKey(t) === oldKey || (t.path === oldPath && (!root || t.root === root))
-            ? {
-                ...t,
-                path: newPath,
-                fullRelPath: newKey,
-                name: newPath.split('/').pop() || newPath,
-              }
-            : t
-        )
-      );
-      if (currentFile && (getTabKey(currentFile) === oldKey || currentFile.path === oldPath)) {
-        setActiveTabKey(newKey);
-      }
-      const dirToRefresh = itemsByRoot[root]?.currentDir || '';
-      await loadDir(dirToRefresh, root);
-    } catch (err: any) {
-      alert(`Error renaming item: ${err.message}`);
-    }
-  };
-
-  const handleUploadFile = async (dirPath: string, file: File, rootId?: string) => {
-    const root = rootId || workspaces[0]?.id || 'default';
-    try {
-      const savedPath = await api.uploadFile(dirPath, file, root);
-      const dirToRefresh = itemsByRoot[root]?.currentDir || '';
-      await loadDir(dirToRefresh, root);
-      await openFile(savedPath, root);
-    } catch (err: any) {
-      alert(`Error uploading file: ${err.message}`);
-    }
-  };
-
   const handleSaveWorkspace = async (rootData: Partial<WorkspaceRoot>) => {
     if (editingWorkspace) {
       await api.updateWorkspace(editingWorkspace.id, rootData);
@@ -939,24 +535,6 @@ export const App: React.FC = () => {
       showGlobalToast('Рабочая папка успешно добавлена', 'success');
     }
     await loadWorkspaces();
-  };
-
-  const handleDeleteWorkspace = async (rootId: string) => {
-    try {
-      await api.deleteWorkspace(rootId);
-      showGlobalToast('Рабочая папка отмонтирована', 'info');
-      // Close tabs belonging to this unmounted root
-      setTabs((prev) => {
-        const remaining = prev.filter((t) => t.root !== rootId);
-        if (currentFile && currentFile.root === rootId) {
-          setActiveTabKey(remaining.length > 0 ? getTabKey(remaining[0]) : null);
-        }
-        return remaining;
-      });
-      await loadWorkspaces();
-    } catch (err: any) {
-      alert(`Ошибка удаления рабочей области: ${err.message}`);
-    }
   };
 
   const handleSaveSettings = async (newSettings: Partial<Settings>) => {
@@ -1065,7 +643,7 @@ export const App: React.FC = () => {
           isMobileDrawerOpen={isMobileFileDrawerOpen}
           onCloseMobileDrawer={() => setIsMobileFileDrawerOpen(false)}
           onOpenSftpFile={handleOpenSftpFile}
-          onOpenTerminalHost={(host) => {
+          onOpenTerminalHost={() => {
             setIsBottomDockOpen(true);
             setActiveBottomDockId('terminal');
           }}
@@ -1129,7 +707,7 @@ export const App: React.FC = () => {
           />
         </div>
 
-        {/* Optional Plugin Split Panel (e.g. Web DevKit / Glance Live Preview) */}
+        {/* Optional Plugin Split Panel */}
         {openSplitPanels.length > 0 && (
           <PluginSplitPanel
             panels={openSplitPanels}
@@ -1150,72 +728,43 @@ export const App: React.FC = () => {
         />
       </div>
 
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+      {/* Extracted App Modals */}
+      <AppModals
         settings={settings}
+        currentFile={currentFile}
+        isSaving={isSaving}
+        isSettingsOpen={isSettingsOpen}
+        setIsSettingsOpen={setIsSettingsOpen}
+        settingsTab={settingsTab}
         onSaveSettings={handleSaveSettings}
         onReloadSettings={loadSettings}
         onReloadPlugins={async () => {
           await pluginManager.loadPlugins();
         }}
         onUploadIcon={handleUploadIcon}
-        initialTab={settingsTab}
-        onOpenTerminal={(host) => {
+        onOpenTerminal={() => {
           setIsSettingsOpen(false);
           setIsBottomDockOpen(true);
           setActiveBottomDockId('terminal');
         }}
-      />
-
-      {/* File Properties & History Modal */}
-      <FilePropertiesModal
-        isOpen={isPropertiesOpen}
-        onClose={() => setIsPropertiesOpen(false)}
-        file={currentFile}
-        settings={settings}
+        isPropertiesOpen={isPropertiesOpen}
+        setIsPropertiesOpen={setIsPropertiesOpen}
         onRestoreRevision={handleRestoreRevision}
         onOpenTimeMachine={() => {
           setIsPropertiesOpen(false);
           setIsTimeMachineOpen(true);
         }}
-      />
-
-      {/* Sensitive Command Confirmation Modal */}
-      <CommandConfirmModal
-        isOpen={!!pendingConfirm}
-        command={pendingConfirm?.command || ''}
-        onConfirm={() => {
-          pendingConfirm?.resolve(true);
-          setPendingConfirm(null);
-        }}
-        onDeny={() => {
-          pendingConfirm?.resolve(false);
-          setPendingConfirm(null);
-        }}
-      />
-
-      {/* Structure Guard / Pre-Save Guard Modal */}
-      <PreSaveGuardModal
-        isOpen={isPreSaveGuardOpen}
-        issue={preSaveGuardIssue}
-        filePath={currentFile?.path || ''}
-        isSaving={isSaving}
-        onClose={handleCloseGuardModal}
+        pendingConfirm={pendingConfirm}
+        setPendingConfirm={setPendingConfirm}
+        isPreSaveGuardOpen={isPreSaveGuardOpen}
+        preSaveGuardIssue={preSaveGuardIssue}
+        onCloseGuardModal={handleCloseGuardModal}
         onForceSave={() => handleSaveFile(true)}
-      />
-
-      {/* Add / Edit Workspace Modal */}
-      <AddWorkspaceModal
-        isOpen={isAddWorkspaceOpen}
-        onClose={() => {
-          setIsAddWorkspaceOpen(false);
-          setEditingWorkspace(null);
-        }}
-        onSave={handleSaveWorkspace}
+        isAddWorkspaceOpen={isAddWorkspaceOpen}
+        setIsAddWorkspaceOpen={setIsAddWorkspaceOpen}
         editingWorkspace={editingWorkspace}
-        settings={settings}
+        setEditingWorkspace={setEditingWorkspace}
+        onSaveWorkspace={handleSaveWorkspace}
       />
     </div>
   );
