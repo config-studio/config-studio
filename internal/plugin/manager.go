@@ -193,20 +193,68 @@ func enrichManifestLocales(manifest *Manifest, pluginDir string) {
 		}
 	}
 
-	// 2. Check if a dedicated localization.json exists for a full language pack plugin
-	if manifest.Localization == nil {
-		locPackFile := filepath.Join(pluginDir, "localization.json")
+	// 2. Check if a dedicated local.json, localization.json, or locale.json exists for a full language pack plugin
+	for _, fname := range []string{"local.json", "localization.json", "locale.json"} {
+		locPackFile := filepath.Join(pluginDir, fname)
 		if content, err := os.ReadFile(locPackFile); err == nil {
-			var pack LanguagePackDef
-			if err := json.Unmarshal(content, &pack); err == nil && pack.Code != "" {
-				manifest.Localization = &pack
-			}
+			applyLocalizationData(manifest, content)
+			break
 		}
 	}
 
 	// If Locales map ended up completely empty, clean it up to avoid empty {} in JSON
 	if len(manifest.Locales) == 0 {
 		manifest.Locales = nil
+	}
+}
+
+// applyLocalizationData populates or merges language pack definition and translations into manifest.
+func applyLocalizationData(manifest *Manifest, data []byte) {
+	// First, try unmarshalling as a LanguagePackDef object: { code, name, flag, translations }
+	var pack LanguagePackDef
+	if err := json.Unmarshal(data, &pack); err == nil && (pack.Code != "" || len(pack.Translations) > 0) {
+		if manifest.Localization == nil {
+			manifest.Localization = &pack
+		} else {
+			if manifest.Localization.Code == "" {
+				manifest.Localization.Code = pack.Code
+			}
+			if manifest.Localization.Name == "" {
+				manifest.Localization.Name = pack.Name
+			}
+			if manifest.Localization.Flag == "" {
+				manifest.Localization.Flag = pack.Flag
+			}
+			if manifest.Localization.Translations == nil {
+				manifest.Localization.Translations = pack.Translations
+			} else {
+				for k, v := range pack.Translations {
+					manifest.Localization.Translations[k] = v
+				}
+			}
+		}
+		return
+	}
+
+	// Second, try unmarshalling as a flat translations map: { "key": "value" }
+	var dict map[string]string
+	if err := json.Unmarshal(data, &dict); err == nil && len(dict) > 0 {
+		if manifest.Localization == nil {
+			code := strings.TrimPrefix(manifest.ID, "lang-")
+			manifest.Localization = &LanguagePackDef{
+				Code:         code,
+				Name:         manifest.Name,
+				Translations: dict,
+			}
+		} else {
+			if manifest.Localization.Translations == nil {
+				manifest.Localization.Translations = dict
+			} else {
+				for k, v := range dict {
+					manifest.Localization.Translations[k] = v
+				}
+			}
+		}
 	}
 }
 
@@ -383,16 +431,13 @@ func enrichManifestLocalesFromCSPKG(manifest *Manifest, pkgPath string) {
 					}
 				}
 			}
-		} else if clean == "localization.json" && manifest.Localization == nil {
+		} else if clean == "local.json" || clean == "localization.json" || clean == "locale.json" {
 			rc, err := f.Open()
 			if err == nil {
 				data, err := io.ReadAll(rc)
 				rc.Close()
 				if err == nil {
-					var pack LanguagePackDef
-					if err := json.Unmarshal(data, &pack); err == nil && pack.Code != "" {
-						manifest.Localization = &pack
-					}
+					applyLocalizationData(manifest, data)
 				}
 			}
 		}

@@ -245,6 +245,59 @@ func TestPluginLocalesAndLocalization(t *testing.T) {
 	}
 }
 
+func TestLocalJsonLanguagePack(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "cs-local-json-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	pDir := filepath.Join(tempDir, "plugins", "lang-ru")
+	_ = os.MkdirAll(pDir, 0755)
+
+	manifestContent := `{
+		"id": "lang-ru",
+		"name": "Русский языковой пакет",
+		"version": "1.1.0",
+		"description": "Russian pack",
+		"entry": "main.js",
+		"localization": {
+			"code": "ru",
+			"name": "Русский",
+			"flag": "🇷🇺"
+		}
+	}`
+	_ = os.WriteFile(filepath.Join(pDir, "plugin.json"), []byte(manifestContent), 0644)
+	_ = os.WriteFile(filepath.Join(pDir, "main.js"), []byte(`console.log("ru");`), 0644)
+	_ = os.WriteFile(filepath.Join(pDir, "local.json"), []byte(`{
+		"appTitle": "Название приложения",
+		"save": "Сохранить"
+	}`), 0644)
+
+	mgr, err := NewManager(tempDir, nil)
+	if err != nil {
+		t.Fatalf("failed to create manager: %v", err)
+	}
+
+	plugins, err := mgr.ListPlugins()
+	if err != nil {
+		t.Fatalf("ListPlugins failed: %v", err)
+	}
+	if len(plugins) != 1 {
+		t.Fatalf("expected 1 plugin, got %d", len(plugins))
+	}
+	p := plugins[0]
+	if p.Localization == nil {
+		t.Fatalf("expected p.Localization to not be nil")
+	}
+	if p.Localization.Code != "ru" || p.Localization.Name != "Русский" || p.Localization.Flag != "🇷🇺" {
+		t.Errorf("unexpected localization metadata: %+v", p.Localization)
+	}
+	if p.Localization.Translations["appTitle"] != "Название приложения" || p.Localization.Translations["save"] != "Сохранить" {
+		t.Errorf("unexpected translations: %+v", p.Localization.Translations)
+	}
+}
+
 func TestSemVerAndVersionConstraints(t *testing.T) {
 	tests := []struct {
 		installed  string

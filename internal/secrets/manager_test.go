@@ -158,6 +158,12 @@ func TestSecretsManager(t *testing.T) {
 	if mgr.Status(false, "").Count != len(typesToTest) {
 		t.Fatalf("Expected %d secrets in status, got %d", len(typesToTest), mgr.Status(false, "").Count)
 	}
+
+	// Clean up all test secrets from provider
+	for _, tc := range typesToTest {
+		_ = mgr.Delete(tc.id)
+	}
+	_ = mgr.Delete("shared:prod-cluster")
 }
 
 func bytesContains(b, sub []byte) bool {
