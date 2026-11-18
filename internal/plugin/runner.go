@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os/exec"
 	"sync"
@@ -60,7 +61,7 @@ func NewRunner() *Runner {
 // ExecCommand runs a single command synchronously with a 60-second timeout.
 func (r *Runner) ExecCommand(ctx context.Context, req ExecRequest, unrestricted bool) (*ExecResponse, error) {
 	if err := ValidateCommand(req.Command, req.Args, unrestricted, req.Confirmed); err != nil {
-		if errorsIs(err, ErrConfirmationNeeded) {
+		if errors.Is(err, ErrConfirmationNeeded) {
 			return &ExecResponse{
 				RequiresConfirm: true,
 				Warning:         err.Error(),
@@ -149,6 +150,9 @@ func (r *Runner) StartProcess(pluginID, command string, args []string, cwd strin
 	}
 
 	r.mu.Lock()
+	if len(r.processes) >= 50 {
+		r.pruneStoppedLocked()
+	}
 	r.processes[procID] = rp
 	r.mu.Unlock()
 
@@ -238,9 +242,10 @@ func (r *Runner) Shutdown() {
 	r.processes = make(map[string]*RunningProcess)
 }
 
-func errorsIs(err, target error) bool {
-	if err == nil {
-		return false
+func (r *Runner) pruneStoppedLocked() {
+	for id, p := range r.processes {
+		if p.Info.Status == "stopped" {
+			delete(r.processes, id)
+		}
 	}
-	return err == target || (err.Error() != "" && target.Error() != "" && (err == target || bytes.Contains([]byte(err.Error()), []byte(target.Error()))))
 }

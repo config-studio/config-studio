@@ -135,3 +135,39 @@ func TestDebugLoopbackBypass(t *testing.T) {
 		t.Fatalf("expected loopback debug request to bypass auth, but got 401")
 	}
 }
+
+func TestRemoteProxy_RejectsSSRF(t *testing.T) {
+	s := NewServer(Config{}, nil, nil, nil, nil, nil, nil)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/remote-proxy/api/health?target=http://169.254.169.254", nil)
+	req.Header.Set("X-ConfigStudio-Web", "1")
+	req.RemoteAddr = "127.0.0.1:12345"
+	s.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden on SSRF target, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGzip_SkipsNoContentAndNotModified(t *testing.T) {
+	s := NewServer(Config{}, nil, nil, nil, nil, nil, nil)
+
+	handler204 := s.gzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/api/test", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	handler204.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 No Content, got %d", w.Code)
+	}
+	if w.Header().Get("Content-Encoding") == "gzip" {
+		t.Errorf("Content-Encoding: gzip must not be set for 204 No Content")
+	}
+	if len(w.Body.Bytes()) != 0 {
+		t.Errorf("expected empty body for 204 No Content, got %d bytes: %v", len(w.Body.Bytes()), w.Body.Bytes())
+	}
+}

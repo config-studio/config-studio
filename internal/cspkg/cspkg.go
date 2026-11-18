@@ -297,8 +297,12 @@ func UnpackBytes(data []byte, targetDir string) (*PackageInfo, error) {
 		return nil, err
 	}
 
-	headerSize := binary.Size(Header{})
-	manifestEnd := headerSize + int(binary.LittleEndian.Uint32(data[40:44]))
+	var header Header
+	if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &header); err != nil {
+		return nil, fmt.Errorf("failed to read cspkg header: %w", err)
+	}
+	headerSize := binary.Size(header)
+	manifestEnd := headerSize + int(header.ManifestSize)
 	payloadBytes := data[manifestEnd:]
 
 	zipReader, err := zip.NewReader(bytes.NewReader(payloadBytes), int64(len(payloadBytes)))

@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -34,6 +33,37 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 		targetBase = "http://" + targetBase
 	}
 	targetBase = strings.TrimRight(targetBase, "/")
+
+	// Whitelist validation to prevent SSRF: targetBase must be localhost/loopback or an enrolled fleet agent
+	targetClean := strings.TrimRight(targetBase, "/")
+	targetAllowed := false
+	if strings.HasPrefix(targetClean, "http://localhost:") || strings.HasPrefix(targetClean, "http://127.0.0.1:") ||
+		strings.HasPrefix(targetClean, "https://localhost:") || strings.HasPrefix(targetClean, "https://127.0.0.1:") ||
+		targetClean == "http://localhost" || targetClean == "http://127.0.0.1" {
+		targetAllowed = true
+	} else if s.fleet != nil {
+		for _, srv := range s.fleet.ListServers() {
+			if srv.Connection.Agent != nil && srv.Connection.Agent.Enabled && srv.Connection.Agent.URL != "" {
+				agentURL := strings.TrimRight(srv.Connection.Agent.URL, "/")
+				if strings.EqualFold(targetClean, agentURL) {
+					targetAllowed = true
+					break
+				}
+			}
+			if srv.Connection.SSH != nil && srv.Connection.SSH.Host != "" {
+				if strings.Contains(targetClean, srv.Connection.SSH.Host) {
+					targetAllowed = true
+					break
+				}
+			}
+		}
+	}
+
+	if !targetAllowed {
+		jsonError(w, http.StatusForbidden, "target URL is not in fleet inventory and not a local agent")
+		return
+	}
+
 	path := r.PathValue("path")
 	cleanPath := strings.TrimLeft(path, "/")
 
@@ -183,12 +213,7 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+	client := s.getProxyClient()
 
 	resp, err := client.Do(proxyReq)
 	if err != nil {

@@ -323,7 +323,11 @@ func (m *Manager) maybeReload() {
 	if err != nil {
 		return
 	}
-	if fi.ModTime().After(m.lastLoadedTime) {
+	m.mu.RLock()
+	lastLoaded := m.lastLoadedTime
+	m.mu.RUnlock()
+
+	if fi.ModTime().After(lastLoaded) {
 		_ = m.load()
 	}
 }

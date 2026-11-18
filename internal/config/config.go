@@ -3,9 +3,12 @@ package config
 import (
 	"bytes"
 	"config-studio/internal/fsutil"
+	"crypto/subtle"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -166,16 +169,23 @@ func (m *Manager) Get() Settings {
 	return s
 }
 
+var svgXSSRegex = regexp.MustCompile(`(?i)(<script[\s>]|javascript:|xlink:href\s*=\s*["']javascript:|on\w+\s*=|<foreignObject)`)
+
 func (m *Manager) CheckAuth(user, pass string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.current.AuthUser == user && m.current.AuthPass == pass
+	userMatch := subtle.ConstantTimeCompare([]byte(m.current.AuthUser), []byte(user)) == 1
+	passMatch := subtle.ConstantTimeCompare([]byte(m.current.AuthPass), []byte(pass)) == 1
+	return userMatch && passMatch
 }
 
 func (m *Manager) CheckPass(pass string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.current.AuthPass != "" && m.current.AuthPass == pass
+	if m.current.AuthPass == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(m.current.AuthPass), []byte(pass)) == 1
 }
 
 func (m *Manager) GetIconMime() string {
@@ -240,16 +250,6 @@ func (m *Manager) SaveIcon(src io.Reader, filename string) error {
 		return err
 	}
 
-	dst, err := os.Create(m.IconPath())
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
-
-	if _, err := dst.Write(data); err != nil {
-		return err
-	}
-
 	// Detect MIME type reliably
 	mime := "image/png"
 	lowerName := strings.ToLower(filename)
@@ -257,12 +257,19 @@ func (m *Manager) SaveIcon(src io.Reader, filename string) error {
 
 	if strings.HasSuffix(lowerName, ".svg") || strings.Contains(lowerContent, "<svg") || strings.Contains(lowerContent, "<?xml") {
 		mime = "image/svg+xml"
+		if svgXSSRegex.Match(data) {
+			return errors.New("uploaded SVG icon contains active scripting or unsafe event handlers (rejected for security)")
+		}
 	} else if strings.HasSuffix(lowerName, ".ico") || bytes.HasPrefix(data, []byte("\x00\x00\x01\x00")) {
 		mime = "image/x-icon"
 	} else if strings.HasSuffix(lowerName, ".webp") || (bytes.HasPrefix(data, []byte("RIFF")) && len(data) > 12 && string(data[8:12]) == "WEBP") {
 		mime = "image/webp"
 	} else if bytes.HasPrefix(data, []byte("\x89PNG")) {
 		mime = "image/png"
+	}
+
+	if err := fsutil.SafeWriteFile(m.IconPath(), data, 0644); err != nil {
+		return err
 	}
 
 	m.current.HasCustomIcon = true

@@ -101,8 +101,13 @@ func (s *Server) isRequestAuthenticated(r *http.Request) (bool, string) {
 		s.sessionsMu.RLock()
 		exp, ok := s.sessions[cookie.Value]
 		s.sessionsMu.RUnlock()
-		if ok && time.Now().Before(exp) {
-			return true, "admin"
+		if ok {
+			if time.Now().Before(exp) {
+				return true, "admin"
+			}
+			s.sessionsMu.Lock()
+			delete(s.sessions, cookie.Value)
+			s.sessionsMu.Unlock()
 		}
 	}
 
@@ -157,8 +162,14 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			s.sessionsMu.RLock()
 			exp, ok := s.sessions[cookie.Value]
 			s.sessionsMu.RUnlock()
-			if ok && time.Now().Before(exp) {
-				hasValidSession = true
+			if ok {
+				if time.Now().Before(exp) {
+					hasValidSession = true
+				} else {
+					s.sessionsMu.Lock()
+					delete(s.sessions, cookie.Value)
+					s.sessionsMu.Unlock()
+				}
 			}
 		}
 
@@ -280,7 +291,13 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	token := hex.EncodeToString(b)
 
 	s.sessionsMu.Lock()
-	s.sessions[token] = time.Now().Add(7 * 24 * time.Hour) // 7 days session
+	now := time.Now()
+	for tok, exp := range s.sessions {
+		if now.After(exp) {
+			delete(s.sessions, tok)
+		}
+	}
+	s.sessions[token] = now.Add(7 * 24 * time.Hour) // 7 days session
 	s.sessionsMu.Unlock()
 
 	http.SetCookie(w, &http.Cookie{

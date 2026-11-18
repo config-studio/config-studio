@@ -143,4 +143,31 @@ func TestServerPluginInspectAndConfirm(t *testing.T) {
 	if recExec.Code != http.StatusForbidden {
 		t.Fatalf("expected 403 Forbidden for plugin without shell.exec capability, got %d: %s", recExec.Code, recExec.Body.String())
 	}
+
+	// 4. Verify Bypass Protection: empty or "core" plugin ID is rejected when unrestricted mode is false
+	coreExecBody, _ := json.Marshal(map[string]any{
+		"pluginId": "core",
+		"command":  "echo",
+		"args":     []string{"bypass"},
+	})
+	reqCore := httptest.NewRequest("POST", "/api/plugins/exec", bytes.NewReader(coreExecBody))
+	reqCore.Header.Set("X-ConfigStudio-Web", "1")
+	recCore := httptest.NewRecorder()
+	srv.ServeHTTP(recCore, reqCore)
+	if recCore.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when attempting 'core' plugin bypass, got %d", recCore.Code)
+	}
+
+	emptyExecBody, _ := json.Marshal(map[string]any{
+		"pluginId": "",
+		"command":  "echo",
+		"args":     []string{"bypass"},
+	})
+	reqEmpty := httptest.NewRequest("POST", "/api/plugins/exec", bytes.NewReader(emptyExecBody))
+	reqEmpty.Header.Set("X-ConfigStudio-Web", "1")
+	recEmpty := httptest.NewRecorder()
+	srv.ServeHTTP(recEmpty, reqEmpty)
+	if recEmpty.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when attempting empty plugin bypass, got %d", recEmpty.Code)
+	}
 }

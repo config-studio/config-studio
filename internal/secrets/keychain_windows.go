@@ -18,7 +18,9 @@ var (
 
 const (
 	CRED_TYPE_GENERIC          = 1
+	CRED_PERSIST_SESSION       = 1
 	CRED_PERSIST_LOCAL_MACHINE = 2
+	CRED_PERSIST_ENTERPRISE    = 3
 )
 
 type credential struct {
@@ -111,7 +113,7 @@ func (p *WindowsCredentialProvider) Set(key, value string) error {
 		UserName:           user,
 		CredentialBlobSize: uint32(len(valBytes)),
 		CredentialBlob:     blobPtr,
-		Persist:            CRED_PERSIST_LOCAL_MACHINE,
+		Persist:            CRED_PERSIST_ENTERPRISE,
 	}
 
 	r1, _, errSys := procCredWriteW.Call(

@@ -17,8 +17,13 @@ var gzipWriterPool = sync.Pool{
 
 type gzipResponseWriter struct {
 	http.ResponseWriter
-	writer     *gzip.Writer
+	writer      *gzip.Writer
+	status      int
 	wroteHeader bool
+}
+
+func (w *gzipResponseWriter) isGzipDisabled() bool {
+	return w.status == http.StatusNoContent || w.status == http.StatusNotModified || (w.status >= 100 && w.status < 200)
 }
 
 func (w *gzipResponseWriter) WriteHeader(status int) {
@@ -26,6 +31,12 @@ func (w *gzipResponseWriter) WriteHeader(status int) {
 		return
 	}
 	w.wroteHeader = true
+	w.status = status
+
+	if w.isGzipDisabled() {
+		w.ResponseWriter.WriteHeader(status)
+		return
+	}
 
 	// If no Content-Type was set, detect or allow standard library to set
 	// Delete Content-Length because length changes after gzip compression
@@ -40,12 +51,15 @@ func (w *gzipResponseWriter) Write(b []byte) (int, error) {
 	if !w.wroteHeader {
 		w.WriteHeader(http.StatusOK)
 	}
+	if w.isGzipDisabled() {
+		return 0, nil
+	}
 	return w.writer.Write(b)
 }
 
 // Flush implements http.Flusher
 func (w *gzipResponseWriter) Flush() {
-	if w.writer != nil {
+	if w.writer != nil && !w.isGzipDisabled() {
 		_ = w.writer.Flush()
 	}
 	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
@@ -71,12 +85,18 @@ func (s *Server) gzipMiddleware(next http.Handler) http.Handler {
 		gz := gzipWriterPool.Get().(*gzip.Writer)
 		defer gzipWriterPool.Put(gz)
 		gz.Reset(w)
-		defer gz.Close()
 
 		gzw := &gzipResponseWriter{
 			ResponseWriter: w,
 			writer:         gz,
+			status:         http.StatusOK,
 		}
+
+		defer func() {
+			if !gzw.isGzipDisabled() && gzw.wroteHeader {
+				_ = gz.Close()
+			}
+		}()
 
 		next.ServeHTTP(gzw, r)
 	})

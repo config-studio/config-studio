@@ -367,8 +367,17 @@ func (s *Server) handleExecPluginCommand(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Capability check: if plugin is specified, verify it has shell.exec or terminal.exec capability
-	if req.PluginID != "" && req.PluginID != "core" {
+	settings := s.config.Get()
+	unrestricted := settings.PluginExecUnrestricted
+
+	// Capability check: if plugin is specified, verify it has shell.exec or terminal.exec capability.
+	// Empty or "core" plugin IDs cannot bypass permission check unless unrestricted mode is enabled.
+	if req.PluginID == "" || req.PluginID == "core" {
+		if !unrestricted {
+			jsonError(w, http.StatusForbidden, "unrestricted execution is disabled; command requires a valid plugin with 'shell.exec' or 'terminal.exec' capability")
+			return
+		}
+	} else {
 		p, err := s.plugins.GetPlugin(req.PluginID)
 		if err != nil {
 			jsonError(w, http.StatusNotFound, fmt.Sprintf("plugin %q not found", req.PluginID))
@@ -379,9 +388,6 @@ func (s *Server) handleExecPluginCommand(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
-
-	settings := s.config.Get()
-	unrestricted := settings.PluginExecUnrestricted
 
 	// If no cwd specified, default to workdir
 	if req.Cwd == "" {

@@ -59,24 +59,42 @@ type AuthContext struct {
 
 // ReplayCache tracks used TOTP steps to prevent packet replay.
 type ReplayCache struct {
-	mu      sync.Mutex
-	used    map[string]time.Time // key: "keyID:step" -> expiration
-	cleanup time.Duration
+	mu       sync.Mutex
+	used     map[string]time.Time // key: "keyID:step" -> expiration
+	cleanup  time.Duration
+	stopChan chan struct{}
 }
 
 func NewReplayCache() *ReplayCache {
 	rc := &ReplayCache{
-		used:    make(map[string]time.Time),
-		cleanup: 90 * time.Second,
+		used:     make(map[string]time.Time),
+		cleanup:  90 * time.Second,
+		stopChan: make(chan struct{}),
 	}
 	// Background cleanup routine
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
-		for range ticker.C {
-			rc.purgeOld()
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				rc.purgeOld()
+			case <-rc.stopChan:
+				return
+			}
 		}
 	}()
 	return rc
+}
+
+func (rc *ReplayCache) Stop() {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	select {
+	case <-rc.stopChan:
+	default:
+		close(rc.stopChan)
+	}
 }
 
 func (rc *ReplayCache) purgeOld() {
@@ -166,7 +184,8 @@ func (a *Authenticator) AuthenticateRequest(r *http.Request) (*AuthContext, erro
 			nonce = r.Header.Get("X-Request-ID")
 		}
 		if nonce == "" {
-			nonce = fmt.Sprintf("%s:%s", r.Method, r.URL.Path)
+			// Without explicit nonce/request-ID, enforce strict single-use per TOTP step
+			nonce = "default"
 		}
 
 		if !a.replayCache.CheckAndRecord(a.master.KeyID, step, nonce) {

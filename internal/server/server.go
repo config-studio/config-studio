@@ -1,7 +1,9 @@
 package server
 
 import (
+	"crypto/tls"
 	"io/fs"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -40,6 +42,7 @@ type Server struct {
 	handler      http.Handler
 	sessionsMu   sync.RWMutex
 	sessions     map[string]time.Time
+	proxyClient  *http.Client
 }
 
 func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *plugin.Manager, pRunner *plugin.Runner, auditLogger *audit.Logger, secMgr *secrets.Manager, optFleet ...*fleet.Manager) *Server {
@@ -92,6 +95,23 @@ func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *p
 		logs:         logs.NewStreamService(),
 		sessions:     make(map[string]time.Time),
 	}
+
+	proxyTransport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 20,
+		IdleConnTimeout:     90 * time.Second,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+	}
+	s.proxyClient = &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: proxyTransport,
+	}
+
 	s.sandbox = sandbox.NewService(
 		sandbox.DefaultOptions(),
 		s.fleet,
@@ -102,6 +122,13 @@ func NewServer(cfg Config, cfgMgr *config.Manager, fsSvc *appfs.Service, pMgr *p
 	)
 	s.setupRoutes()
 	return s
+}
+
+func (s *Server) getProxyClient() *http.Client {
+	if s != nil && s.proxyClient != nil {
+		return s.proxyClient
+	}
+	return &http.Client{Timeout: 30 * time.Second}
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

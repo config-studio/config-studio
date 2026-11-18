@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -45,22 +46,29 @@ type PortableImportResult struct {
 
 // ExportPortable packages and encrypts all secrets into a portable byte stream.
 func (m *Manager) ExportPortable(passphrase string) ([]byte, error) {
-	if len(stringsTrim(passphrase)) == 0 {
+	if len(strings.TrimSpace(passphrase)) == 0 {
 		return nil, ErrEmptyPassphrase
 	}
 
 	allMeta := m.List()
 	items := make([]SecretItem, 0, len(allMeta))
+	var exportErrors []string
 
 	for _, meta := range allMeta {
 		val, err := m.Get(meta.ID)
 		if err != nil {
+			exportErrors = append(exportErrors, fmt.Sprintf("%s (%v)", meta.ID, err))
 			continue
 		}
 		items = append(items, SecretItem{
 			SecretMeta: meta,
 			Value:      val,
 		})
+	}
+
+	if len(exportErrors) > 0 {
+		return nil, fmt.Errorf("export aborted to prevent data loss: %d secret(s) failed retrieval: %s",
+			len(exportErrors), strings.Join(exportErrors, ", "))
 	}
 
 	container := PortableBundleContainer{
@@ -82,6 +90,11 @@ func (m *Manager) ExportPortable(passphrase string) ([]byte, error) {
 
 	// 2. Derive 32-byte key via PBKDF2
 	key := pbkdf2.Key([]byte(passphrase), salt, PBKDF2Iterations, 32, sha256.New)
+	defer func() {
+		for i := range key {
+			key[i] = 0
+		}
+	}()
 
 	// 3. Encrypt via AES-256-GCM
 	block, err := aes.NewCipher(key)
@@ -118,7 +131,7 @@ func (m *Manager) ExportPortable(passphrase string) ([]byte, error) {
 
 // ImportPortable decrypts and imports secrets from a portable byte stream.
 func (m *Manager) ImportPortable(data []byte, passphrase string) (*PortableImportResult, error) {
-	if len(stringsTrim(passphrase)) == 0 {
+	if len(strings.TrimSpace(passphrase)) == 0 {
 		return nil, ErrEmptyPassphrase
 	}
 
@@ -147,6 +160,11 @@ func (m *Manager) ImportPortable(data []byte, passphrase string) (*PortableImpor
 	ciphertext := data[offset:]
 
 	key := pbkdf2.Key([]byte(passphrase), salt, PBKDF2Iterations, 32, sha256.New)
+	defer func() {
+		for i := range key {
+			key[i] = 0
+		}
+	}()
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -194,16 +212,4 @@ func (m *Manager) ImportPortable(data []byte, passphrase string) (*PortableImpor
 	}
 
 	return res, nil
-}
-
-func stringsTrim(s string) string {
-	var start, end int
-	for start < len(s) && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r') {
-		start++
-	}
-	end = len(s)
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
-		end--
-	}
-	return s[start:end]
 }

@@ -197,3 +197,79 @@ func TestAgentCredentials_KeyFormat(t *testing.T) {
 		t.Errorf("expected 32 base32 chars for 20 bytes secret, got %d", len(totpSecret))
 	}
 }
+
+func TestBatchInstallAgents_NilSafetyAndProgressUnlock(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-fleet-batch-safe-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	m, err := NewManager(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to initialize fleet manager: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Pre-cancel context to test immediate cancellation branch
+
+	// Add a dummy server
+	srv := ServerNode{
+		ID:   "srv-cancel",
+		Name: "Cancel Node",
+		Connection: ConnectionConfig{
+			SSH: &SSHConnectionConfig{
+				Enabled: true,
+				Host:    "127.0.0.1",
+			},
+		},
+	}
+	_ = m.AddOrUpdateServer(srv)
+
+	var lastStatus string
+	var progMu sync.Mutex
+	res, err := m.BatchInstallAgents(ctx, BatchInstallOptions{ServerIDs: []string{"srv-cancel"}}, nil, nil, func(st BatchHostStatus) {
+		progMu.Lock()
+		defer progMu.Unlock()
+		lastStatus = st.Status
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected batch error: %v", err)
+	}
+	if res == nil {
+		t.Fatal("expected non-nil result")
+	}
+	progMu.Lock()
+	if lastStatus != "error" {
+		t.Errorf("expected final status 'error', got %s", lastStatus)
+	}
+	progMu.Unlock()
+}
+
+func TestFleet_MaybeReload_ConcurrentRace(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-fleet-reload-race-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	m, err := NewManager(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to initialize fleet manager: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			if idx%2 == 0 {
+				_ = m.AddOrUpdateServer(ServerNode{ID: "srv-race", Name: "Race Node"})
+			} else {
+				_ = m.ListServers()
+			}
+		}(i)
+	}
+	wg.Wait()
+}

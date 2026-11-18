@@ -6,17 +6,23 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"config-studio/internal/secrets"
 
 	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // ClientManager handles connection establishment, credential resolution, and bastion jumping.
 type ClientManager struct {
-	secrets *secrets.Manager
+	secrets        *secrets.Manager
+	knownHostsPath string
+	knownHostsMu   sync.Mutex
 }
 
 // NewClientManager creates a new ClientManager.
@@ -24,6 +30,20 @@ func NewClientManager(secMgr *secrets.Manager) *ClientManager {
 	return &ClientManager{
 		secrets: secMgr,
 	}
+}
+
+// SetKnownHostsPath sets the file path for known hosts verification (TOFU).
+func (m *ClientManager) SetKnownHostsPath(p string) {
+	m.knownHostsMu.Lock()
+	defer m.knownHostsMu.Unlock()
+	m.knownHostsPath = p
+}
+
+// GetKnownHostsPath returns the configured known_hosts file path.
+func (m *ClientManager) GetKnownHostsPath() string {
+	m.knownHostsMu.Lock()
+	defer m.knownHostsMu.Unlock()
+	return m.knownHostsPath
 }
 
 // ResolveCredentials resolves identity credentials from the Core Secrets Vault if IdentityID is specified.
@@ -132,9 +152,72 @@ func (m *ClientManager) BuildClientConfig(cfg *Config) (*gossh.ClientConfig, err
 	return &gossh.ClientConfig{
 		User:            user,
 		Auth:            authMethods,
-		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
+		HostKeyCallback: m.buildHostKeyCallback(),
 		Timeout:         cfg.NormalizedTimeout(),
 	}, nil
+}
+
+type bastionConn struct {
+	net.Conn
+	bastion *gossh.Client
+}
+
+func (c *bastionConn) Close() error {
+	err1 := c.Conn.Close()
+	err2 := c.bastion.Close()
+	if err1 != nil {
+		return err1
+	}
+	return err2
+}
+
+func (m *ClientManager) buildHostKeyCallback() gossh.HostKeyCallback {
+	m.knownHostsMu.Lock()
+	path := m.knownHostsPath
+	m.knownHostsMu.Unlock()
+
+	if path == "" {
+		return gossh.InsecureIgnoreHostKey()
+	}
+
+	return func(hostname string, remote net.Addr, key gossh.PublicKey) error {
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			return err
+		}
+
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			_ = os.WriteFile(path, []byte("# Config Studio Known Hosts\n"), 0600)
+		}
+
+		cb, err := knownhosts.New(path)
+		if err != nil {
+			return fmt.Errorf("failed to load known_hosts: %w", err)
+		}
+
+		err = cb(hostname, remote, key)
+		if err == nil {
+			return nil
+		}
+
+		var keyErr *knownhosts.KeyError
+		if errors.As(err, &keyErr) {
+			if len(keyErr.Want) > 0 {
+				return fmt.Errorf("host key mismatch for %s (possible MITM attack): %w", hostname, err)
+			}
+			// Unknown host -> Trust On First Use (TOFU)
+			line := knownhosts.Line([]string{knownhosts.Normalize(remote.String()), knownhosts.Normalize(hostname)}, key)
+			m.knownHostsMu.Lock()
+			defer m.knownHostsMu.Unlock()
+			f, fErr := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+			if fErr == nil {
+				_, _ = f.WriteString(line + "\n")
+				_ = f.Close()
+			}
+			return nil
+		}
+
+		return err
+	}
 }
 
 // Dial establishes an SSH connection, optionally routing through a Bastion / Jump Host.
@@ -160,10 +243,10 @@ func (m *ClientManager) Dial(ctx context.Context, cfg *Config) (*gossh.Client, e
 			return nil, fmt.Errorf("failed to dial target %s via jump host: %w", targetAddr, err)
 		}
 
-		ncc, chans, reqs, err := gossh.NewClientConn(targetConn, targetAddr, sshConfig)
+		bConn := &bastionConn{Conn: targetConn, bastion: jumpClient}
+		ncc, chans, reqs, err := gossh.NewClientConn(bConn, targetAddr, sshConfig)
 		if err != nil {
-			_ = targetConn.Close()
-			_ = jumpClient.Close()
+			_ = bConn.Close()
 			return nil, fmt.Errorf("failed to establish ssh session to %s via jump host: %w", targetAddr, err)
 		}
 

@@ -254,7 +254,9 @@ func (m *Manager) Delete(id string) error {
 	}
 
 	// 1. Remove from secure provider
-	_ = m.provider.Delete(cleanID)
+	if err := m.provider.Delete(cleanID); err != nil {
+		return fmt.Errorf("failed to delete secret from provider: %w", err)
+	}
 
 	// 2. Remove from metadata
 	m.mu.Lock()

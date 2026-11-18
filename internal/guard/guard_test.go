@@ -191,3 +191,41 @@ func TestMakeSnippet(t *testing.T) {
 		t.Errorf("expected snippet to contain line 3 marker, got:\n%s", snippet)
 	}
 }
+
+func TestValidateConf_EscapedQuotesInDirective(t *testing.T) {
+	nginxWithEscapedQuotes := []byte(`
+server {
+    listen 80;
+    server_name example.com;
+
+    location / {
+        proxy_set_header X-Custom "string with \" escaped quote and {brace}";
+        proxy_pass http://127.0.0.1:3000;
+    }
+}
+`)
+	res := Validate("nginx.conf", nginxWithEscapedQuotes)
+	if !res.Valid {
+		t.Fatalf("expected valid conf with escaped quotes, but got issues: %+v", res.Issues)
+	}
+}
+
+func TestIsSensitive_GlobSegmentBoundary(t *testing.T) {
+	rules := []string{"etc/**"}
+
+	// Must match true path segments
+	if !IsSensitive("/etc/nginx/nginx.conf", rules, nil) {
+		t.Errorf("expected /etc/nginx/nginx.conf to match etc/**")
+	}
+	if !IsSensitive("etc/my.conf", rules, nil) {
+		t.Errorf("expected etc/my.conf to match etc/**")
+	}
+
+	// Must NOT match partial substrings
+	if IsSensitive("/var/log/stretcher.log", rules, nil) {
+		t.Errorf("expected /var/log/stretcher.log NOT to match etc/**")
+	}
+	if IsSensitive("/home/user/sketch/sketch.conf", rules, nil) {
+		t.Errorf("expected sketch.conf NOT to match etc/**")
+	}
+}
