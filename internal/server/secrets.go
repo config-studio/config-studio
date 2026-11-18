@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -162,6 +163,29 @@ func (s *Server) handleGetSecret(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func generateSecretID(scope secrets.SecretScope, title string) string {
+	raw := strings.ToLower(strings.TrimSpace(title))
+	var b strings.Builder
+	for _, r := range raw {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('-')
+		}
+	}
+	slug := strings.Trim(b.String(), "-")
+	for strings.Contains(slug, "--") {
+		slug = strings.ReplaceAll(slug, "--", "-")
+	}
+	if slug == "" {
+		slug = fmt.Sprintf("sec-%x", time.Now().UnixNano()%1000000)
+	}
+	if scope != "" && scope != secrets.ScopeShared {
+		return string(scope) + ":" + slug
+	}
+	return slug
+}
+
 func (s *Server) handleSaveSecret(w http.ResponseWriter, r *http.Request) {
 	settings := s.config.Get()
 	token := s.getSessionToken(r)
@@ -172,16 +196,21 @@ func (s *Server) handleSaveSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if item.ID == "" {
-		jsonError(w, http.StatusBadRequest, "Secret ID is required")
-		return
-	}
-
 	if item.Scope == "" {
 		if item.PluginID != "" {
 			item.Scope = secrets.ScopePlugin
 		} else {
 			item.Scope = secrets.ScopeShared
+		}
+	}
+
+	item.ID = strings.TrimSpace(item.ID)
+	if item.ID == "" {
+		if strings.TrimSpace(item.Title) != "" {
+			item.ID = generateSecretID(item.Scope, item.Title)
+		} else {
+			jsonError(w, http.StatusBadRequest, "Secret ID is required")
+			return
 		}
 	}
 

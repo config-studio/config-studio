@@ -195,6 +195,7 @@ export const App: React.FC = () => {
       if (!status.authRequired || status.authenticated) {
         await loadSettings();
         await loadWorkspaces();
+        await pluginManager.loadPlugins();
       }
     } catch (e) {
       console.error('Failed to init auth:', e);
@@ -259,6 +260,9 @@ export const App: React.FC = () => {
     const unsubscribe = pluginManager.subscribe((state) => {
       setPluginState(state);
     });
+
+    // Auto-load active plugins on startup
+    pluginManager.loadPlugins();
 
     return () => {
       unsubscribe();

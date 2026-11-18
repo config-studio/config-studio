@@ -6,6 +6,7 @@ import {
   Copy,
   Check,
   ShieldCheck,
+  Globe,
 } from 'lucide-react';
 import { Card, Input, Button, Toggle, Badge, SectionHeader } from '../../ui';
 
@@ -24,6 +25,10 @@ interface SecurityTabProps {
   setStructureGuardEnabled: (v: boolean) => void;
   criticalPatterns: string;
   setCriticalPatterns: (v: string) => void;
+  trustedProxies: string;
+  setTrustedProxies: (v: string) => void;
+  trustForwardAuth: boolean;
+  setTrustForwardAuth: (v: boolean) => void;
   t: any;
 }
 
@@ -42,6 +47,10 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
   setStructureGuardEnabled,
   criticalPatterns,
   setCriticalPatterns,
+  trustedProxies,
+  setTrustedProxies,
+  trustForwardAuth,
+  setTrustForwardAuth,
   t,
 }) => {
   const [copiedKey, setCopiedKey] = useState(false);
@@ -164,6 +173,41 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
             <span>{t.apiDisabledNote}</span>
           </div>
         )}
+      </Card>
+
+      {/* Reverse Proxy & Trusted Networks Card */}
+      <Card className="p-4 space-y-3">
+        <SectionHeader
+          icon={<Globe className="w-4 h-4 text-accent" />}
+          title={t.trustedProxiesTitle || 'Реверс-прокси и доверенные сети'}
+          rightElement={
+            <Toggle
+              checked={trustForwardAuth}
+              onChange={setTrustForwardAuth}
+              size="md"
+            />
+          }
+        />
+
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+          {t.trustedProxiesDesc || 'Укажите CIDR адреса доверенных обратных прокси (Traefik, Nginx, Caddy). Тумблер справа активирует авторизацию через внешние заголовки прокси (Forward Auth: X-Forwarded-User).'}
+        </p>
+
+        <div className="space-y-2 pt-2 border-t border-base-border/60">
+          <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300">
+            {t.trustedProxiesLabel || 'Доверенные подсети / IP (по одному на строку)'}
+          </label>
+          <textarea
+            rows={3}
+            value={trustedProxies}
+            onChange={(e) => setTrustedProxies(e.target.value)}
+            placeholder="127.0.0.1/32&#10;::1/128&#10;192.168.0.0/16&#10;10.0.0.0/8"
+            className="w-full px-3 py-2 bg-white dark:bg-black/30 border border-base-border rounded-xl text-xs font-mono text-gray-900 dark:text-white focus:outline-none focus:border-accent"
+          />
+          <p className="text-[10px] text-gray-400 font-mono">
+            Примеры: <code>127.0.0.1/32</code>, <code>::1/128</code>, <code>192.168.10.0/24</code>, <code>10.0.0.0/8</code>
+          </p>
+        </div>
       </Card>
 
       {/* Structure Guard (Deep Pre-Save Validation) Card */}

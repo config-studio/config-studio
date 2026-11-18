@@ -71,7 +71,11 @@ export const SecretEditModal: React.FC<SecretEditModalProps> = ({
             label={t.secretIdLabel}
             value={secretId}
             onChange={(e) => setSecretId(e.target.value)}
-            placeholder={t.secretIdPlaceholder}
+            placeholder={
+              !editingSecretId && secretTitle
+                ? secretTitle.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || t.secretIdPlaceholder
+                : t.secretIdPlaceholder
+            }
             disabled={!!editingSecretId}
             className="font-mono"
             copyable={!!secretId}

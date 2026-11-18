@@ -5,6 +5,7 @@ import 'xterm/css/xterm.css';
 import { RefreshCw, Trash2, Power, Terminal as TerminalIcon, AlertCircle } from 'lucide-react';
 import { StatusBadge } from '@config-studio/ui';
 import { SSHHost } from '../../types';
+import { recordDebugEvent } from '../../debug/debugRecorder';
 
 export interface XTerminalHandle {
   reconnect: () => void;
@@ -197,6 +198,13 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
     termRef.current = term;
     fitAddonRef.current = fitAddon;
 
+    recordDebugEvent('TERMINAL', 'network', `SSH_CONNECTING: Connecting to ${host.user}@${host.host}:${host.port || 22}`, host.host, {
+      user: host.user,
+      host: host.host,
+      port: host.port || 22,
+      authType: host.authType,
+    });
+
     term.writeln(`\x1b[36m[Config Studio SSH]\x1b[0m Connecting to ${host.user}@${host.host}:${host.port || 22}...`);
 
     // Setup WebSocket
@@ -231,14 +239,17 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
           const msg = JSON.parse(text);
           if (msg.type === 'connected') {
             notifyStatus('connected');
+            recordDebugEvent('TERMINAL', 'network', `SSH_CONNECTED: Session active for ${host.user}@${host.host}`, host.host);
             term.writeln(`\x1b[32mSSH Session Connected.\x1b[0m`);
             return;
           } else if (msg.type === 'error') {
             notifyStatus('error', msg.message || 'Connection failed');
+            recordDebugEvent('RUNTIME_ERROR', 'network', `SSH_ERROR: ${msg.message || 'Connection failed'}`, host.host, { error: msg.message });
             term.writeln(`\r\n\x1b[31m[SSH Error] ${msg.message}\x1b[0m\r\n`);
             return;
           } else if (msg.type === 'exit') {
             notifyStatus('disconnected');
+            recordDebugEvent('TERMINAL', 'network', `SSH_EXIT: Session terminated for ${host.user}@${host.host}`, host.host);
             term.writeln(`\r\n\x1b[33mSession terminated.\x1b[0m\r\n`);
             return;
           }
@@ -249,8 +260,10 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
         // Check for server-side status banners sent as plain text
         if (text.includes('SSH Session Connected')) {
           notifyStatus('connected');
+          recordDebugEvent('TERMINAL', 'network', `SSH_CONNECTED: Session connected to ${host.user}@${host.host}`, host.host);
         } else if (text.includes('[SSH Connection Failed]') || text.includes('[SSH Error]')) {
           notifyStatus('error', 'Connection failed');
+          recordDebugEvent('RUNTIME_ERROR', 'network', `SSH_FAILED: ${text.trim()}`, host.host);
         }
 
         term.write(text);
@@ -262,12 +275,18 @@ export const XTerminal = forwardRef<XTerminalHandle, XTerminalProps>(({
 
     ws.onerror = () => {
       notifyStatus('error', 'WebSocket connection failed');
+      recordDebugEvent('RUNTIME_ERROR', 'network', `SSH_GATEWAY_ERROR: Failed to connect to SSH gateway at ${wsUrl}`, wsUrl, {
+        host: host.host,
+        user: host.user,
+        wsUrl,
+      });
       term.writeln(`\r\n\x1b[31m[Network Error] Failed to connect to SSH gateway.\x1b[0m\r\n`);
     };
 
     ws.onclose = () => {
       if (statusRef.current !== 'error') {
         notifyStatus('disconnected');
+        recordDebugEvent('TERMINAL', 'network', `SSH_DISCONNECTED: Session closed for ${host.user}@${host.host}`, host.host);
       }
     };
 

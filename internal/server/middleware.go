@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -180,6 +181,19 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		if !isWebUI && r.Header.Get("X-ConfigStudio-Web") == "1" {
 			// Header only accepted from loopback, test harness, or trusted proxy
 			if isLoopbackOrTest(r.RemoteAddr) || s.isTrustedProxy(r.RemoteAddr) {
+				isWebUI = true
+			}
+		}
+
+		if !isWebUI && strings.EqualFold(r.Header.Get("Upgrade"), "websocket") && (r.URL.Query().Get("web") == "1" || r.URL.Path == "/api/ssh/ws") {
+			origin := r.Header.Get("Origin")
+			originMatches := false
+			if origin != "" {
+				if u, err := url.Parse(origin); err == nil && strings.EqualFold(u.Host, r.Host) {
+					originMatches = true
+				}
+			}
+			if isLoopbackOrTest(r.RemoteAddr) || s.isTrustedProxy(r.RemoteAddr) || originMatches {
 				isWebUI = true
 			}
 		}

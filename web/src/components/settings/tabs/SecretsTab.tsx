@@ -380,9 +380,17 @@ export const SecretsTab: React.FC<SecretsTabProps> = ({
     setIsSavingSecret(true);
     setSecretEditorError('');
 
+    const autoSlug = secretTitle
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    const finalId = secretId.trim() || autoSlug || undefined;
+
     try {
       await api.saveSecret({
-        id: secretId.trim() || undefined,
+        id: finalId,
         title: secretTitle.trim(),
         type: secretType,
         scope: secretScope,

@@ -74,6 +74,9 @@ function formatConsoleEvent(evt) {
     case 'PLUGIN_CALL':
       return `  ${C.gray}├── 🔌 PLUGIN:${C.reset} ${C.magenta}${evt.label}${C.reset}`;
 
+    case 'TERMINAL':
+      return `  ${C.gray}├── 💻 TERMINAL:${C.reset} ${C.cyan}${evt.label}${C.reset}`;
+
     case 'RUNTIME_ERROR':
       return `  ${C.red}${C.bold}🚨 RUNTIME ERROR:${C.reset} ${C.red}${evt.label}${C.reset}\n     ${C.dim}${evt.details?.stack || ''}${C.reset}`;
 

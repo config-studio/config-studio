@@ -7,6 +7,7 @@ export type DebugEventKind =
   | 'UI_TAB'
   | 'MONACO_NAV'
   | 'PLUGIN_CALL'
+  | 'TERMINAL'
   | 'RUNTIME_ERROR';
 
 export interface DebugEvent {
