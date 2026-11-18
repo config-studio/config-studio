@@ -137,3 +137,46 @@ func TestTrustedProxy_CommaSeparatedEntries(t *testing.T) {
 		t.Fatalf("did not expect 10.1.2.3 to be trusted")
 	}
 }
+
+func TestDebugProxy_TrustedProxyBypass(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "cs-proxy-debug-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	cfgMgr, _ := config.NewManager(tempDir)
+	fsSvc, _ := appfs.NewService(tempDir)
+	runner := plugin.NewRunner()
+	pMgr, _ := plugin.NewManager(tempDir, runner)
+	auditLogger, _ := audit.NewLogger(tempDir)
+	secMgr, _ := secrets.NewManager(tempDir)
+	fleetMgr, _ := fleet.NewManager(tempDir)
+
+	srv := NewServer(Config{AuthUser: "admin", AuthPass: "secret"}, cfgMgr, fsSvc, pMgr, runner, auditLogger, secMgr, fleetMgr)
+
+	_ = cfgMgr.Update(config.Settings{
+		AuthEnabled:    true,
+		ApiEnabled:     false, // REST API disabled!
+		TrustedProxies: []string{"192.168.10.9"},
+	})
+
+	// 1. Untrusted IP -> should be blocked by auth/REST gate
+	untrustedW := httptest.NewRecorder()
+	untrustedReq := httptest.NewRequest(http.MethodPost, "/api/debug/events", strings.NewReader(`{"kind":"USER_ACTION"}`))
+	untrustedReq.RemoteAddr = "10.1.2.3:5555"
+	srv.handler.ServeHTTP(untrustedW, untrustedReq)
+	if untrustedW.Code != http.StatusForbidden && untrustedW.Code != http.StatusUnauthorized {
+		t.Fatalf("expected untrusted debug request to be rejected, got %d", untrustedW.Code)
+	}
+
+	// 2. Trusted Proxy IP -> must NOT be rejected by auth / REST gate (should reach proxy handler: 200 or 502)
+	trustedW := httptest.NewRecorder()
+	trustedReq := httptest.NewRequest(http.MethodPost, "/api/debug/events", strings.NewReader(`{"kind":"USER_ACTION"}`))
+	trustedReq.RemoteAddr = "192.168.10.9:57804"
+	srv.handler.ServeHTTP(trustedW, trustedReq)
+	if trustedW.Code == http.StatusForbidden || trustedW.Code == http.StatusUnauthorized {
+		t.Fatalf("expected trusted proxy debug request to bypass auth/rest gate, but got %d", trustedW.Code)
+	}
+}
+

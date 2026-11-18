@@ -154,8 +154,8 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Allow debug telemetry proxy for loopback
-		if strings.HasPrefix(r.URL.Path, "/api/debug/") && isLoopbackOrTest(r.RemoteAddr) {
+		// Allow debug telemetry proxy for loopback, test harness, or trusted proxies
+		if strings.HasPrefix(r.URL.Path, "/api/debug/") && (isLoopbackOrTest(r.RemoteAddr) || s.isTrustedProxy(r.RemoteAddr)) {
 			next.ServeHTTP(w, r)
 			return
 		}

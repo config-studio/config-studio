@@ -19,7 +19,10 @@ export async function checkDebugServerHealth(): Promise<boolean> {
   try {
     const res = await fetch('/api/debug/health', {
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      headers: {
+        'Accept': 'application/json',
+        'X-ConfigStudio-Web': '1',
+      },
     });
     if (res.ok) {
       isServerOnline = true;
@@ -48,7 +51,10 @@ export function sendDebugEvent(evt: DebugEvent) {
     // 1. Send via core proxy (/api/debug/events) — same origin, zero CORS/firewall issues
     fetch('/api/debug/events', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-ConfigStudio-Web': '1',
+      },
       body: payload,
     }).catch(() => {
       // 2. Fallback to direct port 9998
