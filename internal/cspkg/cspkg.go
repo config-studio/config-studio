@@ -311,12 +311,22 @@ func UnpackBytes(data []byte, targetDir string) (*PackageInfo, error) {
 	}
 
 	for _, file := range zipReader.File {
+		// Reject symlinks
+		if file.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("security violation: symlinks not permitted in package: %q", file.Name)
+		}
+
 		cleanName := filepath.Clean(file.Name)
-		if strings.HasPrefix(cleanName, "..") || filepath.IsAbs(cleanName) {
+		if strings.HasPrefix(cleanName, "..") || filepath.IsAbs(cleanName) ||
+			filepath.VolumeName(cleanName) != "" || strings.Contains(cleanName, ":") {
 			return nil, fmt.Errorf("security violation: path traversal detected in %q", file.Name)
 		}
 
 		destPath := filepath.Join(targetDir, cleanName)
+		rel, err := filepath.Rel(targetDir, destPath)
+		if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
+			return nil, fmt.Errorf("security violation: path escapes target dir in %q", file.Name)
+		}
 
 		if file.FileInfo().IsDir() {
 			if err := os.MkdirAll(destPath, 0755); err != nil {
@@ -334,17 +344,25 @@ func UnpackBytes(data []byte, targetDir string) (*PackageInfo, error) {
 			return nil, err
 		}
 
-		out, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+		// Enforce maximum 100MB per file to prevent decompression bombs
+		const maxFileSize = 100 * 1024 * 1024
+		lr := io.LimitReader(rc, maxFileSize+1)
+
+		out, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode()&0755)
 		if err != nil {
 			rc.Close()
 			return nil, err
 		}
 
-		_, err = io.Copy(out, rc)
+		n, err := io.Copy(out, lr)
 		out.Close()
 		rc.Close()
 		if err != nil {
 			return nil, fmt.Errorf("failed writing %s: %w", cleanName, err)
+		}
+		if n > maxFileSize {
+			_ = os.Remove(destPath)
+			return nil, fmt.Errorf("security violation: file %q exceeds maximum uncompressed size of 100MB", file.Name)
 		}
 	}
 

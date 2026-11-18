@@ -272,12 +272,17 @@ func TestRealAlpineVM(t *testing.T) {
 	}
 	_ = conn.Close()
 
+	pass := os.Getenv("CS_TEST_SSH_PASSWORD")
+	if pass == "" {
+		t.Skip("CS_TEST_SSH_PASSWORD not set, skipping live Alpine VM test")
+	}
+
 	mgr := NewClientManager(nil)
 	cfg := &Config{
 		Host:     "192.168.0.161",
 		Port:     22,
 		User:     "root",
-		Password: "odusib22",
+		Password: pass,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

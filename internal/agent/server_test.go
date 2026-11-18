@@ -163,3 +163,34 @@ func TestServerAdopt(t *testing.T) {
 		t.Fatalf("Expected 403 on second adopt call, got %d", w.Code)
 	}
 }
+
+func TestServerAdopt_WithToken(t *testing.T) {
+	srv, cfg, _ := setupTestServer(t)
+	cfg.AdoptToken = "secret-adopt-token-123"
+
+	// 1. Without header -> 401 Unauthorized
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/adopt", nil)
+	srv.srv.Handler.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("Expected 401 on adopt without token, got %d", w.Code)
+	}
+
+	// 2. With wrong token -> 401 Unauthorized
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/adopt", nil)
+	req.Header.Set("X-CS-Adopt-Token", "wrong-token")
+	srv.srv.Handler.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("Expected 401 on adopt with wrong token, got %d", w.Code)
+	}
+
+	// 3. With correct token -> 200 OK
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/adopt", nil)
+	req.Header.Set("X-CS-Adopt-Token", "secret-adopt-token-123")
+	srv.srv.Handler.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200 on adopt with correct token, got %d", w.Code)
+	}
+}

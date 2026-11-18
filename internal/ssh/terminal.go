@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,7 +18,15 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  8192,
 	WriteBufferSize: 8192,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Config Studio handles origin validation in auth middleware
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		u, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+		return strings.EqualFold(u.Host, r.Host)
 	},
 }
 

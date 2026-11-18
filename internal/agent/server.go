@@ -166,6 +166,15 @@ func (s *Server) handleAdopt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.cfg.AdoptToken != "" {
+		token := r.Header.Get("X-CS-Adopt-Token")
+		if token != s.cfg.AdoptToken {
+			s.cfg.mu.Unlock()
+			jsonError(w, http.StatusUnauthorized, "invalid or missing X-CS-Adopt-Token header")
+			return
+		}
+	}
+
 	hostname, _ := os.Hostname()
 	res := map[string]any{
 		"status":   "adopted",

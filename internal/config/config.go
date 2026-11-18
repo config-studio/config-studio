@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"config-studio/internal/fsutil"
 	"io"
 	"os"
 	"path/filepath"
@@ -22,6 +23,8 @@ type Settings struct {
 	AuthEnabled   bool   `json:"authEnabled" yaml:"auth_enabled"`
 	AuthUser      string `json:"authUser" yaml:"auth_user"`
 	AuthPass      string `json:"authPass,omitempty" yaml:"auth_pass,omitempty"`
+	TrustForwardAuth       bool     `json:"trustForwardAuth" yaml:"trust_forward_auth"`
+	TrustedProxies         []string `json:"trustedProxies" yaml:"trusted_proxies"`
 	ApiEnabled             bool     `json:"apiEnabled" yaml:"api_enabled"`
 	ApiKey                 string   `json:"apiKey,omitempty" yaml:"api_key,omitempty"`
 	PluginExecUnrestricted bool     `json:"pluginExecUnrestricted" yaml:"plugin_exec_unrestricted"`
@@ -48,6 +51,8 @@ func DefaultSettings() Settings {
 		AuthEnabled:   false,
 		AuthUser:      "admin",
 		AuthPass:      "admin",
+		TrustForwardAuth:       false,
+		TrustedProxies:         []string{"127.0.0.1/32", "::1/128"},
 		ApiEnabled:             false,
 		ApiKey:                 "",
 		PluginExecUnrestricted: false,
@@ -150,7 +155,7 @@ func (m *Manager) save() error {
 		return err
 	}
 	header := []byte("# Config Studio Application Settings\n# You can edit this file directly or via the Web UI\n\n")
-	return os.WriteFile(m.settingsPath(), append(header, data...), 0644)
+	return fsutil.SafeWriteFile(m.settingsPath(), append(header, data...), 0644)
 }
 
 func (m *Manager) Get() Settings {
@@ -207,6 +212,10 @@ func (m *Manager) Update(s Settings) error {
 	}
 	if s.AuthPass != "" {
 		m.current.AuthPass = s.AuthPass
+	}
+	m.current.TrustForwardAuth = s.TrustForwardAuth
+	if s.TrustedProxies != nil {
+		m.current.TrustedProxies = s.TrustedProxies
 	}
 	m.current.ApiEnabled = s.ApiEnabled
 	if s.ApiKey != "" {

@@ -194,6 +194,13 @@ func (s *Server) handleSelfUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	lowerURL := strings.ToLower(downloadURL)
+	if !strings.HasPrefix(lowerURL, "https://github.com/config-studio/config-studio/releases/download/") &&
+		!strings.HasPrefix(lowerURL, "https://github.com/edvardbaldanov/config-studio/releases/download/") {
+		jsonError(w, http.StatusBadRequest, "untrusted downloadUrl: updates must originate from official GitHub Releases")
+		return
+	}
+
 	// 1. Determine running executable path
 	execPath, err := os.Executable()
 	if err != nil {

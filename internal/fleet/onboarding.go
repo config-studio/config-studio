@@ -97,6 +97,10 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	defer client.Close()
 	addLog("SSH соединение успешно установлено!")
 
+	runRemoteCmd := func(client *gossh.Client, cmd string) (string, error) {
+		return runRemoteCmdWithContext(ctx, client, cmd)
+	}
+
 	// 3. Detect OS & Architecture
 	unameS, err := runRemoteCmd(client, "uname -s")
 	if err != nil {
@@ -444,15 +448,34 @@ depend() {
 	return result, nil
 }
 
-func runRemoteCmd(client *gossh.Client, cmd string) (string, error) {
+func runRemoteCmdWithContext(ctx context.Context, client *gossh.Client, cmd string) (string, error) {
 	session, err := client.NewSession()
 	if err != nil {
 		return "", err
 	}
 	defer session.Close()
 
-	out, err := session.CombinedOutput(cmd)
-	return strings.TrimSpace(string(out)), err
+	type cmdResult struct {
+		out []byte
+		err error
+	}
+	resChan := make(chan cmdResult, 1)
+	go func() {
+		out, err := session.CombinedOutput(cmd)
+		resChan <- cmdResult{out: out, err: err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		_ = session.Close()
+		return "", ctx.Err()
+	case res := <-resChan:
+		return strings.TrimSpace(string(res.out)), res.err
+	}
+}
+
+func runRemoteCmd(client *gossh.Client, cmd string) (string, error) {
+	return runRemoteCmdWithContext(context.Background(), client, cmd)
 }
 
 // getAgentBinaryStream resolves the binary reader and metadata.

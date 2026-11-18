@@ -609,9 +609,14 @@ func (m *Manager) getPluginLocked(id string) (*Plugin, error) {
 // InspectZip extracts a zip or .cspkg archive to a temporary staging folder,
 // parses and validates plugin.json, and returns PendingInstall metadata.
 func (m *Manager) InspectZip(r io.Reader, size int64, sourceURL string) (*PendingInstall, error) {
-	data, err := io.ReadAll(r)
+	const maxArchiveSize = 50 * 1024 * 1024
+	lr := io.LimitReader(r, maxArchiveSize+1)
+	data, err := io.ReadAll(lr)
 	if err != nil {
 		return nil, err
+	}
+	if len(data) > maxArchiveSize {
+		return nil, errors.New("archive exceeds maximum allowed size of 50MB")
 	}
 
 	// Create a temporary extraction directory
@@ -638,13 +643,25 @@ func (m *Manager) InspectZip(r io.Reader, size int64, sourceURL string) (*Pendin
 
 		// Extract files with zip-slip safety check
 		for _, f := range zipReader.File {
+			if f.Mode()&os.ModeSymlink != 0 {
+				_ = os.RemoveAll(tmpDir)
+				return nil, fmt.Errorf("security violation: symlinks not permitted in archive: %s", f.Name)
+			}
+
 			cleanPath := filepath.Clean(f.Name)
-			if strings.HasPrefix(cleanPath, "..") || strings.Contains(cleanPath, ":") {
+			if strings.HasPrefix(cleanPath, "..") || strings.Contains(cleanPath, ":") ||
+				filepath.IsAbs(cleanPath) || filepath.VolumeName(cleanPath) != "" {
 				_ = os.RemoveAll(tmpDir)
 				return nil, fmt.Errorf("insecure path in archive: %s", f.Name)
 			}
 
 			targetPath := filepath.Join(tmpDir, cleanPath)
+			rel, err := filepath.Rel(tmpDir, targetPath)
+			if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
+				_ = os.RemoveAll(tmpDir)
+				return nil, fmt.Errorf("insecure path in archive: %s", f.Name)
+			}
+
 			if f.FileInfo().IsDir() {
 				_ = os.MkdirAll(targetPath, 0755)
 				continue
@@ -655,7 +672,7 @@ func (m *Manager) InspectZip(r io.Reader, size int64, sourceURL string) (*Pendin
 				return nil, err
 			}
 
-			outFile, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			outFile, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode()&0755)
 			if err != nil {
 				_ = os.RemoveAll(tmpDir)
 				return nil, err
@@ -668,12 +685,17 @@ func (m *Manager) InspectZip(r io.Reader, size int64, sourceURL string) (*Pendin
 				return nil, err
 			}
 
-			_, err = io.Copy(outFile, rc)
+			const maxFileSize = 50 * 1024 * 1024
+			n, err := io.Copy(outFile, io.LimitReader(rc, maxFileSize+1))
 			rc.Close()
 			outFile.Close()
 			if err != nil {
 				_ = os.RemoveAll(tmpDir)
 				return nil, err
+			}
+			if n > maxFileSize {
+				_ = os.RemoveAll(tmpDir)
+				return nil, fmt.Errorf("security violation: file %q exceeds maximum uncompressed size of 50MB", f.Name)
 			}
 		}
 	}
@@ -713,11 +735,20 @@ func (m *Manager) InspectZip(r io.Reader, size int64, sourceURL string) (*Pendin
 	pluginDir := filepath.Dir(manifestPath)
 	enrichManifestLocales(&manifest, pluginDir)
 
-	// Determine if official
+	// Determine if official:
+	// If a sourceURL is provided, it MUST originate from an official GitHub repository.
+	// If installed locally without URL, author must be an official team name.
 	isOfficial := false
 	authorLower := strings.ToLower(manifest.Author)
-	if authorLower == "configstudio" || authorLower == "config studio" || authorLower == "config studio team" || strings.Contains(strings.ToLower(sourceURL), "github.com/edvardbaldanov/config-studio-") {
-		isOfficial = true
+	isOfficialAuthor := authorLower == "configstudio" || authorLower == "config studio" || authorLower == "config studio team"
+
+	sourceLower := strings.ToLower(strings.TrimSpace(sourceURL))
+	isOfficialURL := strings.HasPrefix(sourceLower, "https://github.com/config-studio/") || strings.HasPrefix(sourceLower, "https://github.com/edvardbaldanov/config-studio-")
+
+	if sourceURL != "" {
+		isOfficial = isOfficialURL
+	} else {
+		isOfficial = isOfficialAuthor
 	}
 
 	tempKey := generateTempKey()
@@ -886,7 +917,7 @@ func (m *Manager) ServeFile(w http.ResponseWriter, r *http.Request, pluginID, re
 	}
 
 	cleanRel := filepath.ToSlash(filepath.Clean(strings.TrimPrefix(relPath, "/")))
-	if strings.HasPrefix(cleanRel, "..") {
+	if strings.HasPrefix(cleanRel, "..") || strings.Contains(cleanRel, ":") || filepath.IsAbs(cleanRel) || filepath.VolumeName(cleanRel) != "" {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -920,13 +951,29 @@ func (m *Manager) ServeFile(w http.ResponseWriter, r *http.Request, pluginID, re
 		return
 	}
 
+	realDir, err := filepath.EvalSymlinks(p.Dir)
+	if err != nil {
+		realDir = filepath.Clean(p.Dir)
+	}
+
 	target := filepath.Join(p.Dir, cleanRel)
-	info, err := os.Stat(target)
+	realTarget, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	relCheck, err := filepath.Rel(realDir, realTarget)
+	if err != nil || relCheck == ".." || strings.HasPrefix(relCheck, ".."+string(filepath.Separator)) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	info, err := os.Stat(realTarget)
 	if err != nil || info.IsDir() {
 		http.NotFound(w, r)
 		return
 	}
-	http.ServeFile(w, r, target)
+	http.ServeFile(w, r, realTarget)
 }
 
 func copyDir(src string, dst string) error {

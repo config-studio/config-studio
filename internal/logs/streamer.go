@@ -51,6 +51,11 @@ func (s *StreamService) StreamSSE(ctx context.Context, w http.ResponseWriter, ss
 	w.Header().Set("Cache-Control", "no-cache, no-transform")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no") // Disable Nginx proxy buffering
+
+	// Disable HTTP write deadlines for streaming connection
+	rc := http.NewResponseController(w)
+	_ = rc.SetWriteDeadline(time.Time{})
+
 	flusher.Flush()
 
 	source := opts.Source
@@ -102,17 +107,8 @@ func (s *StreamService) StreamSSE(ctx context.Context, w http.ResponseWriter, ss
 	var exitCode = 0
 	var runErr error
 
-	if isLocal {
-		exitCode, runErr = s.runLocalCommand(ctx, opts, source, linesChan, &wg)
-	} else {
-		if sshMgr == nil {
-			_ = sendEvent("error", "", map[string]string{"error": "SSH manager not configured"})
-			return errors.New("SSH manager not configured")
-		}
-		exitCode, runErr = s.runRemoteCommand(ctx, sshMgr, sshCfg, opts, source, linesChan, &wg)
-	}
-
-	// Consumer goroutine that writes to SSE
+	// Consumer goroutine that writes to SSE must be started BEFORE executing the command
+	// to prevent pipe buffer deadlocks on commands outputting >64 lines.
 	go func() {
 		defer close(doneChan)
 		ticker := time.NewTicker(20 * time.Second)
@@ -137,6 +133,18 @@ func (s *StreamService) StreamSSE(ctx context.Context, w http.ResponseWriter, ss
 			}
 		}
 	}()
+
+	if isLocal {
+		exitCode, runErr = s.runLocalCommand(ctx, opts, source, linesChan, &wg)
+	} else {
+		if sshMgr == nil {
+			_ = sendEvent("error", "", map[string]string{"error": "SSH manager not configured"})
+			close(linesChan)
+			<-doneChan
+			return errors.New("SSH manager not configured")
+		}
+		exitCode, runErr = s.runRemoteCommand(ctx, sshMgr, sshCfg, opts, source, linesChan, &wg)
+	}
 
 	// Wait for process and lines reader to finish
 	wg.Wait()
@@ -185,8 +193,8 @@ func (s *StreamService) runLocalCommand(ctx context.Context, opts *StreamOptions
 	}
 
 	wg.Add(2)
-	go scanPipe(stdoutPipe, source, "stdout", ch, wg)
-	go scanPipe(stderrPipe, source, "stderr", ch, wg)
+	go scanPipe(ctx, stdoutPipe, source, "stdout", ch, wg)
+	go scanPipe(ctx, stderrPipe, source, "stderr", ch, wg)
 
 	err = cmd.Wait()
 	exitCode := 0
@@ -243,8 +251,8 @@ func (s *StreamService) runRemoteCommand(ctx context.Context, sshMgr *ssh.Client
 	}()
 
 	wg.Add(2)
-	go scanPipe(stdoutPipe, source, "stdout", ch, wg)
-	go scanPipe(stderrPipe, source, "stderr", ch, wg)
+	go scanPipe(ctx, stdoutPipe, source, "stdout", ch, wg)
+	go scanPipe(ctx, stderrPipe, source, "stderr", ch, wg)
 
 	err = session.Wait()
 	exitCode := 0
@@ -259,7 +267,7 @@ func (s *StreamService) runRemoteCommand(ctx context.Context, sshMgr *ssh.Client
 	return exitCode, err
 }
 
-func scanPipe(r io.Reader, source string, stream string, ch chan<- *LogEntry, wg *sync.WaitGroup) {
+func scanPipe(ctx context.Context, r io.Reader, source string, stream string, ch chan<- *LogEntry, wg *sync.WaitGroup) {
 	defer wg.Done()
 	scanner := bufio.NewScanner(r)
 	// Support long log lines up to 256KB
@@ -269,6 +277,10 @@ func scanPipe(r io.Reader, source string, stream string, ch chan<- *LogEntry, wg
 	for scanner.Scan() {
 		line := scanner.Text()
 		entry := ParseLogLine(line, source, stream)
-		ch <- entry
+		select {
+		case ch <- entry:
+		case <-ctx.Done():
+			return
+		}
 	}
 }

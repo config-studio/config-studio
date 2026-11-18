@@ -1,13 +1,14 @@
 package agent
 
 import (
+	"config-studio/internal/fsutil"
 	"crypto/rand"
 	"encoding/base32"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -28,6 +29,7 @@ type Config struct {
 	Port         int           `yaml:"port" json:"port"`
 	TLS          TLSConfig     `yaml:"tls" json:"tls"`
 	Adopted      bool          `yaml:"adopted" json:"adopted"`
+	AdoptToken   string        `yaml:"adopt_token,omitempty" json:"adoptToken,omitempty"`
 	Master       MasterAuth    `yaml:"master" json:"master"`
 	Sandbox      SandboxConfig `yaml:"sandbox" json:"sandbox"`
 	ScopedTokens []ScopedToken `yaml:"scoped_tokens" json:"scopedTokens"`
@@ -111,27 +113,19 @@ func LoadOrInitConfig(configPath string) (*Config, bool, error) {
 	return &cfg, false, nil
 }
 
-// Save writes configuration to disk atomically.
-func (c *Config) Save() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
+func (c *Config) saveLocked() error {
 	data, err := yaml.Marshal(c)
 	if err != nil {
 		return err
 	}
+	return fsutil.SafeWriteFile(c.filePath, data, 0600)
+}
 
-	dir := filepath.Dir(c.filePath)
-	if dir != "" && dir != "." {
-		_ = os.MkdirAll(dir, 0700)
-	}
-
-	tmpFile := c.filePath + ".tmp"
-	if err := os.WriteFile(tmpFile, data, 0600); err != nil {
-		return err
-	}
-
-	return os.Rename(tmpFile, c.filePath)
+// Save writes configuration to disk atomically.
+func (c *Config) Save() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.saveLocked()
 }
 
 // AddScopedToken adds and persists a new scoped token.
@@ -156,15 +150,14 @@ func (c *Config) AddScopedToken(id, desc string, topics, roots []string) (*Scope
 		Description:  desc,
 		Topics:       topics,
 		AllowedRoots: roots,
-		CreatedAt:    strings.Split(yamlTimestamp(), ".")[0] + "Z",
+		CreatedAt:    yamlTimestamp(),
 	}
 
 	c.ScopedTokens = append(c.ScopedTokens, *token)
 
-	// Save
-	data, err := yaml.Marshal(c)
-	if err == nil {
-		_ = os.WriteFile(c.filePath, data, 0600)
+	if err := c.saveLocked(); err != nil {
+		c.ScopedTokens = c.ScopedTokens[:len(c.ScopedTokens)-1]
+		return nil, fmt.Errorf("failed to save agent config: %w", err)
 	}
 
 	return token, nil
@@ -186,11 +179,12 @@ func (c *Config) DeleteScopedToken(id string) error {
 		return fmt.Errorf("token %q not found", id)
 	}
 
+	removed := c.ScopedTokens[idx]
 	c.ScopedTokens = append(c.ScopedTokens[:idx], c.ScopedTokens[idx+1:]...)
 
-	data, err := yaml.Marshal(c)
-	if err == nil {
-		_ = os.WriteFile(c.filePath, data, 0600)
+	if err := c.saveLocked(); err != nil {
+		c.ScopedTokens = append(c.ScopedTokens[:idx], append([]ScopedToken{removed}, c.ScopedTokens[idx:]...)...)
+		return fmt.Errorf("failed to save agent config: %w", err)
 	}
 	return nil
 }
@@ -204,5 +198,5 @@ func GenerateBase32Secret(length int) string {
 }
 
 func yamlTimestamp() string {
-	return strings.ReplaceAll(strings.ReplaceAll(os.Getenv("TIME"), " ", "T"), "+", "Z")
+	return time.Now().UTC().Format(time.RFC3339)
 }

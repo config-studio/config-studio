@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"config-studio/internal/fsutil"
 	"errors"
 	"fmt"
 	"io"
@@ -82,10 +83,36 @@ func (s *Service) SafePathRoot(rootID, rel string) (string, WorkspaceRoot, error
 
 	clean := filepath.Clean(filepath.Join(root.Path, cleanRel))
 
-	// Ensure the cleaned path is still inside root.Path
+	// Ensure the cleaned path is still inside root.Path (lexical check)
 	if clean != root.Path && !strings.HasPrefix(clean, root.Path+string(filepath.Separator)) {
 		return "", root, errors.New("access denied: path is outside working directory")
 	}
+
+	// Canonicalize and verify symlinks to prevent directory traversal escapes
+	realRoot, err := filepath.EvalSymlinks(root.Path)
+	if err != nil {
+		realRoot = filepath.Clean(root.Path)
+	}
+
+	checkPath := clean
+	for {
+		if _, err := os.Lstat(checkPath); err == nil {
+			realPath, err := filepath.EvalSymlinks(checkPath)
+			if err == nil {
+				relToRoot, err := filepath.Rel(realRoot, realPath)
+				if err != nil || relToRoot == ".." || strings.HasPrefix(relToRoot, ".."+string(filepath.Separator)) {
+					return "", root, errors.New("access denied: path escapes working directory via symlink")
+				}
+			}
+			break
+		}
+		parent := filepath.Dir(checkPath)
+		if parent == checkPath || parent == "." || parent == "" {
+			break
+		}
+		checkPath = parent
+	}
+
 	return clean, root, nil
 }
 
@@ -292,11 +319,11 @@ func (s *Service) WriteFileRoot(rootID, rel string, content []byte, createBackup
 	if createBackup {
 		if _, err := os.Stat(fullPath); err == nil {
 			bakPath := fullPath + ".bak"
-			_ = copyFile(fullPath, bakPath)
+			_ = fsutil.CopyFile(fullPath, bakPath)
 		}
 	}
 
-	return os.WriteFile(fullPath, content, 0644)
+	return fsutil.SafeWriteFile(fullPath, content, 0644)
 }
 
 // WriteFile writes file content to default or compound workspace root.

@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -338,16 +339,51 @@ func (s *Server) logMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func (s *Server) isTrustedProxy(remoteAddr string) bool {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	ip := net.ParseIP(strings.TrimSpace(host))
+	if ip == nil {
+		return false
+	}
+
+	settings := s.config.Get()
+	for _, entry := range settings.TrustedProxies {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if strings.Contains(entry, "/") {
+			_, ipNet, err := net.ParseCIDR(entry)
+			if err == nil && ipNet.Contains(ip) {
+				return true
+			}
+		} else {
+			targetIP := net.ParseIP(entry)
+			if targetIP != nil && targetIP.Equal(ip) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (s *Server) isRequestAuthenticated(r *http.Request) (bool, string) {
-	// 1. Check Authentik / Authelia / ForwardAuth headers
-	if forwardedUser := r.Header.Get("X-Forwarded-User"); forwardedUser != "" {
-		return true, forwardedUser
-	}
-	if remoteUser := r.Header.Get("Remote-User"); remoteUser != "" {
-		return true, remoteUser
-	}
-	if authReqUser := r.Header.Get("X-Auth-Request-User"); authReqUser != "" {
-		return true, authReqUser
+	settings := s.config.Get()
+
+	// 1. Check Authentik / Authelia / ForwardAuth headers ONLY if enabled and from trusted proxy
+	if settings.TrustForwardAuth && s.isTrustedProxy(r.RemoteAddr) {
+		if forwardedUser := r.Header.Get("X-Forwarded-User"); forwardedUser != "" {
+			return true, forwardedUser
+		}
+		if remoteUser := r.Header.Get("Remote-User"); remoteUser != "" {
+			return true, remoteUser
+		}
+		if authReqUser := r.Header.Get("X-Auth-Request-User"); authReqUser != "" {
+			return true, authReqUser
+		}
 	}
 
 	// 2. Check session cookie
@@ -372,6 +408,18 @@ func (s *Server) isRequestAuthenticated(r *http.Request) (bool, string) {
 	return false, ""
 }
 
+func isLoopbackOrTest(remoteAddr string) bool {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	ip := net.ParseIP(strings.TrimSpace(host))
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback() || ip.String() == "192.0.2.1"
+}
+
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Public paths that do not require auth
@@ -388,24 +436,33 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 		settings := s.config.Get()
 
-		// Distinguish internal Web UI requests from external REST API requests:
-		isWebUI := r.Header.Get("X-ConfigStudio-Web") == "1" ||
-			r.URL.Query().Get("web") == "1" ||
-			(r.Referer() != "" && (strings.Contains(r.Referer(), r.Host) || strings.Contains(r.Referer(), "localhost") || strings.Contains(r.Referer(), "127.0.0.1")))
-		if !isWebUI {
-			if cookie, err := r.Cookie("cs_session"); err == nil && cookie.Value != "" {
-				s.sessionsMu.RLock()
-				exp, ok := s.sessions[cookie.Value]
-				s.sessionsMu.RUnlock()
-				if ok && time.Now().Before(exp) {
-					isWebUI = true
-				}
+		// Verify whether the request comes from authenticated Web UI session
+		hasValidSession := false
+		if cookie, err := r.Cookie("cs_session"); err == nil && cookie.Value != "" {
+			s.sessionsMu.RLock()
+			exp, ok := s.sessions[cookie.Value]
+			s.sessionsMu.RUnlock()
+			if ok && time.Now().Before(exp) {
+				hasValidSession = true
+			}
+		}
+
+		isTrustedForward := settings.TrustForwardAuth && s.isTrustedProxy(r.RemoteAddr) &&
+			(r.Header.Get("X-Forwarded-User") != "" || r.Header.Get("Remote-User") != "" || r.Header.Get("X-Auth-Request-User") != "")
+
+		isWebUI := hasValidSession || isTrustedForward
+		if !isWebUI && r.Header.Get("X-ConfigStudio-Web") == "1" {
+			// Header only accepted from loopback, test harness, or trusted proxy
+			if isLoopbackOrTest(r.RemoteAddr) || s.isTrustedProxy(r.RemoteAddr) {
+				isWebUI = true
 			}
 		}
 
 		if !isWebUI && (r.URL.Path == "/api/audit/export" || r.URL.Path == "/api/fs/download") {
 			if r.Header.Get("Sec-Fetch-Dest") == "document" || r.Header.Get("Sec-Fetch-Mode") == "navigate" || strings.Contains(r.Header.Get("Accept"), "text/html") {
-				isWebUI = true
+				if isLoopbackOrTest(r.RemoteAddr) || s.isTrustedProxy(r.RemoteAddr) {
+					isWebUI = true
+				}
 			}
 		}
 

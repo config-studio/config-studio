@@ -24,23 +24,21 @@ func CleanBase32(s string) string {
 	return s
 }
 
-// DecodeSecret decodes a base32 encoded TOTP secret.
-// Falls back to raw bytes if not valid base32.
+// DecodeSecret decodes a base32 encoded TOTP secret according to RFC 6238 / RFC 4226.
 func DecodeSecret(secret string) ([]byte, error) {
 	clean := CleanBase32(secret)
+	if clean == "" {
+		return nil, fmt.Errorf("empty secret")
+	}
 	// Base32 padding check
 	if missingPadding := len(clean) % 8; missingPadding != 0 {
 		clean += strings.Repeat("=", 8-missingPadding)
 	}
 	key, err := base32.StdEncoding.DecodeString(clean)
-	if err == nil && len(key) > 0 {
-		return key, nil
+	if err != nil || len(key) == 0 {
+		return nil, fmt.Errorf("invalid base32 secret: %w", err)
 	}
-	// Fallback to raw string bytes if secret was provided as plain ASCII
-	if len(secret) > 0 {
-		return []byte(secret), nil
-	}
-	return nil, fmt.Errorf("empty secret")
+	return key, nil
 }
 
 // GenerateTOTP generates an RFC 6238 TOTP code for the given time.

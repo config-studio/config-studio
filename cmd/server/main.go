@@ -152,10 +152,10 @@ func main() {
 
 	addr := fmt.Sprintf("0.0.0.0:%d", *port)
 	httpServer := &http.Server{
-		Addr:         addr,
-		Handler:      appServer,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
+		Addr:              addr,
+		Handler:           appServer,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Graceful shutdown channel

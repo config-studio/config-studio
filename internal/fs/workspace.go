@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"config-studio/internal/fsutil"
 	"errors"
 	"fmt"
 	"os"
@@ -245,7 +246,7 @@ func (wm *WorkspaceManager) saveLocked() error {
 		return err
 	}
 
-	if err := os.WriteFile(wm.filePath, data, 0644); err != nil {
+	if err := fsutil.SafeWriteFile(wm.filePath, data, 0644); err != nil {
 		return err
 	}
 
