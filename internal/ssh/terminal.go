@@ -149,12 +149,8 @@ func (m *ClientManager) HandleWebSocket(w http.ResponseWriter, r *http.Request) 
 
 	_ = safeWS.WriteMessage(websocket.TextMessage, []byte("\x1b[32mSSH Session Connected.\x1b[0m\r\n"))
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// Pump stdout/stderr to WebSocket
-	pumpOutput := func(r io.Reader) {
-		defer wg.Done()
+	// Pump stdout/stderr concurrently to WebSocket to prevent buffer deadlock
+	pumpStream := func(r io.Reader) {
 		buf := make([]byte, 4096)
 		for {
 			n, readErr := r.Read(buf)
@@ -177,11 +173,11 @@ func (m *ClientManager) HandleWebSocket(w http.ResponseWriter, r *http.Request) 
 		_ = session.Close()
 	}()
 
-	go pumpOutput(io.MultiReader(stdoutPipe, stderrPipe))
+	go pumpStream(stdoutPipe)
+	go pumpStream(stderrPipe)
 
 	// Pump WebSocket messages to stdin & handle control messages
 	go func() {
-		defer wg.Done()
 		defer stdinPipe.Close()
 		defer cancel()
 

@@ -34,9 +34,26 @@ func setupTestServerForLogs(t *testing.T) (*Server, func()) {
 	return s, func() {}
 }
 
+func TestLogsStream_RestrictedByDefault(t *testing.T) {
+	s, cleanup := setupTestServerForLogs(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/logs/stream?cmd=echo+forbidden", nil)
+	req.Header.Set("X-ConfigStudio-Web", "1")
+	rec := httptest.NewRecorder()
+
+	s.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("expected status 403 for restricted local logs stream, got %d", rec.Code)
+	}
+}
+
 func TestLogsStream_EmptyCmd(t *testing.T) {
 	s, cleanup := setupTestServerForLogs(t)
 	defer cleanup()
+
+	_ = s.config.Update(config.Settings{PluginExecUnrestricted: true})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/logs/stream", nil)
 	req.Header.Set("X-ConfigStudio-Web", "1")
@@ -52,6 +69,8 @@ func TestLogsStream_EmptyCmd(t *testing.T) {
 func TestLogsStream_GET_Success(t *testing.T) {
 	s, cleanup := setupTestServerForLogs(t)
 	defer cleanup()
+
+	_ = s.config.Update(config.Settings{PluginExecUnrestricted: true})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -77,6 +96,8 @@ func TestLogsStream_GET_Success(t *testing.T) {
 func TestLogsStream_POST_Success(t *testing.T) {
 	s, cleanup := setupTestServerForLogs(t)
 	defer cleanup()
+
+	_ = s.config.Update(config.Settings{PluginExecUnrestricted: true})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

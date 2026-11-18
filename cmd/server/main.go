@@ -168,7 +168,7 @@ func main() {
 		if useTLS {
 			protocol = "https"
 		}
-		log.Printf(" Config Studio v2.3.0 is running at %s://%s", protocol, addr)
+		log.Printf(" Config Studio v2.3.6 is running at %s://%s", protocol, addr)
 		log.Printf(" Working directory: %s", *workdir)
 		log.Printf(" Data directory:    %s", *dataDir)
 		if useTLS {

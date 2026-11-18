@@ -98,6 +98,22 @@ func (m *mockVault) Get(id string) (string, error) {
 	return "", errors.New("secret not found")
 }
 
+func (m *mockVault) GetMeta(id string) (secrets.SecretMeta, bool) {
+	if _, ok := m.secrets[id]; ok {
+		scope := "user"
+		if id == "system-key" {
+			scope = "system"
+		}
+		return secrets.SecretMeta{
+			ID:    id,
+			Title: "Secret " + id,
+			Type:  secrets.TypeToken,
+			Scope: secrets.SecretScope(scope),
+		}, true
+	}
+	return secrets.SecretMeta{}, false
+}
+
 func (m *mockVault) List() []secrets.SecretMeta {
 	list := make([]secrets.SecretMeta, 0, len(m.secrets))
 	for id := range m.secrets {
@@ -158,6 +174,7 @@ func setupTestService() *Service {
 	v := &mockVault{
 		secrets: map[string]string{
 			"agent:node-1": "secret-token-12345",
+			"system-key":   "master-root-password",
 		},
 	}
 	opts := Options{
@@ -337,18 +354,22 @@ func TestSandbox_FacadeVault(t *testing.T) {
 		Code: `
 			const list = cs.vault.list();
 			const secret = cs.vault.getSecret("agent:node-1");
-			({ listLen: list.length, secret: secret });
+			const systemSecret = cs.vault.getSecret("system-key");
+			({ listLen: list.length, secret: secret, systemSecret: systemSecret });
 		`,
 	})
 	if err != nil || !res.Success {
 		t.Fatalf("eval failed: %v, err=%s", err, res.Error)
 	}
 	valMap := res.Value.(map[string]any)
-	if valMap["listLen"] != int64(1) {
-		t.Errorf("expected 1 secret, got %v", valMap["listLen"])
+	if valMap["listLen"] != int64(2) {
+		t.Errorf("expected 2 secrets, got %v", valMap["listLen"])
 	}
 	if valMap["secret"] != "secret-token-12345" {
 		t.Errorf("expected secret-token-12345, got %v", valMap["secret"])
+	}
+	if valMap["systemSecret"] != nil {
+		t.Errorf("expected system secret to be null, got %v", valMap["systemSecret"])
 	}
 }
 

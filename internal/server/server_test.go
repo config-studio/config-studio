@@ -3,8 +3,10 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -169,5 +171,52 @@ func TestGzip_SkipsNoContentAndNotModified(t *testing.T) {
 	}
 	if len(w.Body.Bytes()) != 0 {
 		t.Errorf("expected empty body for 204 No Content, got %d bytes: %v", len(w.Body.Bytes()), w.Body.Bytes())
+	}
+}
+
+func TestProxy_SSRF_BypassAttempts(t *testing.T) {
+	s := NewServer(Config{}, nil, nil, nil, nil, nil, nil)
+
+	bypassTargets := []string{
+		"http://localhost:secret@attacker.com",
+		"http://127.0.0.1:pass@evil.org:8080/steal",
+		"http://169.254.169.254/?h=internal.net",
+		"http://evil.com/localhost",
+		"http://attacker.com/?q=127.0.0.1",
+	}
+
+	for _, target := range bypassTargets {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/remote-proxy/api/health?target="+target, nil)
+		req.Header.Set("X-ConfigStudio-Web", "1")
+		req.RemoteAddr = "127.0.0.1:12345"
+		s.ServeHTTP(w, req)
+
+		if w.Code != http.StatusForbidden && w.Code != http.StatusBadRequest {
+			t.Errorf("expected 403 or 400 for bypass target %q, got %d: %s", target, w.Code, w.Body.String())
+		}
+	}
+}
+
+func TestGzip_DisabledStatus_ShortWriteContract(t *testing.T) {
+	s := NewServer(Config{}, nil, nil, nil, nil, nil, nil)
+
+	handler204 := s.gzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+		// Use io.Copy to write data to 204 response. If Write returns (0, nil), io.Copy returns io.ErrShortWrite!
+		src := strings.NewReader("some ignored data")
+		_, err := io.Copy(w, src)
+		if err != nil {
+			t.Errorf("io.Copy into disabled gzip writer failed: %v", err)
+		}
+	}))
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/action", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	handler204.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected 204 No Content, got %d", w.Code)
 	}
 }

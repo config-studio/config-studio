@@ -52,7 +52,8 @@ func (w *gzipResponseWriter) Write(b []byte) (int, error) {
 		w.WriteHeader(http.StatusOK)
 	}
 	if w.isGzipDisabled() {
-		return 0, nil
+		// Discard data cleanly without violating io.Writer contract (n == len(b))
+		return len(b), nil
 	}
 	return w.writer.Write(b)
 }

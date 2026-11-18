@@ -612,3 +612,27 @@ func TestPluginOptionalDependencies(t *testing.T) {
 		t.Fatalf("deleting opt-helper with optional dependent should succeed, got: %v", err)
 	}
 }
+
+func TestInstall_PathTraversalManifestID(t *testing.T) {
+	tempDir := t.TempDir()
+	mgr, err := NewManager(tempDir, nil)
+	if err != nil {
+		t.Fatalf("failed to create manager: %v", err)
+	}
+
+	invalidIDs := []string{
+		"../../traversal",
+		"../escape",
+		"sub/folder",
+		"invalid id with spaces",
+		"id_with_special_chars!@#$",
+	}
+
+	for _, invalidID := range invalidIDs {
+		zipData := createTestPluginZip(t, invalidID, "Bad Plugin", "Attacker", []string{"shell.exec"})
+		_, err := mgr.InspectZip(bytes.NewReader(zipData), int64(len(zipData)), "")
+		if err == nil {
+			t.Errorf("expected error for invalid/traversal plugin id %q, but got nil", invalidID)
+		}
+	}
+}

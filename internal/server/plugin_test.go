@@ -171,3 +171,33 @@ func TestServerPluginInspectAndConfirm(t *testing.T) {
 		t.Fatalf("expected 403 Forbidden when attempting empty plugin bypass, got %d", recEmpty.Code)
 	}
 }
+
+func TestStartPluginProcess_CoreBypassForbidden(t *testing.T) {
+	tempDir := t.TempDir()
+	cfgMgr, err := config.NewManager(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create config manager: %v", err)
+	}
+	fsSvc, _ := appfs.NewService(tempDir)
+	runner := plugin.NewRunner()
+	pluginMgr, _ := plugin.NewManager(tempDir, runner)
+	srv := NewServer(Config{}, cfgMgr, fsSvc, pluginMgr, runner, nil, nil)
+
+	// Mode is restricted by default. Attempting to start background process with "core" or "" must be 403.
+	cases := []string{"core", ""}
+	for _, pid := range cases {
+		body, _ := json.Marshal(map[string]any{
+			"pluginId": pid,
+			"command":  "echo",
+			"args":     []string{"background_bypass"},
+		})
+		req := httptest.NewRequest("POST", "/api/plugin-processes/start", bytes.NewReader(body))
+		req.Header.Set("X-ConfigStudio-Web", "1")
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("expected 403 Forbidden for pluginId %q, got %d: %s", pid, rec.Code, rec.Body.String())
+		}
+	}
+}

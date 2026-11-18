@@ -75,6 +75,7 @@ type FSProvider interface {
 // VaultProvider abstracts encrypted secrets retrieval.
 type VaultProvider interface {
 	Get(id string) (string, error)
+	GetMeta(id string) (secrets.SecretMeta, bool)
 	List() []secrets.SecretMeta
 }
 
@@ -541,6 +542,11 @@ func (s *Service) Eval(ctx context.Context, req EvalRequest) (res *EvalResult, e
 			return goja.Null()
 		}
 		id := call.Arguments[0].String()
+		meta, ok := s.vault.GetMeta(id)
+		if !ok || meta.Scope == "system" {
+			// Deny sandboxed access to system/root credentials
+			return goja.Null()
+		}
 		val, err := s.vault.Get(id)
 		if err != nil {
 			return goja.Null()

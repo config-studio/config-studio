@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -78,11 +79,7 @@ func isWindowsSharingViolation(err error) bool {
 	}
 	s := err.Error()
 	return os.IsPermission(err) || os.IsExist(err) ||
-		len(s) > 0 && (contains(s, "Access is denied") || contains(s, "used by another process"))
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && filepath.Base(s) != "")
+		(len(s) > 0 && (strings.Contains(s, "Access is denied") || strings.Contains(s, "used by another process")))
 }
 
 // CopyFile copies a single file from src to dst.

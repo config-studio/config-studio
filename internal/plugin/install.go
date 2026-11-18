@@ -12,12 +12,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"config-studio/internal/cspkg"
 	"config-studio/internal/fsutil"
 )
+
+var validPluginIDRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
 
 // InspectZip extracts a zip or cspkg archive and inspects its manifest.
 func (m *Manager) InspectZip(r io.Reader, size int64, sourceURL string) (*PendingInstall, error) {
@@ -143,6 +146,10 @@ func (m *Manager) InspectZip(r io.Reader, size int64, sourceURL string) (*Pendin
 		_ = os.RemoveAll(tmpDir)
 		return nil, errors.New("plugin.json is missing 'id' field")
 	}
+	if !validPluginIDRegex.MatchString(manifest.ID) {
+		_ = os.RemoveAll(tmpDir)
+		return nil, fmt.Errorf("invalid plugin id %q: must contain only letters, numbers, underscores and dashes (max 64 chars)", manifest.ID)
+	}
 
 	pluginDir := filepath.Dir(manifestPath)
 	enrichManifestLocales(&manifest, pluginDir)
@@ -239,6 +246,10 @@ func (m *Manager) ConfirmInstall(tempKey string) (*Plugin, error) {
 	m.mu.Unlock()
 
 	defer os.RemoveAll(pending.TempDir)
+
+	if !validPluginIDRegex.MatchString(pending.Manifest.ID) {
+		return nil, fmt.Errorf("invalid plugin id %q", pending.Manifest.ID)
+	}
 
 	destPackage := filepath.Join(m.pluginsDir, pending.Manifest.ID+".cspkg")
 	destDir := filepath.Join(m.pluginsDir, pending.Manifest.ID)

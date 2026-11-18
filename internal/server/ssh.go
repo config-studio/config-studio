@@ -19,8 +19,7 @@ func (s *Server) handleSSHTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := s.ssh.Test(r.Context(), &cfg)
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(res)
+	jsonResponse(w, http.StatusOK, res)
 }
 
 func (s *Server) handleSSHExec(w http.ResponseWriter, r *http.Request) {
@@ -71,8 +70,7 @@ func (s *Server) handleSSHExec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(res)
+	jsonResponse(w, http.StatusOK, res)
 }
 
 func (s *Server) handleSSHGenerateKey(w http.ResponseWriter, r *http.Request) {
@@ -87,8 +85,7 @@ func (s *Server) handleSSHGenerateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(kp)
+	jsonResponse(w, http.StatusOK, kp)
 }
 
 func (s *Server) handleSFTPList(w http.ResponseWriter, r *http.Request) {
@@ -104,8 +101,7 @@ func (s *Server) handleSFTPList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"path":    req.Path,
 		"entries": entries,
 	})
@@ -130,8 +126,7 @@ func (s *Server) handleSFTPRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"path":    req.Path,
 		"content": string(data),
 		"size":    len(data),
@@ -151,8 +146,7 @@ func (s *Server) handleSFTPWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"success":      true,
 		"path":         req.Path,
 		"bytesWritten": n,
@@ -172,8 +166,7 @@ func (s *Server) handleSFTPStat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(fi)
+	jsonResponse(w, http.StatusOK, fi)
 }
 
 func (s *Server) handleSFTPMkdir(w http.ResponseWriter, r *http.Request) {
@@ -188,8 +181,7 @@ func (s *Server) handleSFTPMkdir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"success": true,
 		"path":    req.Path,
 	})
@@ -207,8 +199,7 @@ func (s *Server) handleSFTPDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"success": true,
 		"path":    req.Path,
 	})
@@ -226,8 +217,7 @@ func (s *Server) handleSFTPRename(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jsonResponse(w, http.StatusOK, map[string]any{
 		"success": true,
 		"oldPath": req.Path,
 		"newPath": req.NewPath,
@@ -247,6 +237,5 @@ func (s *Server) handleSFTPBatchRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(res)
+	jsonResponse(w, http.StatusOK, res)
 }

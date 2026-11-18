@@ -150,7 +150,9 @@ func (s *Server) handleFSWriteFile(w http.ResponseWriter, r *http.Request) {
 
 	// Create backup if file already exists
 	if _, err := os.Stat(req.Path); err == nil {
-		_ = os.WriteFile(req.Path+".csbak", []byte(req.Content), 0644)
+		if origData, readErr := os.ReadFile(req.Path); readErr == nil {
+			_ = os.WriteFile(req.Path+".csbak", origData, 0644)
+		}
 	}
 
 	dir := filepath.Dir(req.Path)

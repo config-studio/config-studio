@@ -443,8 +443,16 @@ func (s *Server) handleStartPluginProcess(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	settings := s.config.Get()
+	unrestricted := settings.PluginExecUnrestricted
+
 	// Capability check: if plugin is specified, verify it has shell.exec or terminal.exec capability
-	if req.PluginID != "" && req.PluginID != "core" {
+	if req.PluginID == "" || req.PluginID == "core" {
+		if !unrestricted {
+			jsonError(w, http.StatusForbidden, "execution with core/empty pluginId requires unrestricted plugin execution to be enabled")
+			return
+		}
+	} else {
 		p, err := s.plugins.GetPlugin(req.PluginID)
 		if err != nil {
 			jsonError(w, http.StatusNotFound, fmt.Sprintf("plugin %q not found", req.PluginID))
@@ -459,9 +467,6 @@ func (s *Server) handleStartPluginProcess(w http.ResponseWriter, r *http.Request
 	if req.Cwd == "" {
 		req.Cwd = s.fs.WorkDir
 	}
-
-	settings := s.config.Get()
-	unrestricted := settings.PluginExecUnrestricted
 
 	info, err := s.pluginRunner.StartProcess(req.PluginID, req.Command, req.Args, req.Cwd, req.Port, unrestricted, req.Confirmed)
 	if err != nil {

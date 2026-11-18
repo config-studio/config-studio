@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -36,22 +37,30 @@ func (s *Server) handleRemoteProxy(w http.ResponseWriter, r *http.Request) {
 
 	// Whitelist validation to prevent SSRF: targetBase must be localhost/loopback or an enrolled fleet agent
 	targetClean := strings.TrimRight(targetBase, "/")
+	parsedTarget, err := url.Parse(targetClean)
+	if err != nil || parsedTarget.User != nil || parsedTarget.Hostname() == "" {
+		jsonError(w, http.StatusBadRequest, "invalid target URL")
+		return
+	}
+	targetHostname := strings.ToLower(parsedTarget.Hostname())
+	targetPort := parsedTarget.Port()
+
 	targetAllowed := false
-	if strings.HasPrefix(targetClean, "http://localhost:") || strings.HasPrefix(targetClean, "http://127.0.0.1:") ||
-		strings.HasPrefix(targetClean, "https://localhost:") || strings.HasPrefix(targetClean, "https://127.0.0.1:") ||
-		targetClean == "http://localhost" || targetClean == "http://127.0.0.1" {
+	if targetHostname == "localhost" || targetHostname == "127.0.0.1" || targetHostname == "::1" {
 		targetAllowed = true
 	} else if s.fleet != nil {
 		for _, srv := range s.fleet.ListServers() {
 			if srv.Connection.Agent != nil && srv.Connection.Agent.Enabled && srv.Connection.Agent.URL != "" {
-				agentURL := strings.TrimRight(srv.Connection.Agent.URL, "/")
-				if strings.EqualFold(targetClean, agentURL) {
-					targetAllowed = true
-					break
+				if parsedAgent, err := url.Parse(strings.TrimRight(srv.Connection.Agent.URL, "/")); err == nil {
+					if strings.EqualFold(parsedAgent.Hostname(), targetHostname) && parsedAgent.Port() == targetPort {
+						targetAllowed = true
+						break
+					}
 				}
 			}
 			if srv.Connection.SSH != nil && srv.Connection.SSH.Host != "" {
-				if strings.Contains(targetClean, srv.Connection.SSH.Host) {
+				sshHost := strings.ToLower(strings.TrimSpace(srv.Connection.SSH.Host))
+				if sshHost == targetHostname {
 					targetAllowed = true
 					break
 				}

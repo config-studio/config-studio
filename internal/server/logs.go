@@ -39,6 +39,16 @@ func (s *Server) handleLogsStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Local execution requires unrestricted mode to prevent arbitrary command execution via logs stream
+	isLocal := opts.HostID == "" || opts.HostID == "localhost" || opts.HostID == "local"
+	if isLocal {
+		cfg := s.config.Get()
+		if !cfg.PluginExecUnrestricted {
+			jsonError(w, http.StatusForbidden, "local log command execution is disabled unless unrestricted execution is enabled")
+			return
+		}
+	}
+
 	var sshCfg *ssh.Config
 
 	// Resolve host configuration if HostID is provided and not local

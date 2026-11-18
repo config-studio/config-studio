@@ -67,3 +67,25 @@ func TestCopyFileAndDir(t *testing.T) {
 		t.Fatalf("failed reading copied file2: %v", err)
 	}
 }
+
+func TestIsWindowsSharingViolation_Strict(t *testing.T) {
+	if isWindowsSharingViolation(nil) {
+		t.Errorf("nil error must return false")
+	}
+
+	nonSharingErr := os.ErrNotExist
+	if isWindowsSharingViolation(nonSharingErr) {
+		t.Errorf("ErrNotExist must return false, got true")
+	}
+
+	// An arbitrary error string longer than 16 chars must NOT be classified as sharing violation
+	generalErr := os.ErrInvalid
+	if isWindowsSharingViolation(generalErr) {
+		t.Errorf("ErrInvalid must return false, got true")
+	}
+
+	// Sharing violations must be recognized
+	if !isWindowsSharingViolation(os.ErrPermission) {
+		t.Errorf("ErrPermission must return true")
+	}
+}

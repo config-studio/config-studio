@@ -644,11 +644,14 @@ export function setupGlobalAPI(mgr: PluginLoader): void {
   // Secure sandbox: freeze bridge methods against malicious prototype tampering
   try {
     Object.freeze(bridge.fs);
-    Object.freeze(bridge.ui);
-    Object.freeze(bridge.editor);
-    Object.freeze(bridge.system);
-    Object.freeze(bridge.secrets);
     Object.freeze(bridge.ssh);
+    Object.freeze(bridge.services);
+    Object.freeze(bridge.contextMenu);
+    Object.freeze(bridge.secrets);
+    Object.freeze(bridge.ui);
+    Object.freeze(bridge.sysinfo);
+    Object.freeze(bridge.telemetry);
+    Object.freeze(bridge.logs);
   } catch (err) {
     console.warn('[PluginBridge] Could not freeze some bridge namespaces:', err);
   }
