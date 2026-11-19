@@ -9,6 +9,7 @@
     "build:ru": "tsc && vite build --mode ru",
     "build:en": "tsc && vite build --mode en",
     "build:debug": "tsc && vite build --mode debug",
+    "test:security": "node --experimental-strip-types scripts/test-path-security.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

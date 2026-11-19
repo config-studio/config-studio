@@ -18,6 +18,7 @@ import {
   FilePlus,
   Home,
   CheckCircle,
+  Maximize2,
 } from 'lucide-react';
 import { FileFormatIcon } from '../icons/FileFormatIcon';
 import { SSHHost, SFTPFileInfo, Settings } from '../../types';
@@ -26,12 +27,14 @@ import { api } from '../../services/api';
 import { formatBytes } from '../../utils/color';
 import { translations } from '../../utils/i18n';
 import { Dropdown, DropdownOption } from '@config-studio/ui';
+import { joinSafePath } from '../../utils/pathSecurity';
 
 interface SftpTreeExplorerProps {
   settings: Settings;
   onOpenFile: (host: SSHHost, remotePath: string) => void;
   onOpenTerminal?: (host: SSHHost) => void;
   onOpenSettingsSsh?: () => void;
+  onOpenDualPane?: (host: SSHHost | null, path: string) => void;
   onCloseMobileDrawer?: () => void;
 }
 
@@ -40,6 +43,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
   onOpenFile,
   onOpenTerminal,
   onOpenSettingsSsh,
+  onOpenDualPane,
   onCloseMobileDrawer,
 }) => {
   const [hosts, setHosts] = useState<SSHHost[]>(() => sshHostService.list());
@@ -58,6 +62,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
   const [isEditingPath, setIsEditingPath] = useState<boolean>(false);
   const [pathInputVal, setPathInputVal] = useState<string>('/etc');
   const fileUploadInputRef = useRef<HTMLInputElement>(null);
+  const loadReqIdRef = useRef<number>(0);
 
   const t = translations[settings.language] || translations.ru;
   const activeHost = hosts.find((h) => h.id === selectedHostId) || null;
@@ -107,8 +112,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
       if (targetHost) {
         setSelectedHostId(targetHost.id);
         sshHostService.setLastActiveHostId(targetHost.id);
-        const lastPath = sshHostService.getLastSftpPath(targetHost.id) || '/etc';
-        loadDirectory(lastPath, targetHost);
+        // Note: selectedHostId effect handles loading the directory without duplicate request
       }
     };
     window.addEventListener('cs:open-sftp-host', handleOpenHost);
@@ -129,6 +133,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
 
   const loadDirectory = async (dirPath: string, host: SSHHost | null = activeHost) => {
     if (!host) return;
+    const currentReqId = ++loadReqIdRef.current;
     setIsLoading(true);
     setErrorMessage(null);
     try {
@@ -144,6 +149,8 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
         path: dirPath,
       });
 
+      if (currentReqId !== loadReqIdRef.current) return;
+
       const sorted = (res.entries || []).sort((a, b) => {
         if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
         return a.name.localeCompare(b.name);
@@ -154,11 +161,15 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
       setPathInputVal(res.path || dirPath);
       sshHostService.setLastSftpPath(host.id, res.path || dirPath);
     } catch (err: any) {
-      console.error('[SFTP Explorer] Failed to list directory:', err);
-      setErrorMessage(err.message || 'Ошибка подключения по SFTP');
-      setEntries([]);
+      if (currentReqId === loadReqIdRef.current) {
+        console.error('[SFTP Explorer] Failed to list directory:', err);
+        setErrorMessage(err.message || 'Ошибка подключения по SFTP');
+        setEntries([]);
+      }
     } finally {
-      setIsLoading(false);
+      if (currentReqId === loadReqIdRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -195,7 +206,13 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
     if (!activeHost) return;
     const name = prompt(t.newFilePrompt || 'Введите имя нового файла:');
     if (!name?.trim()) return;
-    const fullPath = currentPath.replace(/\/+$/, '') + '/' + name.trim();
+    let fullPath: string;
+    try {
+      fullPath = joinSafePath(currentPath, name.trim());
+    } catch (err: any) {
+      alert(err.message);
+      return;
+    }
     try {
       await api.sftpWrite({
         host: activeHost.host,
@@ -219,7 +236,13 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
     if (!activeHost) return;
     const name = prompt(t.newFolderPrompt || 'Введите имя новой папки:');
     if (!name?.trim()) return;
-    const fullPath = currentPath.replace(/\/+$/, '') + '/' + name.trim();
+    let fullPath: string;
+    try {
+      fullPath = joinSafePath(currentPath, name.trim());
+    } catch (err: any) {
+      alert(err.message);
+      return;
+    }
     try {
       await api.sftpMkdir({
         host: activeHost.host,
@@ -264,7 +287,13 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
     const newName = prompt('Новое имя:', entry.name);
     if (!newName?.trim() || newName.trim() === entry.name) return;
     const parentDir = entry.path.substring(0, entry.path.lastIndexOf('/')) || '';
-    const newPath = (parentDir ? parentDir + '/' : '/') + newName.trim();
+    let newPath: string;
+    try {
+      newPath = joinSafePath(parentDir || '/', newName.trim());
+    } catch (err: any) {
+      alert(err.message);
+      return;
+    }
     try {
       await api.sftpRename({
         host: activeHost.host,
@@ -285,6 +314,11 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
   const handleDownloadFile = async (entry: SFTPFileInfo, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!activeHost) return;
+    const isBinaryExt = /\.(png|jpe?g|gif|ico|webp|zip|tar|gz|bz2|7z|pdf|exe|bin|iso|woff2?|wasm|so|dll|dylib)$/i.test(entry.name);
+    if (isBinaryExt) {
+      alert(`Скачивание бинарного файла "${entry.name}" через текстовый буфер не поддерживается во избежание повреждения.`);
+      return;
+    }
     try {
       const data = await api.sftpRead({
         host: activeHost.host,
@@ -312,10 +346,16 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
   const handleUploadLocalFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeHost) return;
+    let remoteTarget: string;
+    try {
+      remoteTarget = joinSafePath(currentPath, file.name);
+    } catch (err: any) {
+      alert(err.message);
+      return;
+    }
     try {
       setIsLoading(true);
       const content = await file.text();
-      const remoteTarget = currentPath.replace(/\/+$/, '') + '/' + file.name;
       await api.sftpWrite({
         host: activeHost.host,
         port: activeHost.port || 22,
@@ -420,6 +460,18 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
                 title="Настройки SSH хостов"
               >
                 <SettingsIcon className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {/* Expand into Dual-Pane File Manager */}
+            {onOpenDualPane && (
+              <button
+                type="button"
+                onClick={() => onOpenDualPane(activeHost, currentPath)}
+                className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center"
+                title="Развернуть двухпанельный файловый менеджер (Local ↔ SFTP)"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
               </button>
             )}
           </div>

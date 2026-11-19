@@ -38,6 +38,7 @@ import { buildFileContextMenuItems } from './explorer/useFileContextMenu';
 import { contextMenuRegistry } from '../services/contextMenuRegistry';
 import { SftpSendModal } from './sftp/SftpSendModal';
 import { SftpTreeExplorer } from './sftp/SftpTreeExplorer';
+import { SftpDualPaneModal } from './sftp/SftpDualPaneModal';
 import { sshHostService } from '../services/sshHosts';
 import { showGlobalToast } from './ui';
 
@@ -124,6 +125,21 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   const [uploadTargetDir, setUploadTargetDir] = useState<string>('');
   const [dragOverRootId, setDragOverRootId] = useState<string | null>(null);
   const [sftpSendTarget, setSftpSendTarget] = useState<{ path: string; root?: string; name: string } | null>(null);
+  const [dualPaneTarget, setDualPaneTarget] = useState<{ host: SSHHost | null; path: string } | null>(null);
+
+  useEffect(() => {
+    const handleOpenDualPane = (e: any) => {
+      const detail = e.detail;
+      const hostId = detail?.hostId;
+      const host = hostId ? sshHostService.list().find((h) => h.id === hostId) || null : null;
+      setDualPaneTarget({
+        host,
+        path: detail?.path || (host ? '/etc' : ''),
+      });
+    };
+    window.addEventListener('cs-open-sftp-modal', handleOpenDualPane);
+    return () => window.removeEventListener('cs-open-sftp-modal', handleOpenDualPane);
+  }, []);
 
   useEffect(() => {
     if (activeRootId) {
@@ -698,6 +714,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           onOpenFile={(host, remotePath) => onOpenSftpFile?.(host, remotePath)}
           onOpenTerminal={onOpenTerminalHost}
           onOpenSettingsSsh={onOpenSettingsSsh}
+          onOpenDualPane={(host, path) => setDualPaneTarget({ host, path })}
           onCloseMobileDrawer={onCloseMobileDrawer}
         />
       )}
@@ -723,6 +740,25 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           onClose={() => setSftpSendTarget(null)}
           onSuccess={(msg) => showGlobalToast(msg, 'success')}
           accentColor={settings.accentColor}
+        />
+      )}
+
+      {/* SFTP Dual-Pane File Manager Modal */}
+      {dualPaneTarget && (
+        <SftpDualPaneModal
+          key={`${dualPaneTarget.host?.id || 'local'}-${dualPaneTarget.path}`}
+          isOpen={Boolean(dualPaneTarget)}
+          onClose={() => setDualPaneTarget(null)}
+          initialHost={dualPaneTarget.host}
+          initialPath={dualPaneTarget.path}
+          workspaces={workspaces}
+          activeRootId={activeRootId}
+          onOpenFile={(host, path) => {
+            setDualPaneTarget(null);
+            if (host) onOpenSftpFile?.(host, path);
+            else onSelectFile(path, activeRootId);
+          }}
+          settings={settings}
         />
       )}
     </aside>
