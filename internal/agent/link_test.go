@@ -57,11 +57,14 @@ func TestConnectionLinkGenerationAndParsing(t *testing.T) {
 }
 
 func TestParseConnectionLinkVariants(t *testing.T) {
-	// With csagent:// scheme
-	link1 := "csagent://api_user:SECRETBASE32@vpn.example.com:9998/?roots=/home/deploy&tls=1#staging"
+	// With csagent:// scheme - testing explicit token key matching (this_token_key_not_id)
+	link1 := "csagent://this_token_key_not_id:SECRETBASE32@vpn.example.com:9998/?roots=/home/deploy&tls=1#staging"
 	parsed1, err := ParseConnectionLink(link1)
 	if err != nil {
 		t.Fatalf("failed to parse csagent:// link: %v", err)
+	}
+	if parsed1.KeyID != "this_token_key_not_id" {
+		t.Errorf("expected KeyID 'this_token_key_not_id', got %q", parsed1.KeyID)
 	}
 	if parsed1.Port != 9998 || !parsed1.TLS || parsed1.NodeName != "staging" {
 		t.Errorf("parsed fields mismatch: %+v", parsed1)
