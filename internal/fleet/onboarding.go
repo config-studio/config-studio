@@ -289,9 +289,23 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 		}
 	}
 
-	if shouldWriteConfig {
-		// Generate agent.yaml
-		agentYAML := fmt.Sprintf(`# config-studio-agent configuration
+	// 9. Configure & Start Service via the agent's native installer (-install)
+	if serviceType == "systemd" || serviceType == "openrc" {
+		addLog("Установка и запуск службы агента через нативный режим (%s -install)...", targetBinPath)
+		var installCmd string
+		if opts.UpgradeOnly && !shouldWriteConfig {
+			installCmd = fmt.Sprintf("%s%s -install -port %d -roots '/' -name %q -raw",
+				sudoPrefix, targetBinPath, port, srv.Name)
+		} else {
+			installCmd = fmt.Sprintf("%s%s -install -port %d -roots '/' -name %q -key %q -secret %q -raw",
+				sudoPrefix, targetBinPath, port, srv.Name, keyID, totpSecret)
+		}
+
+		installOut, err := runRemoteCmd(client, installCmd)
+		if err != nil {
+			addLog("Предупреждение: нативная установка завершилась с ошибкой (%v), применение резервного способа...", err)
+			if shouldWriteConfig {
+				agentYAML := fmt.Sprintf(`# config-studio-agent configuration
 host: "0.0.0.0"
 port: %d
 adopted: true
@@ -309,20 +323,16 @@ sandbox:
     - "/root/.ssh"
 `, port, keyID, totpSecret)
 
-		remoteTmpCfg := "/tmp/agent.yaml"
-		cfgFile, err := sftpClient.Create(remoteTmpCfg)
-		if err == nil {
-			_, _ = cfgFile.Write([]byte(agentYAML))
-			_ = cfgFile.Close()
-			_, _ = runRemoteCmd(client, fmt.Sprintf("%smv %s %s && %schmod 600 %s", sudoPrefix, remoteTmpCfg, targetCfgFile, sudoPrefix, targetCfgFile))
-			addLog("Конфигурация agent.yaml сохранена в %s", targetCfgFile)
-		}
-	}
-
-	// 9. Configure & Start Service
-	if serviceType == "systemd" {
-		addLog("Регистрация службы systemd config-studio-agent.service...")
-		serviceContent := fmt.Sprintf(`[Unit]
+				remoteTmpCfg := "/tmp/agent.yaml"
+				if cfgFile, err := sftpClient.Create(remoteTmpCfg); err == nil {
+					_, _ = cfgFile.Write([]byte(agentYAML))
+					_ = cfgFile.Close()
+					_, _ = runRemoteCmd(client, fmt.Sprintf("%smv %s %s && %schmod 600 %s", sudoPrefix, remoteTmpCfg, targetCfgFile, sudoPrefix, targetCfgFile))
+					addLog("Конфигурация agent.yaml сохранена в %s", targetCfgFile)
+				}
+			}
+			if serviceType == "systemd" {
+				serviceContent := fmt.Sprintf(`[Unit]
 Description=Config Studio Remote Agent
 After=network.target
 
@@ -337,38 +347,43 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 `, port)
-
-		tmpSvc := "/tmp/config-studio-agent.service"
-		sf, err := sftpClient.Create(tmpSvc)
-		if err == nil {
-			_, _ = sf.Write([]byte(serviceContent))
-			_ = sf.Close()
-			_, _ = runRemoteCmd(client, fmt.Sprintf("%smv %s /etc/systemd/system/config-studio-agent.service", sudoPrefix, tmpSvc))
-			_, _ = runRemoteCmd(client, fmt.Sprintf("%ssystemctl daemon-reload && %ssystemctl restart config-studio-agent && %ssystemctl enable config-studio-agent", sudoPrefix, sudoPrefix, sudoPrefix))
-			addLog("Служба systemd запущена и включена в автозагрузку")
-		}
-	} else if serviceType == "openrc" {
-		addLog("Регистрация службы OpenRC config-studio-agent...")
-		openrcContent := fmt.Sprintf(`#!/sbin/openrc-run
-description="Config Studio Remote Agent"
-command="/usr/local/bin/config-studio-agent"
-command_args="-config /etc/config-studio/agent.yaml -port %d"
-command_background="yes"
-pidfile="/run/config-studio-agent.pid"
-
-depend() {
-    need net
-}
-`, port)
-
-		tmpInit := "/tmp/config-studio-agent.init"
-		sf, err := sftpClient.Create(tmpInit)
-		if err == nil {
-			_, _ = sf.Write([]byte(openrcContent))
-			_ = sf.Close()
-			_, _ = runRemoteCmd(client, fmt.Sprintf("%smv %s /etc/init.d/config-studio-agent && %schmod +x /etc/init.d/config-studio-agent", sudoPrefix, tmpInit, sudoPrefix))
-			_, _ = runRemoteCmd(client, fmt.Sprintf("%src-update add config-studio-agent default && (%src-service config-studio-agent restart || %src-service config-studio-agent start)", sudoPrefix, sudoPrefix, sudoPrefix))
-			addLog("Служба OpenRC запущена и добавлена в runlevel default")
+				tmpSvc := "/tmp/config-studio-agent.service"
+				if sf, err := sftpClient.Create(tmpSvc); err == nil {
+					_, _ = sf.Write([]byte(serviceContent))
+					_ = sf.Close()
+					_, _ = runRemoteCmd(client, fmt.Sprintf("%smv %s /etc/systemd/system/config-studio-agent.service", sudoPrefix, tmpSvc))
+					_, _ = runRemoteCmd(client, fmt.Sprintf("%ssystemctl daemon-reload && %ssystemctl restart config-studio-agent && %ssystemctl enable config-studio-agent", sudoPrefix, sudoPrefix, sudoPrefix))
+					addLog("Служба systemd запущена и включена в автозагрузку (резервный путь)")
+				}
+			}
+		} else {
+			addLog("✓ Служба %s успешно зарегистрирована, запущена и включена в автозагрузку", serviceType)
+			cleanLink := strings.TrimSpace(installOut)
+			if strings.HasPrefix(cleanLink, "cs-agent://") {
+				addLog("✓ Получена ссылка подключения агента: %s", cleanLink)
+				if opts.UpgradeOnly && !shouldWriteConfig {
+					if parsed, err := agent.ParseConnectionLink(cleanLink); err == nil && parsed.KeyID != "" {
+						keyID = parsed.KeyID
+						totpSecret = parsed.Secret
+						if secMgr != nil {
+							credsJSON, _ := json.Marshal(map[string]string{
+								"keyId":  keyID,
+								"secret": totpSecret,
+							})
+							_ = secMgr.Set(secrets.SecretItem{
+								SecretMeta: secrets.SecretMeta{
+									ID:       vaultSecretID,
+									Title:    fmt.Sprintf("Agent Credentials (%s)", srv.Name),
+									Type:     secrets.TypeAgentCredentials,
+									Scope:    secrets.ScopeShared,
+									PluginID: "servers",
+								},
+								Value: string(credsJSON),
+							})
+						}
+					}
+				}
+			}
 		}
 	} else {
 		// Fallback: nohup background process (with stdio redirection and regex pkill to avoid hanging SSH)

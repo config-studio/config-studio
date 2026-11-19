@@ -58,7 +58,7 @@ func TestGenerateOrUpdateAgentConfig_CreationAndPreservation(t *testing.T) {
 
 	// 1. Initial creation
 	initialRoots := []string{"/opt/app", "/var/log/app"}
-	cfg, err := GenerateOrUpdateAgentConfig(cfgPath, 8090, initialRoots, false)
+	cfg, err := GenerateOrUpdateAgentConfig(cfgPath, 8090, initialRoots, "", "", false)
 	if err != nil {
 		t.Fatalf("GenerateOrUpdateAgentConfig failed on create: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestGenerateOrUpdateAgentConfig_CreationAndPreservation(t *testing.T) {
 
 	// 2. Re-running install/update with different port and roots must PRESERVE existing credentials!
 	newRoots := []string{"/opt/app", "/data"}
-	updatedCfg, err := GenerateOrUpdateAgentConfig(cfgPath, 9095, newRoots, true)
+	updatedCfg, err := GenerateOrUpdateAgentConfig(cfgPath, 9095, newRoots, "", "", true)
 	if err != nil {
 		t.Fatalf("GenerateOrUpdateAgentConfig failed on update: %v", err)
 	}

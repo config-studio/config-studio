@@ -160,6 +160,42 @@ go build -ldflags="-s -w" -o bin/config-studio.exe ./cmd/server
 | `-uninstall` | — | `false` | Удалить службу systemd/OpenRC (Linux) |
 
 ---
+
+### 🛡️ Удаленный агент флота (`config-studio-agent`)
+
+Легковесный, автономный Zero-Trust демон для прямого управления удаленными серверами, мониторинга телеметрии и безопасной работы с файлами без постоянных SSH-сессий.
+
+#### Быстрая установка агента в качестве системной службы (systemd / OpenRC):
+Бинарник агента поддерживает команду `-install`, которая автоматически создает `/etc/config-studio/agent.yaml`, генерирует криптостойкие токены `cs_key_<32hex>`, настраивает и запускает системный демон:
+
+```bash
+# Установка и запуск службы с кастомным портом и рабочими папками:
+sudo ./config-studio-agent -install -port 8085 -roots "/opt/projects,/var/www" -name "Production VPS"
+
+# Вывод чистой ссылки для 1-Click импорта в Config Studio (для bash/curl скриптов):
+sudo ./config-studio-agent -install -port 8085 -roots "/opt/projects,/var/www" -raw
+# Выведет: cs-agent://cs_key_...:...@ip:8085/?roots=...#Production%20VPS
+
+# Удаление службы:
+sudo ./config-studio-agent -uninstall
+```
+
+#### Флаги и команды `config-studio-agent`:
+
+| Флаг / Команда | Описание | Пример / По умолчанию |
+|---|---|---|
+| `-install` | Установить демон как службу systemd/OpenRC и сгенерировать `agent.yaml` | `config-studio-agent -install` |
+| `-uninstall` | Остановить и удалить системную службу и бинарник | `config-studio-agent -uninstall` |
+| `-port <int>` | Порт прослушивания агента | `-port 8085` (default: `8085`) |
+| `-roots <paths>` | Список разрешенных рабочих каталогов через запятую | `-roots "/opt/projects,/var/www"` (default: `/`) |
+| `-name <name>` | Имя сервера в фрагменте ссылки подключения | `-name "Prod VPS"` |
+| `-host <ip>` | Переопределить внешний IP/домен (если сервер за NAT) | `-host 203.0.113.10` |
+| `-raw` | Вывести **только** готовую ссылку `cs-agent://...` в stdout | `-raw` |
+| `-link` | Сгенерировать и вывести ссылку подключения из текущей конфигурации | `config-studio-agent link` |
+| `-config <path>`| Путь к `agent.yaml` | `-config /etc/config-studio/agent.yaml` |
+| `token list/create/delete` | Управление токенами только для чтения (Prometheus, логи) | `config-studio-agent token list` |
+
+---
 ---
 
 <a name="english-version"></a>
@@ -309,6 +345,27 @@ go build -ldflags="-s -w" -o bin/config-studio.exe ./cmd/server
 | `--auth-pass` | `CONFIG_AUTH_PASS` | `""` | Basic Auth password |
 | `-install` | — | `false` | Install as systemd/OpenRC service (Linux) |
 | `-uninstall` | — | `false` | Uninstall systemd/OpenRC service (Linux) |
+
+---
+
+### 🛡️ Remote Fleet Daemon (`config-studio-agent`)
+
+Lightweight, zero-trust headless daemon for remote host management, multi-root file editing, hardware telemetry streaming, and secure 2-tier TOTP authorization.
+
+#### 1-Click Automated Service Installation (`-install`):
+The agent binary can install itself as a managed system daemon (`systemd` or `OpenRC`), generate a cryptographically secure `cs_key_<32hex>` token, and output a 1-click import connection link:
+
+```bash
+# Install and start system service with custom port and working directories:
+sudo ./config-studio-agent -install -port 8085 -roots "/opt/projects,/var/www" -name "Production VPS"
+
+# Output raw connection URI only (ideal for bash/curl automated deployment scripts):
+sudo ./config-studio-agent -install -port 8085 -roots "/opt/projects,/var/www" -raw
+# Outputs: cs-agent://cs_key_...:...@ip:8085/?roots=...#Production%20VPS
+
+# Uninstall agent service:
+sudo ./config-studio-agent -uninstall
+```
 
 ---
 

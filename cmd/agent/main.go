@@ -86,6 +86,8 @@ func main() {
 	rootsFlag := flag.String("roots", "", "Allowed working directories (comma-separated)")
 	nameFlag := flag.String("name", "", "Server node name for connection link")
 	hostFlag := flag.String("host", "", "Public IP / Host for connection link")
+	keyFlag := flag.String("key", "", "API Token Key (cs_key_...)")
+	secretFlag := flag.String("secret", "", "TOTP Base32 secret")
 	tlsFlag := flag.Bool("tls", false, "Enable TLS")
 	linkFlag := flag.Bool("link", false, "Generate and print 1-click connection link")
 	rawFlag := flag.Bool("raw", false, "Output only raw connection URI (for scripts)")
@@ -110,6 +112,8 @@ func main() {
 			Roots:      *rootsFlag,
 			Name:       *nameFlag,
 			Host:       *hostFlag,
+			KeyID:      *keyFlag,
+			Secret:     *secretFlag,
 			TLS:        *tlsFlag,
 			Link:       *linkFlag,
 			Raw:        *rawFlag,
@@ -369,6 +373,8 @@ func handleInstallCommand(args []string) {
 	roots := fs.String("roots", "", "Allowed working directories (comma-separated)")
 	name := fs.String("name", "", "Server node name for link fragment")
 	host := fs.String("host", "", "Override public IP/hostname in connection link")
+	key := fs.String("key", "", "API Token Key (cs_key_...)")
+	secret := fs.String("secret", "", "TOTP Base32 secret")
 	tls := fs.Bool("tls", false, "Enable TLS")
 	link := fs.Bool("link", false, "Generate connection link")
 	raw := fs.Bool("raw", false, "Output only raw connection URI string")
@@ -381,6 +387,8 @@ func handleInstallCommand(args []string) {
 		Roots:      *roots,
 		Name:       *name,
 		Host:       *host,
+		KeyID:      *key,
+		Secret:     *secret,
 		TLS:        *tls,
 		Link:       *link,
 		Raw:        *raw,

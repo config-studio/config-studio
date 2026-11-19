@@ -28,6 +28,8 @@ type InstallOptions struct {
 	Roots      string
 	Name       string
 	Host       string
+	KeyID      string
+	Secret     string
 	TLS        bool
 	Link       bool
 	Raw        bool
@@ -116,7 +118,7 @@ func runSystemCmd(name string, args ...string) error {
 
 // GenerateOrUpdateAgentConfig creates or updates agent.yaml based on flags,
 // strictly ensuring real cs_key_<32hex> tokens and base32 secrets.
-func GenerateOrUpdateAgentConfig(cfgPath string, port int, roots []string, tlsEnabled bool) (*agent.Config, error) {
+func GenerateOrUpdateAgentConfig(cfgPath string, port int, roots []string, keyID, secret string, tlsEnabled bool) (*agent.Config, error) {
 	if cfgPath == "" {
 		if runtime.GOOS == "windows" {
 			cfgPath = "agent.yaml"
@@ -151,10 +153,24 @@ func GenerateOrUpdateAgentConfig(cfgPath string, port int, roots []string, tlsEn
 		if tlsEnabled {
 			cfg.TLS.Enabled = true
 		}
+		if keyID != "" {
+			cfg.Master.KeyID = keyID
+		}
+		if secret != "" {
+			cfg.Master.Secret = secret
+		}
 		if err := cfg.Save(); err != nil {
 			return nil, fmt.Errorf("failed to save updated config: %w", err)
 		}
 		return cfg, nil
+	}
+
+	// Create fresh credentials if not explicitly provided
+	if keyID == "" {
+		keyID = agent.GenerateRandomToken("cs_key")
+	}
+	if secret == "" {
+		secret = agent.GenerateBase32Secret(20)
 	}
 
 	// Create fresh config
@@ -166,8 +182,8 @@ func GenerateOrUpdateAgentConfig(cfgPath string, port int, roots []string, tlsEn
 			Enabled: tlsEnabled,
 		},
 		Master: agent.MasterAuth{
-			KeyID:  agent.GenerateRandomToken("cs_key"),
-			Secret: agent.GenerateBase32Secret(20),
+			KeyID:  keyID,
+			Secret: secret,
 		},
 		Sandbox: agent.SandboxConfig{
 			AllowedRoots: roots,
@@ -239,7 +255,7 @@ func HandleInstall(opts InstallOptions) {
 
 	if runtime.GOOS != "linux" {
 		// Non-linux (e.g. Windows or MacOS local test): generate config & output link
-		cfg, err := GenerateOrUpdateAgentConfig(cfgPath, opts.Port, roots, opts.TLS)
+		cfg, err := GenerateOrUpdateAgentConfig(cfgPath, opts.Port, roots, opts.KeyID, opts.Secret, opts.TLS)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating agent config: %v\n", err)
 			os.Exit(1)
@@ -302,7 +318,7 @@ func HandleInstall(opts InstallOptions) {
 
 	// 2. Prepare /etc/config-studio/agent.yaml
 	logMsg("--> Configuring agent at %s...", cfgPath)
-	cfg, err := GenerateOrUpdateAgentConfig(cfgPath, opts.Port, roots, opts.TLS)
+	cfg, err := GenerateOrUpdateAgentConfig(cfgPath, opts.Port, roots, opts.KeyID, opts.Secret, opts.TLS)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create agent configuration: %v\n", err)
 		os.Exit(1)
