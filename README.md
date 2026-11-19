@@ -10,17 +10,17 @@
 
 ## 🇷🇺 Config Studio (На русском)
 
-Современный, легкий веб-редактор конфигурационных файлов со встроенным ядром **Monaco Editor** (как в VS Code), интерактивной картой структуры документа (**AST Map**), динамическим изменением ширины панелей и гибкой кастомизацией тем и брендинга.
+Современная, производительная веб-среда для редактирования конфигурационных файлов и управления серверной инфраструктурой со встроенным ядром **Monaco Editor** (как в VS Code), интерактивной картой структуры документа (**AST Map**), нативным терминалом **SSH & SFTP**, хранилищем секретов **Core Vault** и расширяемой модульной архитектурой плагинов.
 
 Поставляется в виде **единого бинарного файла** под **Linux** и **Windows** без необходимости устанавливать Node.js, базы данных или другие внешние зависимости.
 
 ### 📸 Скриншоты интерфейса
 
-![Главный интерфейс Config Editor](docs/screenshots/main-ui.png)
-*Главное окно: проводник файлов, редактор с вкладками, быстрый переход по тегам и AST-карта структуры документа.*
+![Главный интерфейс Config Studio](docs/screenshots/workscreen.png)
+*Главное рабочее пространство: Monaco Editor с подсветкой синтаксиса, навигация по вкладкам, AST-дерево структуры документа, переключатель узлов флота и системная телеметрия.*
 
-![Настройки приложения и оформления](docs/screenshots/settings-modal.png)
-*Окно настроек: смена названия и иконки приложения, выбор палитры Base & Accent, язык интерфейса, параметры авторизации и управление REST API.*
+![Панель настроек Config Studio](docs/screenshots/settings.png)
+*Панель настроек: кастомизация палитры (Base & Accent), безопасность и Trusted Proxies, хранилище секретов Core Vault, каталог плагинов и управление языковыми пакетами.*
 
 ---
 
@@ -29,56 +29,62 @@
 - **Ядро редактора Monaco Editor:**
   - Полноценный движок VS Code с подсветкой синтаксиса YAML, JSON, TOML, INI, Shell, Markdown, Dockerfile и др.
   - Автоматическая адаптация размера редактора при изменении ширины панелей.
+  - Горячие клавиши, множественные курсоры, автодополнение и форматирование.
 - **Интерактивная карта структуры документа (AST Map):**
   - Иерархическое дерево с бейджами типов данных (`Object`, `List`, `String`, `Boolean`, `Number`, `Section`).
-  - Быстрый переход к строке кода кликом по элементу дерева.
-  - Поиск по структуре с подсчетом совпадений (`X из Y`) и стрелками перехода.
+  - Мгновенный переход к строке кода кликом по элементу дерева.
+  - Поиск по структуре с подсчетом совпадений (`X из Y`) и стрелками навигации.
   - Кнопки «Свернуть все» и «Развернуть все».
-  - **Плавное изменение ширины панели** перетаскиванием левой границы (двойной клик сбрасывает на 320px, запоминает ширину в `localStorage`).
-  - Облако тегов корневых разделов под вкладками с поддержкой горизонтальной прокрутки колесиком мыши.
+  - Плавное изменение ширины панели перетаскиванием (двойной клик сбрасывает на 320px, запоминает ширину в `localStorage`).
+  - Облако тегов корневых разделов под вкладками с поддержкой горизонтальной прокрутки.
 - **Мультивкладочность и управление файлами:**
   - Открытие нескольких файлов во вкладках с индикатором несохраненных изменений.
-  - Диалоговое окно подтверждения закрытия при наличии правок.
-  - Быстрый поиск и переключение между файлами (**Ctrl+P**).
+  - Диалоговое окно подтверждения закрытия при наличии несохраненных правок.
+  - Быстрый переход и поиск файлов (**Ctrl+P**).
   - Проводник файлов: создание, удаление, переименование файлов и папок, Drag-and-drop загрузка.
-  - Свойства файла: подсчет SHA-256 хеша с кнопкой копирования, статистика по строкам и символам.
+  - Свойства файла: расчет SHA-256 хеша с кнопкой копирования, статистика по строкам и символам.
   - Локальная история правок сессии с просмотром diff и восстановлением любой версии.
-- **Брендинг, стили и локализация:**
-  - Динамическая смена названия программы (обновляет заголовок и название вкладки браузера).
-  - Загрузка собственного логотипа (.svg, .png, .ico, .webp) — меняет логотип и favicon.
-  - Выбор палитры базового цвета (фон) и акцентного цвета (кнопки, курсор) с авто-контрастом шрифта.
-  - Темная и светлая темы оформления.
-  - Мультиязычный интерфейс (**Русский** и **English**).
-- **Безопасность:**
-  - Встроенный экран авторизации (парольная защита).
-  - Поддержка SSO-прокси (Authentik, Authelia и Traefik) через HTTP-заголовки.
-  - Отключаемый REST API с генератором секретных ключей `X-API-Key`.
-- **Единый переносимый бинарник:**
-  - Полностью статический исполняемый файл (`CGO_ENABLED=0`).
-  - Фронтенд встроен внутрь бинарника (`go:embed`).
-  - Автоматическая установка в качестве службы Linux (`-install` / `-uninstall`) с автоопределением **systemd** и **OpenRC**.
-- **Нативный SSH и SFTP в ядре (Core SSH/SFTP v2.0+):**
-  - Интерактивный терминал xterm.js в нижней док-панели (`BottomDockStrip`) с поддержкой множественных сессий и переподключения.
-  - Двухвкладочный сайдбар проводника: мгновенное переключение между «Рабочими областями» и «SFTP».
-  - Прямое редактирование удаленных файлов серверов в Monaco Editor с автосохранением на сервер (`Ctrl+S`).
+- **Нативный SSH и SFTP в ядре (Core SSH/SFTP):**
+  - Интерактивный терминал xterm.js в нижней док-панели (`BottomDockStrip`) с поддержкой множественных сессий и автопереподключения.
+  - Двухвкладочный сайдбар проводника: быстрое переключение между локальными «Рабочими областями» и удаленными «SFTP» серверами.
+  - Прямое редактирование удаленных файлов в Monaco Editor с автосохранением на сервер (`Ctrl+S`).
 - **Time Machine (Визуальное версионирование и откат в 2 клика):**
   - Автоматические персистентные снимки при каждом сохранении файла.
-  - Monaco DiffEditor для side-by-side сравнения текущей версии с историей (`Alt+H`) и откат в 2 клика.
+  - Monaco DiffEditor для side-by-side сравнения текущей версии с историей (`Alt+H`) и откат изменений в 2 клика.
 - **Мульти-рабочие области ядра (Multi-Root Workspaces & `workspaces.yaml`):**
   - Подключение нескольких папок и дисков в единое дерево проводника с защитой выхода за границы (`SafePath`).
 - **Аппаратная телеметрия ядра (SysInfo):**
   - Индикатор `SysInfoBar` в строке состояния (нагрузка CPU %, физическая RAM, свободное место на диске, аптайм).
   - Детальное модальное окно диагностики `SysInfoModal` и автоматический шеринг метрик с удаленными узлами флота.
-- **Модульная система плагинов и бинарный формат .cspkg (Plugin System v2.1):**
-  - **Бинарный MRS-контейнер `.cspkg`**: сверхбыстрое чтение пакетов на лету прямо из памяти с проверкой SHA-256.
-  - **Гибридная установка**: Drag-and-drop пакетов `.cspkg`/`.zip` в окно, установка по URL или из каталога в 1 клик.
-  - **Безопасная шина сервисов и хранилище Core Vault**: обмен сервисами (`services.getOptional`), защита секретов в OS Keychain и специализированная категория `agent_credentials` для TOTP-ключей удаленных агентов.
-  - **Экосистема Smart Plugin-Embedded Agent Distribution**:
-    - Доставка удаленных Linux-агентов (`amd64` и `arm64`) внутри `.cspkg` пакета с поддержкой Air-Gapped/NAT контуров, прямым ZIP-SFTP стримингом, атомарной заменой через `PosixRename` и авто-откатом при сбое (подробнее в [docs/SMART_AGENT_DISTRIBUTION.md](docs/SMART_AGENT_DISTRIBUTION.md)).
-  - **Официальные расширения экосистемы**:
-    - 🖥️ **[config-studio-servers](https://github.com/config-studio/config-studio-servers)**: «Серверы и Флот» — централизованный инвентарь `servers.yaml`, универсальный переключатель в шапке, 1-Click установка демона, сопряжение в локальной сети (LAN Discovery) и безопасное управление ключами через Core Vault.
-    - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)**: Живой предпросмотр HTML/PHP с симуляцией вкладки Chrome, сервер :8085, AST-структура и автодополнение Monaco.
-  - 🧩 **[Официальный каталог плагинов](https://config-studio.github.io/config-studio-plugins/)** и **[Интерактивная витрина дизайн-системы @config-studio/ui](https://config-studio.github.io/config-studio-plugins/ui.html)**.
+- **Безопасность, Trusted Proxies и SSO:**
+  - Встроенный экран авторизации (парольная защита сессий).
+  - Поддержка доверенных обратных прокси и подсетей CIDR (`trustedProxies`).
+  - Сквозная авторизация Forward Auth (`X-Forwarded-User`) для интеграции с Traefik, Authelia, Authentik.
+  - Отключаемый REST API с генерацией секретных ключей `X-API-Key`.
+- **Хранилище секретов Core Vault:**
+  - Безопасное централизованное хранилище чувствительных данных (пароли, SSH-ключи, API-токены).
+  - Автоматическая генерация slug ID из названия, категории и области применения.
+- **Потоковое структурированное логирование (Structured Logs Streaming):**
+  - Мониторинг системных событий и логов плагинов через API `/api/logs/stream`.
+  - Фильтрация по уровням важности (INFO/WARN/ERROR), подсистемам и полнотекстовый поиск.
+- **Модульная система плагинов (Plugin Engine v2.3.6+):**
+  - **Бинарный MRS-контейнер `.cspkg`**: сверхбыстрое чтение пакетов на лету прямо из памяти с криптографической проверкой SHA-256.
+  - **Split-Webview**: нативная интеграция пользовательских веб-интерфейсов расширений рядом с редактором (`registerSplitWebview`) с сохранением скролла.
+  - **Синхронизация каталога в реальном времени**: одновременное обновление локальных плагинов и проверка внешних источников GitHub в один клик.
+  - **Вынесенные локализации (`local.json`)**: поддержка мультиязычности без необходимости пересборки JavaScript.
+  - **Zero-Binary Registry**: каталог плагинов без бинарных файлов в git-репозитории, распространение исключительно через GitHub Releases.
+- **Официальные расширения экосистемы:**
+  - 🖥️ **[config-studio-servers](https://github.com/config-studio/config-studio-servers)** (v1.5.2): «Серверы и Флот» — централизованный инвентарь `servers.yaml`, селектор узлов в шапке, 1-Click установка демона, LAN Discovery, поставка агентов внутри `.cspkg` и защищенное хранение ключей в Core Vault.
+  - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)** (v1.4.0): **Живой посимвольный рендеринг в реальном времени (Real-Time Live Preview)** без необходимости сохранения, сохранение позиции скролла (Zero-Jitter), симуляция вкладки Chrome, сервер :8085, AST-структура HTML/PHP.
+  - 🚦 **[config-studio-traefik](https://github.com/config-studio/config-studio-traefik)** (v1.2.0): Мониторинг маршрутов, сервисов, TLS-сертификатов и валидация конфигураций Traefik.
+  - 🌍 **Официальные языковые пакеты:**
+    - 🇷🇺 **[config-studio-lang-ru](https://github.com/config-studio/config-studio-lang-ru)** (v1.1.0): Русский интерфейс
+    - 🇬🇧 **[config-studio-lang-en](https://github.com/config-studio/config-studio-lang-en)** (v1.1.0): English UI
+    - 🇩🇪 **[config-studio-lang-de](https://github.com/config-studio/config-studio-lang-de)** (v1.1.0): Deutsche Benutzeroberfläche
+- **Ресурсы для разработчиков:**
+  - 🧩 **[Официальный реестр плагинов](https://github.com/config-studio/config-studio-plugins)**
+  - 📚 **[Документация по API и разработке плагинов](https://github.com/config-studio/config-studio-plugin-docs)**
+  - 📦 **[Шаблон нового плагина](https://github.com/config-studio/config-studio-plugin-template)**
 
 ---
 
@@ -159,54 +165,40 @@ go build -ldflags="-s -w" -o bin/config-studio.exe ./cmd/server
 <a name="english-version"></a>
 ## 🇬🇧 Config Studio (English)
 
-Modern, lightweight web-based configuration editor powered by **Monaco Editor** (VS Code core), interactive document structure map (**AST Map**), draggable resizable sidebars, and customizable branding.
+Modern, high-performance web-based workspace for editing configuration files and managing server infrastructure powered by **Monaco Editor** (VS Code engine), interactive document outline (**AST Map**), native **SSH & SFTP** terminals, **Core Vault** secrets manager, and an extensible plugin ecosystem.
 
-Shipped as a **single standalone portable binary** for **Linux** and **Windows** with zero external runtime dependencies (no Node.js or databases needed at runtime).
+Shipped as a **single standalone portable binary** for **Linux** and **Windows** with zero external runtime dependencies (no Node.js or databases required).
 
 ### 📸 Screenshots
 
-![Config Editor Main Interface](docs/screenshots/main-ui.png)
-*Main Workspace: file explorer, multi-tab editor, quick jump tag cloud, and AST structure map.*
+![Config Studio Main Workspace](docs/screenshots/workscreen.png)
+*Main Workspace: Monaco Editor with syntax highlighting, multi-tab navigation, AST structure outline, fleet server switcher, and SysInfo hardware telemetry.*
 
-![Settings and Branding Modal](docs/screenshots/settings-modal.png)
-*Settings: application title & favicon, Base & Accent color palettes, language switch, security credentials, and REST API management.*
+![Config Studio Settings](docs/screenshots/settings.png)
+*Settings & Control Center: theme & branding (Base & Accent), security & Trusted Proxies, Core Vault secrets manager, plugins catalog, and language packs.*
 
 ---
 
 ### ✨ Features
 
-- **Monaco Editor Core:** Full VS Code editor experience with syntax highlighting for YAML, JSON, TOML, INI, Shell, Markdown, and Dockerfile.
+- **Monaco Editor Core:** Full VS Code editing experience with syntax highlighting for YAML, JSON, TOML, INI, Shell, Markdown, and Dockerfile.
 - **Interactive Structure Outline (AST Map):**
   - Hierarchical tree navigation with data type badges (`Object`, `List`, `String`, `Boolean`, `Number`, `Section`).
-  - Click any node to instantly jump to the corresponding code line.
+  - Instant line jump on tree node click.
   - Search within outline with match counter (`X of Y`) and navigation arrows.
   - One-click "Collapse All" / "Expand All" controls.
-  - **Draggable resizable panel width** (double-click resets to default 320px, state remembered in `localStorage`).
-  - Horizontal scrollable quick jump root tag cloud.
+  - Draggable resizable panel width (double-click resets to default 320px, state remembered in `localStorage`).
+  - Root section quick-jump tag cloud with horizontal scroll support.
 - **Multi-Tab File Management:**
   - Tabbed editing with dirty indicators.
-  - Unsaved changes confirmation dialog.
-  - Quick File Switcher / Search (**Ctrl+P**).
+  - Unsaved changes confirmation modal.
+  - Quick File Switcher (**Ctrl+P**).
   - File Explorer with folder navigation, inline create/rename/delete, and drag-and-drop file upload.
-  - File properties with instant SHA-256 hash calculation, one-click clipboard copy, and line/char statistics.
+  - File properties with SHA-256 calculation, one-click clipboard copy, and line/char statistics.
   - Session edit history with visual diff preview and single-click revision rollback.
-- **Branding & Localization:**
-  - Dynamic application title (updates navbar and browser tab `<title>`).
-  - Custom logo & favicon upload (.svg, .png, .ico, .webp).
-  - Material 3 Base & Accent color pickers with automatic font contrast calculation.
-  - Dark and Light theme modes.
-  - Dual interface language support (**English** / **Русский**).
-- **Security & Access Control:**
-  - Built-in login screen with direct password protection.
-  - Reverse proxy SSO compatibility (Authentik, Authelia, Traefik).
-  - Disableable REST API with secret `X-API-Key` generation.
-- **Single Binary Portability:**
-  - Statically compiled standalone binary (`CGO_ENABLED=0`).
-  - Web UI assets embedded directly into the Go binary (`go:embed`).
-  - Built-in service installer (`-install` / `-uninstall`) with auto-detection for **systemd** and **OpenRC**.
-- **Native Core SSH & SFTP (Core v2.0+):**
+- **Native Core SSH & SFTP:**
   - Interactive xterm.js terminal in persistent bottom dock (`BottomDockStrip`) with multi-session support and auto-reconnect.
-  - Dual-tab file sidebar: seamless switching between "Workspaces" and remote "SFTP" servers.
+  - Dual-tab file sidebar: seamless switching between local "Workspaces" and remote "SFTP" servers.
   - Direct remote editing in Monaco Editor with automatic remote saves on `Ctrl+S`.
 - **Time Machine (Visual History & 2-Click Rollback):**
   - Persistent automatic snapshots created upon every file save.
@@ -216,14 +208,35 @@ Shipped as a **single standalone portable binary** for **Linux** and **Windows**
 - **Hardware Telemetry & Node Monitoring (Core SysInfo):**
   - Dynamic `SysInfoBar` status bar widget showing CPU load %, physical RAM, disk usage, and system uptime.
   - Comprehensive `SysInfoModal` diagnostics modal with live telemetry sharing from remote fleet nodes.
-- **Modular Plugin System & .cspkg Binary Packages (Plugin System v2.1):**
+- **Security, Trusted Proxies & SSO:**
+  - Built-in session authentication.
+  - Support for reverse proxies and CIDR subnets (`trustedProxies`).
+  - Forward Auth pass-through (`X-Forwarded-User`) for Traefik, Authelia, Authentik.
+  - Disableable REST API with secret `X-API-Key` generation.
+- **Core Vault Secrets Management:**
+  - Secure centralized vault for confidential data (passwords, SSH keys, API tokens).
+  - Automatic slug ID generation from title, category, and scope.
+- **Structured Log Streaming:**
+  - Live system and plugin event streaming via `/api/logs/stream`.
+  - Severity level filtering (INFO/WARN/ERROR), subsystem tagging, and full-text search.
+- **Modular Plugin System (Plugin Engine v2.3.6+):**
   - **Binary MRS Containers (`.cspkg`)**: Ultra-fast in-memory package loading verified by cryptographic SHA-256 checksums.
-  - **Hybrid Installation**: Drag-and-drop `.cspkg`/`.zip` packages, install via direct URL, or browse the official registry.
-  - **Secure Services Bus & Core Vault**: RPC service sharing (`services.getOptional`) and secure OS Keychain secret storage.
-  - **Official Ecosystem Plugins**:
-    - 🖥️ **[config-studio-servers](https://github.com/config-studio/config-studio-servers)**: "Servers & Fleet Manager" — centralized `servers.yaml` inventory, universal header switcher, 1-Click daemon auto-onboarding, LAN agent discovery, and Zero-Secret Vault security.
-    - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)**: Live HTML/PHP preview with Chrome tab simulation, embedded :8085 web server, AST structure outline, and Monaco completions.
-  - 🧩 **[Official Plugin Registry](https://config-studio.github.io/config-studio-plugins/)** and **[Design System Showcase (@config-studio/ui)](https://config-studio.github.io/config-studio-plugins/ui.html)**.
+  - **Split-Webview**: Native side-by-side webview integration (`registerSplitWebview`) with scroll retention.
+  - **Real-Time Catalog Sync**: Simultaneous local plugin reload and remote GitHub catalog sync in one click.
+  - **Externalized Localizations (`local.json`)**: Multi-language support without re-compiling JavaScript.
+  - **Zero-Binary Registry**: Catalog without binaries tracked in git, distributed exclusively via official GitHub Releases.
+- **Official Ecosystem Plugins:**
+  - 🖥️ **[config-studio-servers](https://github.com/config-studio/config-studio-servers)** (v1.5.2): "Servers & Fleet Manager" — centralized `servers.yaml` inventory, universal header switcher, 1-Click daemon auto-onboarding, LAN agent discovery, embedded agent delivery, and Core Vault security.
+  - 🌐 **[config-studio-web-devkit](https://github.com/config-studio/config-studio-web-devkit)** (v1.4.0): **Real-Time Live Keystroke Preview** without saving, Zero-Jitter scroll retention, Chrome tab simulation, embedded :8085 web server, HTML/PHP AST outline.
+  - 🚦 **[config-studio-traefik](https://github.com/config-studio/config-studio-traefik)** (v1.2.0): Traefik reverse proxy routes, services, TLS certificates monitoring, and config validation.
+  - 🌍 **Official Language Packs:**
+    - 🇷🇺 **[config-studio-lang-ru](https://github.com/config-studio/config-studio-lang-ru)** (v1.1.0): Russian UI
+    - 🇬🇧 **[config-studio-lang-en](https://github.com/config-studio/config-studio-lang-en)** (v1.1.0): English UI
+    - 🇩🇪 **[config-studio-lang-de](https://github.com/config-studio/config-studio-lang-de)** (v1.1.0): German UI
+- **Developer Ecosystem:**
+  - 🧩 **[Official Plugin Registry](https://github.com/config-studio/config-studio-plugins)**
+  - 📚 **[Plugin Development API & Guides](https://github.com/config-studio/config-studio-plugin-docs)**
+  - 📦 **[Plugin Boilerplate Template](https://github.com/config-studio/config-studio-plugin-template)**
 
 ---
 
