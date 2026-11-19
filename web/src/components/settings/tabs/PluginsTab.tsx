@@ -122,6 +122,47 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
     }
   };
 
+  const handleRefreshAll = async () => {
+    setIsLoadingPlugins(true);
+    setIsLoadingCatalog(true);
+    try {
+      await Promise.allSettled([
+        (async () => {
+          try {
+            const items = await api.getPlugins();
+            setPluginsList(items);
+          } catch (err) {
+            console.error('Failed to load plugins:', err);
+          }
+        })(),
+        (async () => {
+          try {
+            let syncItems: CatalogItem[] = [];
+            try {
+              const syncRes = await api.syncSources();
+              if (syncRes && syncRes.items && syncRes.items.length > 0) {
+                syncItems = syncRes.items;
+              }
+            } catch (syncErr) {
+              console.warn('[PluginsTab] Force sync error, falling back to getCatalog:', syncErr);
+            }
+            if (syncItems.length === 0) {
+              syncItems = await api.getCatalog(true);
+            }
+            if (syncItems.length > 0) {
+              setCatalogItems(syncItems);
+            }
+          } catch (err) {
+            console.error('Failed to sync catalog:', err);
+          }
+        })(),
+      ]);
+    } finally {
+      setIsLoadingPlugins(false);
+      setIsLoadingCatalog(false);
+    }
+  };
+
   useEffect(() => {
     loadPlugins();
     loadCatalog(false);
@@ -274,9 +315,9 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
             <IconButton
               variant="ghost"
               size="sm"
-              onClick={loadPlugins}
+              onClick={handleRefreshAll}
               title={t.refreshPluginsList}
-              loading={isLoadingPlugins}
+              loading={isLoadingPlugins || isLoadingCatalog}
               icon={<RefreshCw size={13} />}
             />
           }
@@ -489,9 +530,9 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
             <IconButton
               variant="ghost"
               size="sm"
-              onClick={() => loadCatalog(true)}
+              onClick={handleRefreshAll}
               title={t.refreshCatalogTooltip}
-              loading={isLoadingCatalog}
+              loading={isLoadingCatalog || isLoadingPlugins}
               icon={<RefreshCw size={13} />}
             />
           }

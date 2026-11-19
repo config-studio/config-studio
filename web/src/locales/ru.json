@@ -202,7 +202,7 @@
   "syncedPrefix": "Синхр:",
   "deleteSourceTitle": "Удалить источник",
   "deletePluginTitle": "Удалить плагин",
-  "refreshPluginsList": "Обновить список плагинов",
+  "refreshPluginsList": "Обновить список и проверить обновления",
   "installHelpNote": "Установите нужные модули из каталога ниже, через ZIP или по ссылке из GitHub.",
   "githubUrlTip": "Поддерживаются прямые ссылки на GitHub репозитории (например, https://github.com/author/plugin) или прямые ссылки на .zip архивы.",
   "importProfileModalTitle": "Импорт профиля Config Studio",

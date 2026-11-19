@@ -202,7 +202,7 @@
   "syncedPrefix": "Synced:",
   "deleteSourceTitle": "Delete source",
   "deletePluginTitle": "Delete plugin",
-  "refreshPluginsList": "Refresh plugins list",
+  "refreshPluginsList": "Refresh list and check for updates",
   "installHelpNote": "Install modules from the catalog below, via ZIP upload, or from a GitHub repository.",
   "githubUrlTip": "Direct links to GitHub repositories (e.g. https://github.com/author/plugin) or direct .zip archives are supported.",
   "importProfileModalTitle": "Import Config Studio Profile",

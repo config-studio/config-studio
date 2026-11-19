@@ -257,8 +257,9 @@ export const pluginsApi = {
     return res.json();
   },
 
-  async getCatalog(): Promise<CatalogItem[]> {
-    const res = await webFetch('/api/plugins/catalog');
+  async getCatalog(forceRefresh = false): Promise<CatalogItem[]> {
+    const query = forceRefresh ? '?refresh=1' : '';
+    const res = await webFetch(`/api/plugins/catalog${query}`);
     if (!res.ok) return [];
     const data = await res.json().catch(() => ({}));
     return data.catalog || [];
