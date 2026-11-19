@@ -56,6 +56,7 @@ graph TD
     C6["6. Log Streaming Service<br/>(Выпущено в v2.3.5)"]
     C7["7. Fleet Batch Provisioning Engine<br/>(Выпущено в v2.3.6)"]
     C8["8. Goja Code Mode Sandbox<br/>(Выпущено в v2.3.7)"]
+    C9["9. Modular Architecture Splitting & Zero-Binary Registry<br/>(Выпущено в v2.3.8)"]
     
     Core --> C1
     Core --> C2
@@ -65,6 +66,7 @@ graph TD
     Core --> C6
     Core --> C7
     Core --> C8
+    Core --> C9
     
     C4 --> P1["Traefik & Glance (Мгновенная индексация правил)"]
     C5 --> P2["Glance (Live Dashboard Preview :8080)"]
@@ -72,6 +74,7 @@ graph TD
     C6 --> P4["Docker & Journalctl (Стриминг логов в Bottom Dock)"]
     C7 --> P5["Servers (Safe Rollout & Fleet CLI)"]
     C8 --> P6["MCP & Автоматизация"]
+    C9 --> P7["Clean Code, SSO & Zero-Binary Ecosystem"]
 ```
 
 ### 1. Пакетное чтение файлов и кросс-файловый поиск (Batch File Read & Discovery)
@@ -104,6 +107,17 @@ graph TD
 - [x] Безопасный фасад ядра `cs.*` (`cs.servers`, `cs.ssh`, `cs.fs`, `cs.vault`) с лимитом времени (10s) и глубины стека.
 - [x] REST API `POST /api/sandbox/eval` с изоляцией контекста для плагина `config-studio-mcp`.
 
+### 6. Монолитная декомпозиция ядра, Trusted Proxies & Zero-Binary Registry (Architecture Splitting)
+*(Выпущено в v2.3.8)*
+- [x] Декомпозиция монолитного `App.tsx` на чистые хуки: `useTabsManager`, `useFileExplorer`, `useModalManager`, `useWorkspacesManager`.
+- [x] Декомпозиция `api.ts` на модульные клиенты: `client.ts`, `fsApi.ts`, `pluginsApi.ts`, `serverApi.ts`, `secretsApi.ts`, `sysinfoApi.ts`.
+- [x] Декомпозиция загрузчика плагинов на `pluginManager.ts`, `pluginBridge.ts`, `pluginTypes.ts`.
+- [x] Поддержка доверенных обратных прокси (`trustedProxies`) и сквозной аутентификации Traefik/Authentik/Authelia (`trustForwardAuth`, заголовок `X-Forwarded-User`).
+- [x] Хранилище секретов Core Vault: автогенерация slug ID из названия, категории и scope.
+- [x] Синхронизация каталога и плагинов в 1 клик (одновременное обновление локальных плагинов и удаленных источников GitHub).
+- [x] Политика Zero-Binary Registry: полное удаление бинарников `.cspkg` из репозиториев git, распространение исключительно через GitHub Releases.
+- [x] Внешние локализации (`local.json`): полная поддержка языковых пакетов без компиляции JS.
+
 ---
 
 ## 🖧 СВОДНЫЙ КАТАЛОГ И СТАТУС ПЛАГИНОВ ЭКОСИСТЕМЫ (Master Plugin Catalog)
@@ -122,10 +136,13 @@ graph TD
 | **`config-studio-wireguard`** | VPN & Безопасность | 📋 **Запланирован** | Визуальный конфигуратор `wg0.conf` (сеть, интерфейс, routing NAT), табличный менеджер пиров с автовыделением IP, локальная генерация Curve25519 ключей и QR-кодов для смартфонов, монитор рукопожатий и байт трафика. | **Выполнено:** Хранение секретов в Core Vault и Split-Screen для QR.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-singbox`** | Прокси & Маршрутизация | 📋 **Запланирован** | Редактор сложных деревьев JSON/JSON5, конструктор протоколов (VLESS Reality, Shadowsocks, Trojan, Hysteria 2), визуальная матрица правил маршрутизации по `geosite`/`geoip`, Pre-Save валидация `sing-box check`. | **Выполнено:** Поддержка JSON/JSONC в ядре и Monaco Editor.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
 | **`config-studio-makefile`** | DevOps & Сборка | 📋 **Запланирован** | Строгая ассоциация `fileMatches`, автопарсинг целей и docstrings, Action Toolbar сплит-кнопка запуска по `F5`, стриминг процесса компиляции в Bottom Dock с подсветкой ошибок и замером времени. | **Выполнено:** Концепция Action Toolbar и Bottom Dock в ядре.<br/>**Осталось:** Полная реализация плагина по утвержденной спецификации. |
-| **`config-studio-mcp`** | AI & Автоматизация | 📋 **Запланирован** | Официальный сервер Model Context Protocol для Claude/Cursor/Antigravity, стандартные инструменты (`read_config`, `validate_structure`, `diff_config`, `deploy_remote`), Human-in-the-loop Approve Guard, Code Mode песочница Goja (`cs.*`). | **Выполнено:** Архитектурная спецификация Goja в Core Evolution.<br/>**Осталось:** Пакет ядра `internal/sandbox` и сам MCP-плагин. |
+| **`config-studio-mcp`** | AI & Автоматизация | 📋 **Запланирован** | Официальный сервер Model Context Protocol для Claude/Cursor/Antigravity, стандартные инструменты (`read_config`, `validate_structure`, `diff_config`, `deploy_remote`), Human-in-the-loop Approve Guard, Code Mode песочница Goja (`cs.*`). | **Выполнено:** Песочница Goja и безопасный фасад `cs.*` полностью встроены в ядро (Core v2.3.7, `internal/sandbox`, `POST /api/sandbox/eval`).<br/>**Осталось:** Реализация самого MCP-сервера и UI диалога подтверждения. |
 | **`config-studio-explorer-plus`** | Файловый менеджер | 📋 **Запланирован** | Продвинутый буфер обмена (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`), дублирование файлов в 1 клик, создание быстрых снимков `.bak` перед правками, множественный выбор файлов (Multi-select), расширение контекстного меню. | **Выполнено:** Нативное контекстное меню SFTP и Time Machine в ядре.<br/>**Осталось:** Реализация плагинного расширения файлового дерева. |
-| **`config-studio-traefik`** | Reverse Proxy | 🚀 **Выпущен** (v1.0.0, v1.1.0, v1.1.2) | Многофайловый провайдер `/etc/traefik/rules/` (`mw-*.yml` + `ser-*.yml`), автокомплит, Go to Definition с импульсной подсветкой, Матрица правил, Linter коллизий, Мастер сервисов, Каталог Blueprints (7 рецептов), Traefik Doctor, пакетный опрос `batchRead`. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Репозиторий изолирован, пакет `traefik-1.1.2.cspkg` опубликован на GitHub Releases и в каталоге `registry.json`. |
-| **`config-studio-web-devkit`** | Веб-разработка | ⚡ **Частично реализован** (v1.3.3) | Live Preview HTML/PHP, Chrome Browser Bar, ресайзер устройств, сервер :8085, AST Outline; Словари HTML5 (110+ тегов, атрибуты), словари PHP (функции, суперглобалы `$_GET`, `$_POST`, `$_SERVER`), Auto-Closing Tags (`<...></...>`, `;`), DOM-валидация парности тегов, библиотека веб-шаблонов Blueprints. | **Выполнено (v1.3.3):** Live Preview с Split Layout, Chrome Bar, сервер :8085, базовые сниппеты, AST Outline.<br/>**Осталось (v1.4.0):** Полные словари HTML5/PHP, автозакрытие тегов `<...></...>`, автодополнение `;`, DOM-валидация разметки, библиотека Blueprints. |
+| **`config-studio-traefik`** | Reverse Proxy | 🚀 **Выпущен** (v1.0.0 — v1.2.0) | Многофайловый провайдер `/etc/traefik/rules/` (`mw-*.yml` + `ser-*.yml`), автокомплит, Go to Definition с импульсной подсветкой, Матрица правил, Linter коллизий, Мастер сервисов, Каталог Blueprints (7 рецептов), Traefik Doctor, пакетный опрос `batchRead`. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Репозиторий изолирован, Zero-Binary политика (бинарники удалены из git), релиз `v1.2.0` опубликован на GitHub Releases и в каталоге `registry.json`. |
+| **`config-studio-web-devkit`** | Веб-разработка | ⚡ **В активной разработке** (v1.4.0) | Live Preview HTML/PHP, Chrome Browser Bar, ресайзер устройств, сервер :8085, AST Outline; **Посимвольный Real-Time рендеринг без сохранения (v1.4.0)**, Zero-Jitter скролл, динамический `<title>` и фавиконка; Словари HTML5 (110+ тегов, атрибуты), словари PHP (функции, суперглобалы), Auto-Closing Tags (`<...></...>`, `;`), DOM-валидация парности тегов, библиотека веб-шаблонов Blueprints. | **Выполнено (v1.4.0):** Live Preview с Split Layout, Chrome Bar, сервер :8085, **посимвольный рендеринг в реальном времени (Real-Time Live Preview)**, Zero-Jitter сохранение скролла, авто-извлечение заголовка и фавиконки, упаковщик `pack.js`, внешняя локализация `local.json`, Zero-Binary релиз `v1.4.0` на GitHub Releases.<br/>**Осталось (v1.5.0):** Словари HTML5/PHP, автозакрытие тегов `<...></...>`, автодополнение `;`, DOM-валидация разметки, библиотека Blueprints. |
+| **`config-studio-lang-ru`** | Локализация | 🚀 **Выпущен** (v1.1.0) | Официальный языковой пакет русской локализации интерфейса Config Studio. Внешний словарь `local.json`, динамическое подключение без компиляции JS. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Репозиторий изолирован, опубликован релиз `v1.1.0` на GitHub Releases, зарегистрирован в каталоге. |
+| **`config-studio-lang-en`** | Локализация | 🚀 **Выпущен** (v1.1.0) | Official English Language Pack for Config Studio. Externalized `local.json` dictionary, dynamic hot-plugging without JS recompilation. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Isolated repository, release `v1.1.0` published on GitHub Releases, registered in plugin catalog. |
+| **`config-studio-lang-de`** | Локализация | 🚀 **Выпущен** (v1.1.0) | Offizielles deutsches Sprachpaket für Config Studio. Externes `local.json` Wörterbuch, dynamische Anbindung ohne JS-Neukompilierung. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Isoliertes Repository, Release `v1.1.0` auf GitHub Releases veröffentlicht, im Katalog registriert. |
 | **`config-studio-sysinfo`** | Телеметрия | 🚀 **Выпущен** (v1.2.0) | Сбор метрик CPU/RAM/диска/сети, REST API `/api/sysinfo`, стриминг системной информации, анимированные графики в карточках серверов. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Вынесен в автономный модуль телеметрии ядра и UI-индикаторы. |
 | **`config-studio-terminal`** | Веб-терминал | 🚀 **Выпущен** (v1.1.0) | Полноценный эмулятор xterm.js в нижнем доке, мультисессии, бинарный WebSocket PTY мост, SSH авто-сессии, интеграция с инвентарем. | **100% ВЫПОЛНЕНО И ВЫПУЩЕНО.** Интегрирован непосредственно в нижний док ядра `BottomDockStrip`. |
 | **`config-studio-vault`** | Безопасность | 🛡️ **Поглощен ядром** (v1.9.0) | Хранение паролей, SSH-ключей, токенов и сертификатов с AES-256-GCM шифрованием и мастер-паролем. | **Поглощен ядром.** Реализован как фундаментальный сервис Core Secrets Store & Vault API. |
@@ -185,13 +202,13 @@ graph TD
   - [ ] Горячая клавиша `Alt+B`: мгновенный вызов модального окна добавления закладки с автозаполнением URL, заголовка и выбором группы в `glance.yml`.
   - [ ] Пакетный импортер (Batch Bookmark Importer): генерация группы закладок в Glance из всех веб-сервисов открытого проекта в 1 клик.
 - [ ] **1-Click синхронизация с Traefik**:
-  - [ ] Межплагинная интеграция: чтение файлов каталога `/etc/traefik/rules/ser-*.yml` через `fs.batchRead`.
+  - [x] Межплагинная интеграция: пакетное чтение файлов каталога `/etc/traefik/rules/ser-*.yml` через `fs.batchRead` *(Реализовано в ядре v2.3.3)*.
   - [ ] Автоматическая генерация или обновление карточек сервисов с иконками и доменами в `glance.yml`.
-- [ ] **Живой Split-Screen предпросмотр дашборда**:
-  - [ ] Регистрация правой панели через Core Split API (`window.ConfigStudio.registerSplitWebview`).
-  - [ ] Отображение живого веб-интерфейса Glance (`http://<host>:8080`) бок о бок с редактором YAML.
-  - [ ] Автоматическая перезагрузка фрейма (`refreshOnSave: true`) при каждом сохранении `Ctrl+S` в `glance.yml` или файлах `widgets/*.yml`.
-  - [ ] Иерархический AST Outline документа `glance.yml` (страницы, колонки, блоки виджетов, инклюды) с навигацией по клику.
+- [x] **Живой Split-Screen предпросмотр дашборда и AST Outline** *(Реализовано в ядре v2.3.4)*:
+  - [x] Регистрация правой панели через Core Split API (`window.ConfigStudio.registerSplitWebview`).
+  - [x] Отображение живого веб-интерфейса Glance (`http://<host>:8080`) бок о бок с редактором YAML с сохранением скролла.
+  - [x] Автоматическая перезагрузка фрейма (`refreshOnSave: true`) при каждом сохранении `Ctrl+S` в `glance.yml` или файлах `widgets/*.yml`.
+  - [x] Поддержка пользовательских провайдеров AST Outline в ядре (`outlineProviders`) с навигацией по клику.
 
 ---
 
@@ -218,9 +235,9 @@ graph TD
 - [ ] **Action Toolbar (1-Click панель управления стеком)**:
   - [ ] Кнопки быстрых действий в шапке редактора: `[ ▶ Compose Up -d ]`, `[ ⏹ Down ]`, `[ 🔄 Restart ]`, `[ ⬇ Pull ]`.
   - [ ] Индикатор текущего статуса стека: Running / Stopped / Degraded.
-- [ ] **Стриминг логов в реальном времени (Bottom Dock)**:
-  - [ ] Потоковый вывод `docker compose logs -f --tail=200` через потоковый сервис ядра (Log Streaming Service v2.3.5) без искажений PTY.
-  - [ ] Фильтрация потока по конкретному контейнеру стека, пауза автопрокрутки, полнотекстовый поиск.
+- [x] **Стриминг логов в реальном времени (Bottom Dock)** *(Реализовано в ядре v2.3.5)*:
+  - [x] Потоковый вывод `docker compose logs -f --tail=200` через потоковый сервис ядра (Log Streaming Service v2.3.5) без искажений PTY.
+  - [x] Фильтрация потока по уровням, пауза автопрокрутки, полнотекстовый поиск, лаунчер пресетов Docker Compose в нижнем доке.
 - [ ] **Интерактивный Dashboard контейнеров и портов**:
   - [ ] Вкладка в нижней панели: список активных контейнеров, статус healthcheck, потребление памяти/CPU и кликабельные сетевые порты (`http://localhost:XXXX`).
 
@@ -289,16 +306,16 @@ graph TD
 - **Требуемые разрешения ядра (`permissions`):** `ui.bottomDock`, `logs.stream`, `ssh.exec`.
 
 #### Полная функциональная спецификация:
-- [ ] **Потоковый стриминг системных логов в реальном времени**:
-  - [ ] Подключение к `journalctl -f` и файлам журнала `/var/log/{syslog,messages,auth.log}` через Log Streaming Service ядра v2.3.5 (SSE / WebSocket).
-  - [ ] Чистый рендеринг без управляющих символов терминала (PTY artifacts).
-- [ ] **Интеллектуальная фильтрация**:
-  - [ ] Селектор уровня критичности (Severity levels): Emergency, Alert, Critical, Error, Warning, Notice, Info, Debug.
-  - [ ] Фильтрация по имени юнита (`-u <service>`), PID процесса и временным интервалам (`--since "1 hour ago"`).
-- [ ] **Эргономика анализа логов**:
-  - [ ] Пауза потока при наведении или клике (Freeze Stream) для фиксации места сбоя.
-  - [ ] Мгновенный полнотекстовый поиск по ключевым словам с подсветкой результатов.
-  - [ ] Цветовая маркировка: ярко-красный фон для ошибок и сбоев ядра, желтый для предупреждений, нейтральный для информационных строк.
+- [x] **Потоковый стриминг системных логов в реальном времени** *(Реализовано в ядре v2.3.5)*:
+  - [x] Подключение к `journalctl -f` и файлам журнала `/var/log/{syslog,messages,auth.log}` через Log Streaming Service ядра v2.3.5 (SSE `GET /api/logs/stream`).
+  - [x] Чистый рендеринг без управляющих символов терминала (PTY artifacts через `StripANSI`).
+- [x] **Интеллектуальная фильтрация и уровни важности** *(Реализовано в ядре v2.3.5)*:
+  - [x] Селектор уровня критичности (Severity levels): Emergency/Crit, Error, Warning, Info, Debug в компоненте `LogViewer`.
+  - [ ] Фильтрация по имени юнита (`-u <service>`), PID процесса и расширенным временным интервалам (`--since "1 hour ago"`).
+- [x] **Эргономика анализа логов** *(Реализовано в ядре v2.3.5)*:
+  - [x] Пауза потока при наведении или клике (Freeze Stream) для фиксации места сбоя.
+  - [x] Мгновенный полнотекстовый поиск по ключевым словам с подсветкой результатов.
+  - [x] Цветовая маркировка: ярко-красный фон для ошибок и сбоев ядра, желтый для предупреждений, нейтральный для информационных строк.
 
 ---
 
@@ -332,8 +349,9 @@ graph TD
   - [ ] Настройка секции сервера `[Interface]`: приватный ключ, IP-подсеть (`10.8.0.1/24`), порт прослушивания (`51820`), правила iptables для NAT (`PostUp` / `PostDown`).
   - [ ] Табличный менеджер клиентов `[Peer]`: имя клиента, автоматическое назначение свободного IP без коллизий, список разрешенных IP (`AllowedIPs`), Endpoint и Keepalive.
 - [ ] **Генератор ключей и QR-кодов в 1 клик**:
+  - [x] Поддержка безопасного хранения ключевых пар Curve25519 в Core Vault *(Реализовано в ядре)*.
+  - [x] Правая сплит-панель редактора для вывода QR-кода готового конфига через Core Split API (`registerSplitWebview`) *(Реализовано в ядре v2.3.4)*.
   - [ ] Локальная криптографическая генерация ключевых пар Curve25519 (Private / Public Key) и PresharedKey.
-  - [ ] Мгновенный вывод QR-кода готового конфига в правой сплит-панели редактора (Core Split API) для сканирования мобильным приложением WireGuard со смартфона.
   - [ ] Скачивание готового файла `client.conf` в 1 клик.
 - [ ] **Мониторинг рукопожатий и трафика (Handshake Monitor)**:
   - [ ] Чтение телеметрии `wg show` через Headless SSH API.
@@ -402,12 +420,12 @@ graph TD
 - [ ] **Изоляция и Human-in-the-loop Approve Guard**:
   - [ ] По умолчанию все инструменты MCP функционируют строго в режиме Read-Only.
   - [ ] Любое деструктивное действие (запись файла, выполнение shell-команды, раскатка конфига) блокируется до явного подтверждения пользователем в модальном диалоге Config Studio.
-- [ ] **Архитектура Code Mode (Эфемерная песочница Goja в ядре)**:
-  - [ ] Интеграция чистого Go-интерпретатора JS `github.com/dop251/goja` в пакете ядра `internal/sandbox`.
-  - [ ] Zero-Overhead в покое: 0 байт heap памяти, пока нет вызовов; инициализация и очистка за <1 мс через GC Go.
-  - [ ] Мета-инструмент `execute_script(code)`: локальная пакетная фильтрация данных и оркестрация в 1 сетевой шаг вместо десятков последовательных HTTP-вызовов MCP.
-  - [ ] Безопасный фасад ядра `cs.*`: строго изолированный доступ к инвентарю серверов (`cs.servers`), SSH-командам (`cs.ssh`), файловой системе (`cs.fs`) и хранилищу секретов (`cs.vault`) с таймаутом (10 сек) и лимитом глубины стека.
-  - [ ] Поддержка пользовательских макросов автоматизации в интерфейсе (Script Book).
+- [x] **Архитектура Code Mode (Эфемерная песочница Goja в ядре)** *(Реализовано в ядре v2.3.7)*:
+  - [x] Интеграция чистого Go-интерпретатора JS `github.com/dop251/goja` в пакете ядра `internal/sandbox`.
+  - [x] Zero-Overhead в покое: 0 байт heap памяти, пока нет вызовов; инициализация и очистка за <1 мс через GC Go.
+  - [x] Безопасный фасад ядра `cs.*`: строго изолированный доступ к инвентарю серверов (`cs.servers`), SSH-хостам (`cs.hosts`), SSH-командам (`cs.ssh`), файловой системе (`cs.fs`) и хранилищу секретов (`cs.vault`) с таймаутом (10 сек) и лимитом глубины стека.
+  - [x] REST API `POST /api/sandbox/eval` для изолированного выполнения скриптов.
+  - [ ] Мета-инструмент `execute_script(code)` и пользовательские макросы автоматизации в интерфейсе (Script Book).
 
 ---
 
@@ -424,22 +442,41 @@ graph TD
 - [ ] **Дублирование в 1 клик (Duplicate)**:
   - [ ] Мгновенное клонирование файла с генерацией суффикса копии для быстрого тестирования альтернативных конфигов.
 - [ ] **Быстрые бэкапы (.bak / Quick Backup)**:
-  - [ ] Создание резервной копии перед опасными правками с временной меткой (`nginx.conf.bak` или `app.2026-11-16.bak`).
+  - [x] Автоматические снимки Time Machine с DiffEditor и откатом в 2 клика *(Реализовано в ядре v2.0+)*.
+  - [ ] Создание локальной резервной копии перед опасными правками с временной меткой (`nginx.conf.bak` или `app.2026-11-16.bak`).
 - [ ] **Групповые операции (Multi-select)**:
   - [ ] Выделение группы файлов через `Shift` / `Ctrl` для массового копирования, перемещения или удаления.
-- [ ] **Расширение контекстного меню проводника**:
-  - [ ] Интеграция со слотом Context Menu Provider: вызов внешних плагинных действий (например, «Compose Up» для `docker-compose.yml`, «Nginx Test» для `nginx.conf`).
+- [x] **Расширение контекстного меню проводника** *(Реализовано в ядре v2.3.0+)*:
+  - [x] Интеграция со слотом Context Menu Provider (`window.ConfigStudio.contextMenu`): вызов внешних плагинных действий.
 
 ---
 
-### 13. `config-studio-web-devkit` (Web DevKit & Live Environment — Этап v1.4.0)
+### 13. `config-studio-web-devkit` (Web DevKit & Live Environment — v1.4.0 выпущен, Этап v1.5.0)
 *Полноценная среда веб-верстки и PHP-разработки: словари тегов, автозакрытие парных тегов, DOM-валидация и веб-шаблоны.*
 
-- **Текущее состояние:** Выпущены версии v1.0.0 — v1.3.3 (Live Preview в iframe со Split API v2.3.4, имитация панели Chrome Browser, выбор устройств Desktop 1280px / Tablet 768px / Mobile 375px, запуск встроенного сервера `php -S` / `python -m http.server` на порту 8085, базовый AST Outline для HTML и PHP, стартовые кнопки index.html / index.php в Launchpad, 7 простейших сниппетов).
+- **Текущее состояние:** Выпущены версии v1.0.0 — v1.4.0 (Live Preview в iframe со Split API v2.3.4, **посимвольный рендеринг в реальном времени Real-Time Live Preview без сохранения в v1.4.0**, Zero-Jitter скролл, динамический заголовок `<title>` и фавиконка, имитация панели Chrome Browser, выбор устройств Desktop 1280px / Tablet 768px / Mobile 375px, запуск встроенного сервера :8085, AST Outline HTML/PHP, Zero-Binary упаковщик `pack.js`, внешняя локализация `local.json`).
 - **Файловые ассоциации (`fileMatches`):** `[".html", ".htm", ".xhtml", ".php", ".phtml", ".svg", ".vue", ".css", ".js"]`.
 - **Требуемые разрешения ядра (`permissions`):** `ui.splitWebview`, `ui.panels`, `ui.toolbar`, `ui.contextMenu`, `terminal.exec`, `network.bind`.
 
-#### Полная функциональная спецификация Этапа v1.4.0:
+#### ✅ Выполненный функционал Релиза v1.4.0 (Real-Time Live Rendering):
+- [x] **Посимвольный рендеринг в реальном времени (Real-Time Live Preview)**:
+  - [x] Мгновенное обновление `srcdoc` во фрейме прямо во время набора текста без необходимости сохранения (`Ctrl+S`).
+  - [x] Привязка к слушателям Monaco Editor `model.onDidChangeContent` и `editor.onDidChangeModel` с адаптивным дебаунсом 75 мс.
+  - [x] Безопасное чтение контента напрямую из активного редактора (`getCurrentEditorContent`).
+- [x] **Сохранение скролла без дергания (Zero-Jitter Scroll Retention)**:
+  - [x] Автоматическое сохранение координат `scrollX` и `scrollY` перед перезагрузкой фрейма и их бесшовное восстановление на `onload`.
+- [x] **Динамический заголовок и фавиконка**:
+  - [x] Парсинг `<title>` и `<link rel="icon">` из редактируемого документа в реальном времени с обновлением заголовка и иконки вкладки в эмуляторе Chrome.
+- [x] **Элементы управления**:
+  - [x] Кнопка включения/выключения `[ ⚡ Real-Time ]` в панели управления вьюпортом.
+  - [x] Пульсирующий индикатор активности `⚡ Real-Time` в строке URL браузера.
+- [x] **Zero-Binary упаковка и локализация**:
+  - [x] Полное удаление бинарных файлов `.cspkg` из репозитория git, настройка `.gitignore`.
+  - [x] Автономный сборщик пакетов `pack.js` с валидным 48-байтным бинарным заголовком `CSPK\x01`.
+  - [x] Внешний файл локализации `local.json` для мгновенной интернационализации.
+  - [x] Официальный релиз `v1.4.0` на GitHub Releases со всеми пакетами (`.cspkg` и `.zip`).
+
+#### 📋 Запланированный функционал Этапа v1.5.0:
 - [ ] **Словари тегов и атрибутов HTML5 (HTML5 Dictionaries & Completions)**:
   - [ ] Полный словарь всех стандартных 110+ тегов HTML5 с описанием и сниппетами: структурные (`header`, `nav`, `main`, `footer`, `section`, `article`, `aside`), медиа (`video`, `audio`, `picture`, `source`, `canvas`, `figure`, `figcaption`), формы (`form`, `input`, `textarea`, `select`, `option`, `button`, `label`, `fieldset`, `legend`), интерактивные (`details`, `summary`, `dialog`, `template`, `slot`), таблицы (`table`, `thead`, `tbody`, `tfoot`, `tr`, `th`, `td`).
   - [ ] Контекстный словарь HTML-атрибутов: общие (`id`, `class`, `style`, `title`, `hidden`, `tabindex`), атрибуты форм (`action`, `method`, `type`, `name`, `value`, `placeholder`, `required`, `disabled`, `readonly`, `pattern`), ссылки и медиа (`href`, `target`, `rel`, `src`, `alt`, `loading="lazy"`), доступность (`aria-*`, `role`).
@@ -472,6 +509,44 @@ graph TD
 ## 🗄️ АРХИВ ВЫПОЛНЕННЫХ ЭТАПОВ (Released)
 
 <details open>
+<summary><b>🚀 Детали релиза v2.3.8: Монолитная декомпозиция (Code Splitting), Trusted Proxies & Forward Auth, Zero-Binary Registry и Web-DevKit v1.4.0 (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
+
+- [x] **Архитектурная декомпозиция монолитов ядра (Monolithic Code Splitting)**:
+  - Полный распил гигантского монолитного `App.tsx` на изолированные доменные React-хуки:
+    - `useTabsManager.ts` — управление вкладками, виртуальные вкладки `openCustomTab` (`fleet://servers.yaml`), навигация, dirty-трекинг и история.
+    - `useFileExplorer.ts` — дерево каталогов воркспейса, создание, переименование, удаление и drag-and-drop загрузка файлов.
+    - `useModalManager.ts` — централизованное управление состоянием всех модальных диалогов.
+    - `useWorkspacesManager.ts` — подключение и переключение мульти-рут рабочих областей.
+  - Декомпозиция монолитного `api.ts` на модульные клиенты в `web/src/services/api/`:
+    - `client.ts` (`webFetch`, guard-интерцепторы, авторизационные токены).
+    - `fsApi.ts` (файловые операции, пакетное чтение `batchRead`).
+    - `pluginsApi.ts` (управление плагинами, источниками и синхронизацией каталога).
+    - `serverApi.ts`, `secretsApi.ts`, `sysinfoApi.ts`.
+  - Декомпозиция модулей `pluginLoader.ts` и `BottomDockStrip.tsx` на самостоятельные подсистемы.
+- [x] **Безопасность, Trusted Proxies и Forward Auth (UT-02, UT-03, UT-06)**:
+  - Добавлена поддержка доверенных подсетей CIDR (`trustedProxies`) и тумблер сквозной авторизации (`trustForwardAuth`) во вкладку настроек «Безопасность», в конфигурацию ядра и в `authMiddleware`.
+  - Корректная обработка заголовка `X-Forwarded-User` для интеграции с Traefik, Authentik, Authelia.
+  - Разрешение WebSocket Upgrade для шлюза SSH (`/api/ssh/ws?web=1`) и стриминга телеметрии при проксировании.
+- [x] **Хранилище секретов Core Vault (UT-04)**:
+  - Автоматическая генерация валидного слага ID из названия секрета (`item.Title`) при сохранении на бэкенде и фронтенде, если поле оставлено пустым.
+  - Разделение секретов по областям применения (`scope`: `servers`, `providers`, `tokens`, `custom`).
+- [x] **Синхронизация каталога и плагинов в 1 клик (UT-08)**:
+  - Объединенный метод `handleRefreshAll` в `PluginsTab.tsx`: одновременный опрос локального диска (`api.getPlugins()`) и принудительная синхронизация удаленных источников GitHub (`api.syncSources()` / `api.getCatalog(true)`).
+  - Моментальное появление кнопок «Обновить до v...» в реальном времени без физического перезапуска приложения.
+  - Добавлен бэкенд unit-тест `TestServerSourcesAndCatalog` в `internal/server/sources_test.go`.
+- [x] **Политика Zero-Binary Registry и очистка репозиториев**:
+  - Полное удаление отслеживаемых бинарных `.cspkg` файлов из всех 10 git-репозиториев организации.
+  - Обновление `config-studio-plugins/registry.json` со ссылками на официальные ассеты GitHub Releases.
+  - Полная поддержка вынесенных словарей локализации `local.json` в ядре, шаблоне `plugin-template` и документации `plugin-docs`.
+- [x] **Выпуск официальных версий экосистемы плагинов**:
+  - `config-studio-web-devkit v1.4.0` (Real-Time Live Preview)
+  - `config-studio-servers v1.5.2` (Fleet Batch Provisioning)
+  - `config-studio-traefik v1.2.0` (Traefik Manager)
+  - `config-studio-lang-ru v1.1.0`, `config-studio-lang-en v1.1.0`, `config-studio-lang-de v1.1.0` (Языковые пакеты)
+
+</details>
+
+<details>
 <summary><b>⚡ Детали релиза v2.3.7: Goja Code Mode Sandbox & Secure JS Facade (ПОЛНОСТЬЮ РЕАЛИЗОВАНО И ВЫПУЩЕНО В РЕЛИЗ)</b></summary>
 
 - [x] **Go Core Backend (`internal/sandbox` & `internal/server`)**:
