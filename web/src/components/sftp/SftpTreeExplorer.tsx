@@ -19,6 +19,7 @@ import {
   Home,
   CheckCircle,
   Maximize2,
+  Copy,
 } from 'lucide-react';
 import { FileFormatIcon } from '../icons/FileFormatIcon';
 import { SSHHost, SFTPFileInfo, Settings } from '../../types';
@@ -26,7 +27,7 @@ import { sshHostService } from '../../services/sshHosts';
 import { api } from '../../services/api';
 import { formatBytes } from '../../utils/color';
 import { translations } from '../../utils/i18n';
-import { Dropdown, DropdownOption } from '@config-studio/ui';
+import { Dropdown, DropdownOption, ContextMenu, ContextMenuItem } from '@config-studio/ui';
 import { joinSafePath } from '../../utils/pathSecurity';
 
 interface SftpTreeExplorerProps {
@@ -61,6 +62,11 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
 
   const [isEditingPath, setIsEditingPath] = useState<boolean>(false);
   const [pathInputVal, setPathInputVal] = useState<string>('/etc');
+  const [contextMenuState, setContextMenuState] = useState<{
+    x: number;
+    y: number;
+    entry?: SFTPFileInfo;
+  } | null>(null);
   const fileUploadInputRef = useRef<HTMLInputElement>(null);
   const loadReqIdRef = useRef<number>(0);
 
@@ -375,6 +381,118 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
     }
   };
 
+  const getContextMenuItems = (entry?: SFTPFileInfo): ContextMenuItem[] => {
+    if (!activeHost) return [];
+    if (!entry) {
+      return [
+        {
+          id: 'new-file',
+          label: settings.language === 'en' ? 'New File...' : 'Новый файл...',
+          icon: <FilePlus className="w-4 h-4 text-accent" />,
+          onClick: () => handleCreateFile(),
+        },
+        {
+          id: 'new-folder',
+          label: settings.language === 'en' ? 'New Folder...' : 'Новая папка...',
+          icon: <FolderPlus className="w-4 h-4 text-accent" />,
+          onClick: () => handleCreateFolder(),
+        },
+        {
+          id: 'upload',
+          label: settings.language === 'en' ? 'Upload File...' : 'Загрузить файл...',
+          icon: <UploadCloud className="w-4 h-4 text-accent" />,
+          onClick: () => fileUploadInputRef.current?.click(),
+        },
+        {
+          id: 'refresh',
+          label: settings.language === 'en' ? 'Refresh' : 'Обновить',
+          icon: <RefreshCw className="w-4 h-4 text-gray-400" />,
+          onClick: () => loadDirectory(currentPath),
+        },
+        ...(onOpenDualPane ? [{
+          id: 'dual-pane',
+          label: settings.language === 'en' ? 'Open in 2-Pane Manager' : 'Двухпанельный менеджер',
+          icon: <Maximize2 className="w-4 h-4 text-accent" />,
+          onClick: () => onOpenDualPane(activeHost, currentPath),
+        }] : []),
+      ];
+    }
+
+    if (entry.isDir) {
+      return [
+        {
+          id: 'open-dir',
+          label: settings.language === 'en' ? 'Open Folder' : 'Открыть папку',
+          icon: <Folder className="w-4 h-4 text-accent" />,
+          onClick: () => navigateTo(entry.path),
+        },
+        {
+          id: 'copy-path',
+          label: settings.language === 'en' ? 'Copy Path' : 'Копировать путь',
+          icon: <Copy className="w-4 h-4 text-gray-400" />,
+          shortcut: 'Ctrl+C',
+          onClick: () => {
+            navigator.clipboard.writeText(entry.path);
+          },
+        },
+        {
+          id: 'rename',
+          label: settings.language === 'en' ? 'Rename' : 'Переименовать',
+          icon: <Edit2 className="w-4 h-4 text-gray-400" />,
+          shortcut: 'F2',
+          onClick: () => handleRenameItem(entry, { stopPropagation: () => {} } as any),
+        },
+        {
+          id: 'delete',
+          label: settings.language === 'en' ? 'Delete' : 'Удалить',
+          icon: <Trash2 className="w-4 h-4 text-red-500" />,
+          danger: true,
+          shortcut: 'Del',
+          onClick: () => handleDeleteItem(entry, { stopPropagation: () => {} } as any),
+        },
+      ];
+    }
+
+    return [
+      {
+        id: 'open-file',
+        label: settings.language === 'en' ? 'Open' : 'Открыть',
+        icon: <FileCode className="w-4 h-4 text-accent" />,
+        onClick: () => handleOpenFileClick(entry),
+      },
+      {
+        id: 'download',
+        label: settings.language === 'en' ? 'Download to PC' : 'Скачать на ПК',
+        icon: <Download className="w-4 h-4 text-accent" />,
+        onClick: () => handleDownloadFile(entry, { stopPropagation: () => {} } as any),
+      },
+      {
+        id: 'copy-path',
+        label: settings.language === 'en' ? 'Copy Path' : 'Копировать путь',
+        icon: <Copy className="w-4 h-4 text-gray-400" />,
+        shortcut: 'Ctrl+C',
+        onClick: () => {
+          navigator.clipboard.writeText(entry.path);
+        },
+      },
+      {
+        id: 'rename',
+        label: settings.language === 'en' ? 'Rename' : 'Переименовать',
+        icon: <Edit2 className="w-4 h-4 text-gray-400" />,
+        shortcut: 'F2',
+        onClick: () => handleRenameItem(entry, { stopPropagation: () => {} } as any),
+      },
+      {
+        id: 'delete',
+        label: settings.language === 'en' ? 'Delete' : 'Удалить',
+        icon: <Trash2 className="w-4 h-4 text-red-500" />,
+        danger: true,
+        shortcut: 'Del',
+        onClick: () => handleDeleteItem(entry, { stopPropagation: () => {} } as any),
+      },
+    ];
+  };
+
   // If no hosts are configured
   if (hosts.length === 0) {
     return (
@@ -424,15 +542,15 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
         </div>
 
         {/* Action Buttons Toolbar below */}
-        <div className="flex items-center justify-center">
-          <div className="inline-flex items-center justify-center p-0.5 bg-black/10 dark:bg-black/30 border border-base-border/70 rounded-xl space-x-1">
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="inline-flex items-center p-0.5 bg-black/10 dark:bg-black/30 border border-base-border/70 rounded-xl space-x-0.5">
             {/* Quick Terminal Action */}
             {activeHost && onOpenTerminal && (
               <button
                 type="button"
                 onClick={() => onOpenTerminal(activeHost)}
-                className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center"
-                title="Открыть SSH терминал"
+                className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center cursor-pointer"
+                title={settings.language === 'en' ? 'Open SSH Terminal' : 'Открыть SSH терминал'}
               >
                 <Terminal className="w-3.5 h-3.5" />
               </button>
@@ -443,10 +561,10 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
               type="button"
               onClick={() => loadDirectory(currentPath)}
               disabled={isLoading}
-              className={`p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center ${
+              className={`p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center cursor-pointer ${
                 isLoading ? 'animate-spin text-accent' : ''
               }`}
-              title="Обновить каталог"
+              title={settings.language === 'en' ? 'Refresh Directory' : 'Обновить каталог'}
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
@@ -456,25 +574,26 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
               <button
                 type="button"
                 onClick={onOpenSettingsSsh}
-                className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center"
-                title="Настройки SSH хостов"
+                className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center cursor-pointer"
+                title={settings.language === 'en' ? 'SSH Host Settings' : 'Настройки SSH хостов'}
               >
                 <SettingsIcon className="w-3.5 h-3.5" />
               </button>
             )}
-
-            {/* Expand into Dual-Pane File Manager */}
-            {onOpenDualPane && (
-              <button
-                type="button"
-                onClick={() => onOpenDualPane(activeHost, currentPath)}
-                className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition flex items-center justify-center"
-                title="Развернуть двухпанельный файловый менеджер (Local ↔ SFTP)"
-              >
-                <Maximize2 className="w-3.5 h-3.5" />
-              </button>
-            )}
           </div>
+
+          {/* Button with clear text inscription for Dual-Pane File Manager */}
+          {onOpenDualPane && (
+            <button
+              type="button"
+              onClick={() => onOpenDualPane(activeHost, currentPath)}
+              className="flex-1 flex items-center justify-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-accent/10 hover:bg-accent/20 text-accent text-xs font-semibold border border-accent/20 transition-all cursor-pointer shadow-xs active:scale-98"
+              title={settings.language === 'en' ? 'Open 2-Pane SFTP File Manager' : 'Развернуть двухпанельный менеджер (Local ↔ SFTP)'}
+            >
+              <Maximize2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{settings.language === 'en' ? '2-Pane FM' : 'Двухпанельный'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -543,7 +662,13 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
       </div>
 
       {/* 3. Directory Content Tree */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-0.5 custom-scrollbar min-h-0">
+      <div
+        className="flex-1 overflow-y-auto p-2 space-y-0.5 custom-scrollbar min-h-0"
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setContextMenuState({ x: e.clientX, y: e.clientY });
+        }}
+      >
         {errorMessage && (
           <div className="p-3 my-2 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400 space-y-2">
             <div className="flex items-center space-x-2 font-semibold">
@@ -581,6 +706,11 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
               <div
                 key={entry.path}
                 onClick={() => navigateTo(entry.path)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setContextMenuState({ x: e.clientX, y: e.clientY, entry });
+                }}
                 className="group flex items-center justify-between px-2 py-1.5 rounded-lg text-xs cursor-pointer text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors"
                 title={`Папка: ${entry.path}`}
               >
@@ -616,6 +746,11 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
             <div
               key={entry.path}
               onClick={() => handleOpenFileClick(entry)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setContextMenuState({ x: e.clientX, y: e.clientY, entry });
+              }}
               className="group flex items-center justify-between px-2 py-1.5 rounded-lg text-xs cursor-pointer text-gray-600 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors"
               title={`${entry.name} (${formatBytes(entry.size)}) — кликните для открытия в редакторе`}
             >
@@ -676,7 +811,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
           type="button"
           onClick={handleCreateFile}
           disabled={!activeHost || isLoading}
-          className="flex-1 py-1.5 px-2 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 flex items-center justify-center space-x-1 text-[11px] font-semibold transition"
+          className="flex-1 py-1.5 px-2 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 flex items-center justify-center space-x-1 text-[11px] font-semibold transition cursor-pointer"
           title="Создать новый файл на сервере"
         >
           <FilePlus className="w-3 h-3 text-accent" />
@@ -687,7 +822,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
           type="button"
           onClick={handleCreateFolder}
           disabled={!activeHost || isLoading}
-          className="flex-1 py-1.5 px-2 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 flex items-center justify-center space-x-1 text-[11px] font-semibold transition"
+          className="flex-1 py-1.5 px-2 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 flex items-center justify-center space-x-1 text-[11px] font-semibold transition cursor-pointer"
           title="Создать новую папку на сервере"
         >
           <FolderPlus className="w-3 h-3 text-accent" />
@@ -698,12 +833,23 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
           type="button"
           onClick={() => fileUploadInputRef.current?.click()}
           disabled={!activeHost || isLoading}
-          className="p-1.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 transition"
+          className="p-1.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 transition cursor-pointer"
           title="Загрузить локальный файл в эту папку"
         >
           <UploadCloud className="w-3.5 h-3.5 text-accent" />
         </button>
       </div>
+
+      {/* Context Menu for SFTP Tree Items */}
+      {contextMenuState && (
+        <ContextMenu
+          x={contextMenuState.x}
+          y={contextMenuState.y}
+          items={getContextMenuItems(contextMenuState.entry)}
+          target={contextMenuState.entry}
+          onClose={() => setContextMenuState(null)}
+        />
+      )}
     </div>
   );
 };

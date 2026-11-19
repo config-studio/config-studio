@@ -15,8 +15,10 @@ import {
   CheckCircle,
   AlertCircle,
   UploadCloud,
+  Edit2,
+  FileCode,
 } from 'lucide-react';
-import { Modal } from '../ui';
+import { Modal, ContextMenu, ContextMenuItem } from '../ui';
 import { FileFormatIcon } from '../icons/FileFormatIcon';
 import { SSHHost, Settings, WorkspaceRoot, SFTPFileInfo } from '../../types';
 import { sshHostService } from '../../services/sshHosts';
@@ -89,6 +91,14 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
   // Drag and drop tracking
   const [draggedItem, setDraggedItem] = useState<{ sourcePane: 'left' | 'right'; item: FileEntry } | null>(null);
   const [dragOverPane, setDragOverPane] = useState<'left' | 'right' | null>(null);
+
+  // Context Menu State
+  const [contextMenuState, setContextMenuState] = useState<{
+    x: number;
+    y: number;
+    pane: 'left' | 'right';
+    entry?: FileEntry;
+  } | null>(null);
 
   // Sync hosts & timer cleanup
   useEffect(() => {
@@ -441,16 +451,15 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
   };
 
   // Delete item
-  const handleDelete = async (pane: 'left' | 'right') => {
+  const handleDelete = async (pane: 'left' | 'right', targetItem?: FileEntry) => {
     const hostId = pane === 'left' ? leftHostId : rightHostId;
     const selectedName = pane === 'left' ? selectedLeftName : selectedRightName;
     const entries = pane === 'left' ? leftEntries : rightEntries;
-    if (!selectedName || hostId === '__picker__') {
+    const item = targetItem || entries.find((e) => e.name === selectedName);
+    if (!item || hostId === '__picker__') {
       showToast('Выберите элемент для удаления (F8)');
       return;
     }
-    const item = entries.find((e) => e.name === selectedName);
-    if (!item) return;
 
     if (!confirm(`Удалить ${item.isDir ? 'папку' : 'файл'} "${item.name}"?`)) return;
 
@@ -482,6 +491,166 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
     } catch (err: any) {
       showToast(`Ошибка удаления: ${err.message}`);
     }
+  };
+
+  // Rename item
+  const handleRename = async (pane: 'left' | 'right', item: FileEntry) => {
+    const hostId = pane === 'left' ? leftHostId : rightHostId;
+    if (hostId === '__picker__') return;
+    const newName = prompt('Новое имя:', item.name);
+    if (!newName?.trim() || newName.trim() === item.name) return;
+
+    const parentDir = resolveSafeParentDir(item.path, hostId === 'local');
+    let newPath: string;
+    try {
+      newPath = joinSafePath(parentDir, newName.trim());
+    } catch (err: any) {
+      showToast(err.message);
+      return;
+    }
+
+    try {
+      if (hostId === 'local') {
+        const root = activeRootId || workspaces[0]?.id || '';
+        await api.renameItem(item.path, newPath, root);
+      } else {
+        const host = hosts.find((h) => h.id === hostId);
+        if (!host) return;
+        await api.sftpRename({
+          host: host.host,
+          port: host.port || 22,
+          user: host.user || 'root',
+          authType: host.authType,
+          password: host.password,
+          identityId: host.identityId,
+          path: item.path,
+          newPath,
+        });
+      }
+      showToast(`Переименовано в "${newName.trim()}".`);
+      if (pane === 'left') loadLeftDirectory(leftPath, leftHostId);
+      else loadRightDirectory(rightPath, rightHostId);
+    } catch (err: any) {
+      showToast(`Ошибка переименования: ${err.message}`);
+    }
+  };
+
+  // Context Menu Items Builder
+  const getPaneContextMenuItems = (pane: 'left' | 'right', item?: FileEntry): ContextMenuItem[] => {
+    const hostId = pane === 'left' ? leftHostId : rightHostId;
+    const isPicker = hostId === '__picker__';
+    if (isPicker) return [];
+
+    const otherPane = pane === 'left' ? 'right' : 'left';
+    const otherHostId = otherPane === 'left' ? leftHostId : rightHostId;
+    const otherIsPicker = otherHostId === '__picker__';
+
+    if (!item) {
+      return [
+        {
+          id: 'new-folder',
+          label: settings.language === 'en' ? 'New Folder...' : 'Новая папка...',
+          icon: <FolderPlus className="w-4 h-4 text-accent" />,
+          shortcut: 'F7',
+          onClick: () => handleCreateFolder(pane),
+        },
+        {
+          id: 'refresh',
+          label: settings.language === 'en' ? 'Refresh' : 'Обновить',
+          icon: <RefreshCw className="w-4 h-4 text-gray-400" />,
+          onClick: () => {
+            if (pane === 'left') loadLeftDirectory(leftPath, leftHostId);
+            else loadRightDirectory(rightPath, rightHostId);
+          },
+        },
+      ];
+    }
+
+    const items: ContextMenuItem[] = [];
+
+    if (item.isDir) {
+      items.push({
+        id: 'open-dir',
+        label: settings.language === 'en' ? 'Open Folder' : 'Открыть папку',
+        icon: <Folder className="w-4 h-4 text-amber-400" />,
+        onClick: () => {
+          const cPath = pane === 'left' ? leftPath : rightPath;
+          const next = cPath.replace(/\/+$/, '') + '/' + item.name;
+          if (pane === 'left') loadLeftDirectory(next, leftHostId);
+          else loadRightDirectory(next, rightHostId);
+        },
+      });
+    } else {
+      items.push({
+        id: 'open-editor',
+        label: settings.language === 'en' ? 'Open in Editor' : 'Открыть в редакторе',
+        icon: <FileCode className="w-4 h-4 text-accent" />,
+        onClick: () => {
+          const host = hostId === 'local' ? null : hosts.find((h) => h.id === hostId) || null;
+          onOpenFile?.(host, item.path);
+          onClose();
+        },
+      });
+    }
+
+    if (!item.isDir && !otherIsPicker) {
+      items.push({
+        id: 'transfer-copy',
+        label: settings.language === 'en' ? 'Copy to Opposite Pane' : 'Копировать в противоположную панель',
+        icon: <Copy className="w-4 h-4 text-accent" />,
+        shortcut: 'F5',
+        onClick: () => transferFile(pane, item, false),
+      });
+      items.push({
+        id: 'transfer-move',
+        label: settings.language === 'en' ? 'Move to Opposite Pane' : 'Переместить в противоположную панель',
+        icon: <Move className="w-4 h-4 text-sky-400" />,
+        shortcut: 'F6',
+        onClick: () => transferFile(pane, item, true),
+      });
+    }
+
+    items.push({
+      id: 'copy-path',
+      label: settings.language === 'en' ? 'Copy Path' : 'Копировать путь',
+      icon: <Copy className="w-4 h-4 text-gray-400" />,
+      shortcut: 'Ctrl+C',
+      onClick: () => {
+        navigator.clipboard.writeText(item.path);
+        showToast(settings.language === 'en' ? 'Path copied to clipboard' : 'Путь скопирован в буфер');
+      },
+    });
+
+    items.push({
+      id: 'rename',
+      label: settings.language === 'en' ? 'Rename' : 'Переименовать',
+      icon: <Edit2 className="w-4 h-4 text-gray-400" />,
+      shortcut: 'F2',
+      onClick: () => handleRename(pane, item),
+    });
+
+    items.push({
+      id: 'new-folder',
+      label: settings.language === 'en' ? 'New Folder...' : 'Новая папка...',
+      icon: <FolderPlus className="w-4 h-4 text-accent" />,
+      shortcut: 'F7',
+      onClick: () => handleCreateFolder(pane),
+    });
+
+    items.push({
+      id: 'delete',
+      label: settings.language === 'en' ? 'Delete' : 'Удалить',
+      icon: <Trash2 className="w-4 h-4 text-red-500" />,
+      danger: true,
+      shortcut: 'F8',
+      onClick: () => {
+        if (pane === 'left') setSelectedLeftName(item.name);
+        else setSelectedRightName(item.name);
+        handleDelete(pane, item);
+      },
+    });
+
+    return items;
   };
 
   // Navigate folder helper (SEC-03 workspace escape mitigation)
@@ -640,7 +809,14 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
           </div>
 
           {/* Left File Table */}
-          <div className="flex-1 overflow-y-auto min-h-0 relative custom-scrollbar">
+          <div
+            className="flex-1 overflow-y-auto min-h-0 relative custom-scrollbar"
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setActivePane('left');
+              setContextMenuState({ x: e.clientX, y: e.clientY, pane: 'left' });
+            }}
+          >
             {leftLoading && (
               <div className="absolute inset-0 bg-base/50 backdrop-blur-xs flex items-center justify-center z-10">
                 <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -676,6 +852,13 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
                       draggable={!item.isDir}
                       onDragStart={() => setDraggedItem({ sourcePane: 'left', item })}
                       onClick={() => setSelectedLeftName(item.name)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setActivePane('left');
+                        setSelectedLeftName(item.name);
+                        setContextMenuState({ x: e.clientX, y: e.clientY, pane: 'left', entry: item });
+                      }}
                       onDoubleClick={() => {
                         if (item.isDir) {
                           const next = leftPath.replace(/\/+$/, '') + '/' + item.name;
@@ -922,7 +1105,14 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
               </div>
 
               {/* Right File Table */}
-              <div className="flex-1 overflow-y-auto min-h-0 relative custom-scrollbar">
+              <div
+                className="flex-1 overflow-y-auto min-h-0 relative custom-scrollbar"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setActivePane('right');
+                  setContextMenuState({ x: e.clientX, y: e.clientY, pane: 'right' });
+                }}
+              >
                 {rightLoading && (
                   <div className="absolute inset-0 bg-base/50 backdrop-blur-xs flex items-center justify-center z-10">
                     <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -957,6 +1147,13 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
                           draggable={!item.isDir}
                           onDragStart={() => setDraggedItem({ sourcePane: 'right', item })}
                           onClick={() => setSelectedRightName(item.name)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setActivePane('right');
+                            setSelectedRightName(item.name);
+                            setContextMenuState({ x: e.clientX, y: e.clientY, pane: 'right', entry: item });
+                          }}
                           onDoubleClick={() => {
                             if (item.isDir) {
                               const next = rightPath.replace(/\/+$/, '') + '/' + item.name;
@@ -1066,6 +1263,17 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
           <CheckCircle className="w-4 h-4 text-accent shrink-0" />
           <span>{toastMessage}</span>
         </div>
+      )}
+
+      {/* 5. Custom Context Menu for Dual-Pane Table Items */}
+      {contextMenuState && (
+        <ContextMenu
+          x={contextMenuState.x}
+          y={contextMenuState.y}
+          items={getPaneContextMenuItems(contextMenuState.pane, contextMenuState.entry)}
+          target={contextMenuState.entry}
+          onClose={() => setContextMenuState(null)}
+        />
       )}
     </Modal>
   );
