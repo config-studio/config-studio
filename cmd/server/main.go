@@ -40,7 +40,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Println("Config Studio v2.3.6")
+		fmt.Println("Config Studio v2.3.9")
 		return
 	}
 
@@ -168,7 +168,7 @@ func main() {
 		if useTLS {
 			protocol = "https"
 		}
-		log.Printf(" Config Studio v2.3.6 is running at %s://%s", protocol, addr)
+		log.Printf(" Config Studio v2.3.9 is running at %s://%s", protocol, addr)
 		log.Printf(" Working directory: %s", *workdir)
 		log.Printf(" Data directory:    %s", *dataDir)
 		if useTLS {
