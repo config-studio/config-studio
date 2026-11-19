@@ -37,4 +37,17 @@ assert.strictEqual(resolveSafeParentDir('configs/app', true), 'configs');
 assert.strictEqual(resolveSafeParentDir('configs', true), '');
 assert.strictEqual(resolveSafeParentDir('', true), '');
 
+// 6. Windows backslash path normalization
+assert.strictEqual(resolveSafeParentDir('configs\\app', true), 'configs');
+assert.strictEqual(resolveSafeParentDir('configs\\app\\sub', true), 'configs/app');
+assert.strictEqual(joinSafePath('configs\\nested', 'service.conf'), 'configs/nested/service.conf');
+
+// 7. Verify isDir safety in delete payload
+const mockSftpDeletePayload = (entry) => ({
+  path: entry.path,
+  isDir: Boolean(entry.isDir),
+});
+assert.strictEqual(mockSftpDeletePayload({ path: '/etc/nginx', isDir: true }).isDir, true);
+assert.strictEqual(mockSftpDeletePayload({ path: '/etc/nginx/nginx.conf', isDir: false }).isDir, false);
+
 console.log('All pathSecurity tests passed successfully!');

@@ -9,12 +9,9 @@ import {
   Trash2,
   Copy,
   Move,
-  Search,
   X,
   Laptop,
   CheckCircle,
-  AlertCircle,
-  UploadCloud,
   Edit2,
   FileCode,
 } from 'lucide-react';
@@ -156,6 +153,7 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
           modTime: it.modTime || '',
         }));
         setLeftEntries(mapped);
+        setLeftPath(path);
       } else {
         const host = hosts.find((h) => h.id === hostId);
         if (!host) throw new Error('Хост не найден');
@@ -178,8 +176,8 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
           modTime: it.modTime ? new Date(it.modTime).toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' }) : '',
         }));
         setLeftEntries(mapped);
+        setLeftPath(res.path || path);
       }
-      setLeftPath(path);
     } catch (err: any) {
       if (currentReqId === leftReqIdRef.current) {
         showToast(`Ошибка загрузки слева: ${err.message}`);
@@ -211,6 +209,7 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
           modTime: it.modTime || '',
         }));
         setRightEntries(mapped);
+        setRightPath(path);
       } else {
         const host = hosts.find((h) => h.id === hostId);
         if (!host) throw new Error('Хост не найден');
@@ -233,8 +232,8 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
           modTime: it.modTime ? new Date(it.modTime).toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' }) : '',
         }));
         setRightEntries(mapped);
+        setRightPath(res.path || path);
       }
-      setRightPath(path);
     } catch (err: any) {
       if (currentReqId === rightReqIdRef.current) {
         showToast(`Ошибка загрузки справа: ${err.message}`);
@@ -350,6 +349,7 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
               password: srcHost.password,
               identityId: srcHost.identityId,
               path: item.path,
+              isDir: item.isDir,
             });
           }
         }
@@ -376,6 +376,10 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (contextMenuState) {
+          setContextMenuState(null);
+          return;
+        }
         onClose();
         return;
       }
@@ -407,7 +411,7 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, activePane, leftEntries, rightEntries, selectedLeftName, selectedRightName, leftHostId, rightHostId, leftPath, rightPath, onClose]);
+  }, [isOpen, activePane, leftEntries, rightEntries, selectedLeftName, selectedRightName, leftHostId, rightHostId, leftPath, rightPath, contextMenuState, onClose]);
 
   // Create folder prompt
   const handleCreateFolder = async (pane: 'left' | 'right') => {
@@ -478,6 +482,7 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
           password: host.password,
           identityId: host.identityId,
           path: item.path,
+          isDir: item.isDir,
         });
       }
       showToast(`"${item.name}" удален.`);
@@ -665,7 +670,7 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
     } else if (targetPath === '/') {
       resolved = hostId === 'local' ? '' : '/';
     } else if (targetPath === '~') {
-      resolved = hostId === 'local' ? '' : '/home';
+      resolved = hostId === 'local' ? '' : '~';
     }
 
     if (isLeft) {

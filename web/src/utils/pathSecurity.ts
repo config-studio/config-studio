@@ -22,12 +22,12 @@ export function sanitizeBaseName(name: string): string {
 
 export function joinSafePath(baseDir: string, childName: string): string {
   const safeName = sanitizeBaseName(childName);
-  const normalizedBase = baseDir.replace(/\/+$/, '');
+  const normalizedBase = baseDir.replace(/\\/g, '/').replace(/\/+$/, '');
   return normalizedBase ? `${normalizedBase}/${safeName}` : `/${safeName}`;
 }
 
 export function resolveSafeParentDir(currentPath: string, isLocal: boolean): string {
-  const parts = currentPath.replace(/\/+$/, '').split('/').filter(Boolean);
+  const parts = currentPath.replace(/\\/g, '/').replace(/\/+$/, '').split('/').filter(Boolean);
   parts.pop();
 
   if (isLocal) {

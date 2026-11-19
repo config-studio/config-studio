@@ -3,7 +3,6 @@ import {
   Server,
   Folder,
   FileCode,
-  FileText,
   RefreshCw,
   CornerLeftUp,
   Terminal,
@@ -17,7 +16,6 @@ import {
   FolderPlus,
   FilePlus,
   Home,
-  CheckCircle,
   Maximize2,
   Copy,
 } from 'lucide-react';
@@ -28,7 +26,7 @@ import { api } from '../../services/api';
 import { formatBytes } from '../../utils/color';
 import { translations } from '../../utils/i18n';
 import { Dropdown, DropdownOption, ContextMenu, ContextMenuItem } from '@config-studio/ui';
-import { joinSafePath } from '../../utils/pathSecurity';
+import { joinSafePath, resolveSafeParentDir } from '../../utils/pathSecurity';
 
 interface SftpTreeExplorerProps {
   settings: Settings;
@@ -196,10 +194,8 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
 
   const navigateUp = () => {
     if (currentPath === '/' || currentPath === '') return;
-    const parts = currentPath.split('/').filter(Boolean);
-    parts.pop();
-    const up = '/' + parts.join('/');
-    navigateTo(up || '/');
+    const up = resolveSafeParentDir(currentPath, false);
+    navigateTo(up);
   };
 
   const handleOpenFileClick = (entry: SFTPFileInfo) => {
@@ -265,8 +261,8 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
     }
   };
 
-  const handleDeleteItem = async (entry: SFTPFileInfo, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteItem = async (entry: SFTPFileInfo, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (!activeHost) return;
     if (!confirm(`Удалить ${entry.isDir ? 'папку' : 'файл'} "${entry.name}" на сервере ${activeHost.name || activeHost.host}?`)) {
       return;
@@ -280,6 +276,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
         password: activeHost.password,
         identityId: activeHost.identityId,
         path: entry.path,
+        isDir: entry.isDir,
       });
       await loadDirectory(currentPath);
     } catch (err: any) {
@@ -287,15 +284,15 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
     }
   };
 
-  const handleRenameItem = async (entry: SFTPFileInfo, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleRenameItem = async (entry: SFTPFileInfo, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (!activeHost) return;
     const newName = prompt('Новое имя:', entry.name);
     if (!newName?.trim() || newName.trim() === entry.name) return;
-    const parentDir = entry.path.substring(0, entry.path.lastIndexOf('/')) || '';
+    const parentDir = resolveSafeParentDir(entry.path, false);
     let newPath: string;
     try {
-      newPath = joinSafePath(parentDir || '/', newName.trim());
+      newPath = joinSafePath(parentDir, newName.trim());
     } catch (err: any) {
       alert(err.message);
       return;
@@ -317,8 +314,8 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
     }
   };
 
-  const handleDownloadFile = async (entry: SFTPFileInfo, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDownloadFile = async (entry: SFTPFileInfo, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (!activeHost) return;
     const isBinaryExt = /\.(png|jpe?g|gif|ico|webp|zip|tar|gz|bz2|7z|pdf|exe|bin|iso|woff2?|wasm|so|dll|dylib)$/i.test(entry.name);
     if (isBinaryExt) {
@@ -440,7 +437,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
           label: settings.language === 'en' ? 'Rename' : 'Переименовать',
           icon: <Edit2 className="w-4 h-4 text-gray-400" />,
           shortcut: 'F2',
-          onClick: () => handleRenameItem(entry, { stopPropagation: () => {} } as any),
+          onClick: () => handleRenameItem(entry),
         },
         {
           id: 'delete',
@@ -448,7 +445,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
           icon: <Trash2 className="w-4 h-4 text-red-500" />,
           danger: true,
           shortcut: 'Del',
-          onClick: () => handleDeleteItem(entry, { stopPropagation: () => {} } as any),
+          onClick: () => handleDeleteItem(entry),
         },
       ];
     }
@@ -464,7 +461,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
         id: 'download',
         label: settings.language === 'en' ? 'Download to PC' : 'Скачать на ПК',
         icon: <Download className="w-4 h-4 text-accent" />,
-        onClick: () => handleDownloadFile(entry, { stopPropagation: () => {} } as any),
+        onClick: () => handleDownloadFile(entry),
       },
       {
         id: 'copy-path',
@@ -480,7 +477,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
         label: settings.language === 'en' ? 'Rename' : 'Переименовать',
         icon: <Edit2 className="w-4 h-4 text-gray-400" />,
         shortcut: 'F2',
-        onClick: () => handleRenameItem(entry, { stopPropagation: () => {} } as any),
+        onClick: () => handleRenameItem(entry),
       },
       {
         id: 'delete',
@@ -488,7 +485,7 @@ export const SftpTreeExplorer: React.FC<SftpTreeExplorerProps> = ({
         icon: <Trash2 className="w-4 h-4 text-red-500" />,
         danger: true,
         shortcut: 'Del',
-        onClick: () => handleDeleteItem(entry, { stopPropagation: () => {} } as any),
+        onClick: () => handleDeleteItem(entry),
       },
     ];
   };

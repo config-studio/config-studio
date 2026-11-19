@@ -4,8 +4,6 @@ import {
   FolderPlus,
   FilePlus,
   RefreshCw,
-  FileText,
-  FileCode,
   Trash2,
   Edit2,
   UploadCloud,
@@ -19,7 +17,6 @@ import {
   Globe,
   Cpu,
   Database,
-  Lock,
   MoreVertical,
   X,
 } from 'lucide-react';
