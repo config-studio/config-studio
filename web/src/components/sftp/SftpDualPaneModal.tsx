@@ -515,38 +515,25 @@ export const SftpDualPaneModal: React.FC<SftpDualPaneModalProps> = ({
       size="xxl"
       height="full"
       allowMaximize={true}
-      defaultMaximized={true}
+      defaultMaximized={false}
       className="p-0 overflow-hidden bg-base-surface border border-base-border shadow-2xl flex flex-col"
     >
-      {/* 1. Modal Top Bar */}
-      <div className="h-12 bg-base-surface border-b border-base-border px-4 flex items-center justify-between shrink-0 select-none">
-        <div className="flex items-center space-x-3">
+      {/* 1. Modal Header with Maximize/Fullscreen toggle & Close button */}
+      <Modal.Header
+        title="SFTP Двухпанельный файловый менеджер"
+        subtitle="Синхронизация и прямая передача файлов Local ↔ SFTP и Server ↔ Server"
+        badge={
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20 font-mono">
+            Dual-Pane
+          </span>
+        }
+        icon={
           <div className="w-8 h-8 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent">
             <Server className="w-4 h-4" />
           </div>
-          <div>
-            <h2 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              SFTP Двухпанельный файловый менеджер
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20 font-mono">
-                Dual-Pane
-              </span>
-            </h2>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              Синхронизация и прямая передача файлов Local ↔ SFTP и Server ↔ Server
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
-            title="Закрыть"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+        }
+        className="px-4 py-2.5 bg-base-surface"
+      />
 
       {/* 2. Dual Panes Grid (50% / 50%) */}
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-base-border min-h-0 bg-base select-none">
