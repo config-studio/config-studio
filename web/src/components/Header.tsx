@@ -10,12 +10,11 @@ import {
   FolderOpen,
   Info,
   LogOut,
-  Globe,
   Menu,
   MoreVertical,
 } from 'lucide-react';
 import { Settings, OpenFile, HeaderItemDef } from '../types';
-import { translations, Language, getAvailableLanguages, subscribeLanguages, LanguageMeta } from '../utils/i18n';
+import { translations, Language } from '../utils/i18n';
 import { TreeAsciiIcon, IconButton } from './ui';
 import { FileQuickSearch } from './header/FileQuickSearch';
 
@@ -32,7 +31,7 @@ interface HeaderProps {
   onOpenPlugins?: () => void;
   onOpenProperties: () => void;
   onToggleTheme: () => void;
-  onChangeLanguage: (lang: Language) => void;
+  onChangeLanguage?: (lang: Language) => void;
   onLogout?: () => void;
   onOpenFile: (path: string) => void;
   onNavigateDir: (path: string) => void;
@@ -52,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenProperties,
   onToggleTheme,
-  onChangeLanguage,
+  onChangeLanguage: _onChangeLanguage,
   onLogout,
   onOpenFile,
   onToggleMobileFiles,
@@ -61,18 +60,11 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
-  const [availableLanguages, setAvailableLanguages] = useState<LanguageMeta[]>(getAvailableLanguages());
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 640
   );
 
   const mobileMenuContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    return subscribeLanguages(() => {
-      setAvailableLanguages(getAvailableLanguages());
-    });
-  }, []);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 640);
@@ -249,21 +241,6 @@ export const Header: React.FC<HeaderProps> = ({
             title={t.fileProperties || 'Свойства файла'}
           />
 
-          {availableLanguages.length > 1 && (
-            <button
-              onClick={() => {
-                const currentIdx = availableLanguages.findIndex((l) => l.code === settings.language);
-                const nextLang = availableLanguages[(currentIdx + 1) % availableLanguages.length];
-                onChangeLanguage(nextLang.code);
-              }}
-              className="px-2 py-1 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex items-center space-x-1"
-              title={t.language}
-            >
-              <Globe className="w-3.5 h-3.5 text-accent" />
-              <span>{(settings.language || 'RU').toUpperCase()}</span>
-            </button>
-          )}
-
           <IconButton
             variant="ghost"
             size="md"
@@ -330,21 +307,6 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
                 <span>{settings.themeMode === 'dark' ? t.themeLight : t.themeDark}</span>
               </button>
-
-              {availableLanguages.length > 1 && (
-                <button
-                  onClick={() => {
-                    const currentIdx = availableLanguages.findIndex((l) => l.code === settings.language);
-                    const nextLang = availableLanguages[(currentIdx + 1) % availableLanguages.length];
-                    onChangeLanguage(nextLang.code);
-                    setIsMobileMoreMenuOpen(false);
-                  }}
-                  className="w-full px-3 py-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-left text-gray-800 dark:text-gray-200 flex items-center space-x-2.5"
-                >
-                  <Globe className="w-3.5 h-3.5 text-accent" />
-                  <span>{t.language}: {(settings.language || 'RU').toUpperCase()}</span>
-                </button>
-              )}
 
               <div className="h-px bg-base-border my-1" />
 
