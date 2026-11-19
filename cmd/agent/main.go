@@ -24,13 +24,21 @@ Lightweight, Zero-Trust Headless Daemon for Cloud & VPS Fleet Management.
 
 USAGE:
     config-studio-agent [flags]
+    config-studio-agent -install [options]
     config-studio-agent link [options]
     config-studio-agent token <action> [options]
 
-FLAGS:
-    -config <path>    Path to agent.yaml (default: ./agent.yaml)
+INSTALLATION & SERVICE FLAGS:
+    -install          Install agent as system service (systemd/OpenRC) and initialize agent.yaml
+    -uninstall        Uninstall agent service and remove binary
     -port <int>       Override listening port (default: 8085)
+    -roots <paths>    Allowed working roots comma-separated (e.g. /opt/projects,/var/www)
+    -name <name>      Server node name for connection link (e.g. "Production VPS")
+    -host <ip>        Override public IP/hostname in generated link
+    -link             Generate 1-click import connection link
+    -raw              Output only raw connection URI (ideal for curl/bash automation scripts)
     -tls              Enable HTTPS / TLS
+    -config <path>    Path to agent.yaml (default: /etc/config-studio/agent.yaml on install, ./agent.yaml standalone)
     -version          Print agent version and exit
 
 LINK COMMAND:
@@ -62,12 +70,25 @@ func main() {
 		case "link", "invite", "url":
 			handleLinkCommand(os.Args[2:])
 			return
+		case "install":
+			handleInstallCommand(os.Args[2:])
+			return
+		case "uninstall":
+			HandleUninstall()
+			return
 		}
 	}
 
-	configPath := flag.String("config", "agent.yaml", "Path to agent.yaml")
-	portFlag := flag.Int("port", 0, "Override port")
+	installFlag := flag.Bool("install", false, "Install agent as system service (systemd/OpenRC)")
+	uninstallFlag := flag.Bool("uninstall", false, "Uninstall agent service and remove binary")
+	configPath := flag.String("config", "", "Path to agent.yaml")
+	portStr := flag.String("port", "", "Override port (default: 8085)")
+	rootsFlag := flag.String("roots", "", "Allowed working directories (comma-separated)")
+	nameFlag := flag.String("name", "", "Server node name for connection link")
+	hostFlag := flag.String("host", "", "Public IP / Host for connection link")
 	tlsFlag := flag.Bool("tls", false, "Enable TLS")
+	linkFlag := flag.Bool("link", false, "Generate and print 1-click connection link")
+	rawFlag := flag.Bool("raw", false, "Output only raw connection URI (for scripts)")
 	versionFlag := flag.Bool("version", false, "Show version")
 	flag.Parse()
 
@@ -76,13 +97,75 @@ func main() {
 		return
 	}
 
-	cfg, _, err := agent.LoadOrInitConfig(*configPath)
+	if *uninstallFlag {
+		HandleUninstall()
+		return
+	}
+
+	if *installFlag {
+		port := parsePortString(*portStr, 8085)
+		HandleInstall(InstallOptions{
+			ConfigPath: *configPath,
+			Port:       port,
+			Roots:      *rootsFlag,
+			Name:       *nameFlag,
+			Host:       *hostFlag,
+			TLS:        *tlsFlag,
+			Link:       *linkFlag,
+			Raw:        *rawFlag,
+		})
+		return
+	}
+
+	cfgFile := *configPath
+	if cfgFile == "" {
+		cfgFile = "agent.yaml"
+	}
+
+	if *linkFlag {
+		cfg, _, err := agent.LoadOrInitConfig(cfgFile)
+		if err != nil {
+			log.Fatalf("[Agent] Configuration error: %v", err)
+		}
+		var customRoots []string
+		if *rootsFlag != "" {
+			for _, r := range strings.Split(*rootsFlag, ",") {
+				if cr := strings.TrimSpace(r); cr != "" {
+					customRoots = append(customRoots, cr)
+				}
+			}
+		}
+		link := cfg.GenerateConnectionLink(*hostFlag, *nameFlag, customRoots)
+		if *rawFlag {
+			fmt.Println(link)
+			return
+		}
+		fmt.Println("==================================================================")
+		fmt.Printf("  Config Studio Remote Agent v%s — Connection Link\n", Version)
+		fmt.Println("==================================================================")
+		fmt.Println("  1-Click Import URI (copy & paste into Config Studio):")
+		fmt.Println()
+		fmt.Println("  " + link)
+		fmt.Println()
+		fmt.Println("  Included parameters:")
+		fmt.Printf("    • API Token Key:  %s\n", cfg.Master.KeyID)
+		fmt.Printf("    • TOTP Secret:    %s\n", cfg.Master.Secret)
+		fmt.Println("==================================================================")
+		return
+	}
+
+	cfg, _, err := agent.LoadOrInitConfig(cfgFile)
 	if err != nil {
 		log.Fatalf("[Agent] Configuration error: %v", err)
 	}
 
-	if *portFlag > 0 {
-		cfg.Port = *portFlag
+	if *portStr != "" {
+		if p := parsePortString(*portStr, 0); p > 0 {
+			cfg.Port = p
+		}
+	}
+	if *rootsFlag != "" {
+		cfg.Sandbox.AllowedRoots = parseRootsString(*rootsFlag)
 	}
 	if *tlsFlag {
 		cfg.TLS.Enabled = true
@@ -277,4 +360,29 @@ func handleLinkCommand(args []string) {
 	}
 	fmt.Printf("    • Allowed Roots:  %s\n", rootsDisplay)
 	fmt.Println("==================================================================")
+}
+
+func handleInstallCommand(args []string) {
+	fs := flag.NewFlagSet("install", flag.ExitOnError)
+	configPath := fs.String("config", "", "Path to agent.yaml")
+	portStr := fs.String("port", "", "Listening port (default: 8085)")
+	roots := fs.String("roots", "", "Allowed working directories (comma-separated)")
+	name := fs.String("name", "", "Server node name for link fragment")
+	host := fs.String("host", "", "Override public IP/hostname in connection link")
+	tls := fs.Bool("tls", false, "Enable TLS")
+	link := fs.Bool("link", false, "Generate connection link")
+	raw := fs.Bool("raw", false, "Output only raw connection URI string")
+	_ = fs.Parse(args)
+
+	port := parsePortString(*portStr, 8085)
+	HandleInstall(InstallOptions{
+		ConfigPath: *configPath,
+		Port:       port,
+		Roots:      *roots,
+		Name:       *name,
+		Host:       *host,
+		TLS:        *tls,
+		Link:       *link,
+		Raw:        *raw,
+	})
 }
