@@ -11,7 +11,7 @@ func TestConnectionLinkGenerationAndParsing(t *testing.T) {
 		Port: 8085,
 		TLS:  TLSConfig{Enabled: false},
 		Master: MasterAuth{
-			KeyID:  "cs_master_test",
+			KeyID:  "cs_key_56643d5586e39415ec34721cfc1b31b6",
 			Secret: "JBSWY3DPEHPK3PXP",
 		},
 		Sandbox: SandboxConfig{
@@ -20,7 +20,7 @@ func TestConnectionLinkGenerationAndParsing(t *testing.T) {
 	}
 
 	link := cfg.GenerateConnectionLink("192.168.1.50", "prod-vps", nil)
-	if !strings.HasPrefix(link, "cs-agent://cs_master_test:JBSWY3DPEHPK3PXP@192.168.1.50:8085/") {
+	if !strings.HasPrefix(link, "cs-agent://cs_key_56643d5586e39415ec34721cfc1b31b6:JBSWY3DPEHPK3PXP@192.168.1.50:8085/") {
 		t.Fatalf("unexpected link prefix: %s", link)
 	}
 	if !strings.Contains(link, "roots=%2Fopt%2Fprojects%2C%2Fvar%2Fwww") && !strings.Contains(link, "roots=/opt/projects,/var/www") {
@@ -36,8 +36,8 @@ func TestConnectionLinkGenerationAndParsing(t *testing.T) {
 		t.Fatalf("ParseConnectionLink failed: %v", err)
 	}
 
-	if parsed.KeyID != "cs_master_test" {
-		t.Errorf("expected KeyID 'cs_master_test', got %q", parsed.KeyID)
+	if parsed.KeyID != "cs_key_56643d5586e39415ec34721cfc1b31b6" {
+		t.Errorf("expected KeyID 'cs_key_56643d5586e39415ec34721cfc1b31b6', got %q", parsed.KeyID)
 	}
 	if parsed.Secret != "JBSWY3DPEHPK3PXP" {
 		t.Errorf("expected Secret 'JBSWY3DPEHPK3PXP', got %q", parsed.Secret)

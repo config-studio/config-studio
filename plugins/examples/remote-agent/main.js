@@ -44,7 +44,7 @@
           id: 'srv_' + (idx + 1) + '_' + Math.random().toString(36).substring(2, 6),
           name: s.name || 'Remote Server ' + (idx + 1),
           url: (s.url || '').replace(/\/$/, ''),
-          keyId: s.token ? s.token.split(':')[0] : 'cs_master',
+          keyId: s.token ? s.token.split(':')[0] : 'cs_key',
           secret: s.token && s.token.includes(':') ? s.token.split(':')[1] : '',
           isRW: true,
           status: 'unknown',
@@ -840,8 +840,8 @@
         </div>
 
         <div class="cs-remote-input-group">
-          <label class="cs-remote-label">${t('keyLabel', 'Мастер-ключ ID (Key ID)')}</label>
-          <input type="text" id="cs-inp-key" class="cs-remote-input" placeholder="${t('keyPlaceholder', 'cs_master_...')}" value="${editServer ? editServer.keyId : ''}">
+          <label class="cs-remote-label">${t('keyLabel', 'API-ключ токена (cs_key_...)')}</label>
+          <input type="text" id="cs-inp-key" class="cs-remote-input" placeholder="${t('keyPlaceholder', 'cs_key_56643d5586e39415ec34721cfc1b31b6')}" value="${editServer ? editServer.keyId : ''}">
         </div>
 
         <div class="cs-remote-input-group">

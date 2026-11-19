@@ -127,7 +127,7 @@ func TestSecretsManager(t *testing.T) {
 		{"sec:token", "GitHub CI Token", TypeToken, "ghp_MockToken123456789"},
 		{"sec:cert", "Wildcard TLS Cert", TypeCertificate, "-----BEGIN CERTIFICATE-----\nMOCK..."},
 		{"sec:env", "App Secret Env", TypeEnv, "DATABASE_URL=postgres://..."},
-		{"sec:agent", "Agent Credentials (alpine-01)", TypeAgentCredentials, `{"keyId":"cs_master_1","secret":"ABC"}`},
+		{"sec:agent", "Agent Credentials (alpine-01)", TypeAgentCredentials, `{"keyId":"cs_key_56643d5586e39415ec34721cfc1b31b6","secret":"ABC"}`},
 		{"sec:other", "Hardware Security PIN", TypeOther, "9988"},
 	}
 

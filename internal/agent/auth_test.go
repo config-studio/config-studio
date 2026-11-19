@@ -10,7 +10,7 @@ import (
 
 func TestMasterAuthentication(t *testing.T) {
 	master := MasterAuth{
-		KeyID:  "cs_master_test",
+		KeyID:  "cs_key_56643d5586e39415ec34721cfc1b31b6",
 		Secret: "JBSWY3DPEHPK3PXP",
 	}
 	auth := NewAuthenticator(master, nil)
@@ -24,7 +24,7 @@ func TestMasterAuthentication(t *testing.T) {
 
 	// 2. Request with Master Key only (Read-Only)
 	req = httptest.NewRequest("GET", "/api/fs/tree", nil)
-	req.Header.Set("Authorization", "Bearer cs_master_test")
+	req.Header.Set("Authorization", "Bearer cs_key_56643d5586e39415ec34721cfc1b31b6")
 	ctx, err = auth.AuthenticateRequest(req)
 	if err != nil {
 		t.Fatalf("Unexpected error for master RO: %v", err)
@@ -40,7 +40,7 @@ func TestMasterAuthentication(t *testing.T) {
 	now := time.Now()
 	otp, _ := GenerateTOTP(master.Secret, now, 6)
 	req = httptest.NewRequest("POST", "/api/fs/file", nil)
-	req.Header.Set("Authorization", "Bearer cs_master_test:"+otp)
+	req.Header.Set("Authorization", "Bearer cs_key_56643d5586e39415ec34721cfc1b31b6:"+otp)
 	ctx, err = auth.AuthenticateRequest(req)
 	if err != nil {
 		t.Fatalf("Unexpected error for master RW: %v", err)
@@ -51,7 +51,7 @@ func TestMasterAuthentication(t *testing.T) {
 
 	// 4. Replay test: Attempting to use the SAME OTP step again must fail
 	reqReplay := httptest.NewRequest("POST", "/api/fs/file", nil)
-	reqReplay.Header.Set("Authorization", "Bearer cs_master_test:"+otp)
+	reqReplay.Header.Set("Authorization", "Bearer cs_key_56643d5586e39415ec34721cfc1b31b6:"+otp)
 	_, err = auth.AuthenticateRequest(reqReplay)
 	if err == nil {
 		t.Fatalf("Expected replay detection error for reused OTP, but succeeded!")
@@ -59,7 +59,7 @@ func TestMasterAuthentication(t *testing.T) {
 
 	// 5. Invalid TOTP
 	reqBad := httptest.NewRequest("POST", "/api/fs/file", nil)
-	reqBad.Header.Set("Authorization", "Bearer cs_master_test:000000")
+	reqBad.Header.Set("Authorization", "Bearer cs_key_56643d5586e39415ec34721cfc1b31b6:000000")
 	_, err = auth.AuthenticateRequest(reqBad)
 	if err == nil {
 		t.Fatalf("Expected error for invalid OTP, but succeeded")
@@ -67,7 +67,7 @@ func TestMasterAuthentication(t *testing.T) {
 }
 
 func TestScopedTokens(t *testing.T) {
-	master := MasterAuth{KeyID: "master", Secret: "JBSWY3DPEHPK3PXP"}
+	master := MasterAuth{KeyID: "cs_key_56643d5586e39415ec34721cfc1b31b6", Secret: "JBSWY3DPEHPK3PXP"}
 	scoped := []ScopedToken{
 		{
 			ID:          "prom",

@@ -100,8 +100,8 @@ func main() {
 	}
 	fmt.Println("  Config:         " + *configPath)
 	fmt.Printf("  Listening:      http://%s:%d (or https if TLS enabled)\n", cfg.Host, cfg.Port)
-	fmt.Printf("  Master Key ID:  %s\n", cfg.Master.KeyID)
-	fmt.Printf("  Master Secret:  %s\n", cfg.Master.Secret)
+	fmt.Printf("  API Token Key:  %s\n", cfg.Master.KeyID)
+	fmt.Printf("  TOTP Secret:    %s\n", cfg.Master.Secret)
 	fmt.Printf("  Allowed Roots:  %s\n", strings.Join(cfg.Sandbox.AllowedRoots, ", "))
 	fmt.Println()
 	fmt.Println("  1-Click Connection Link (copy & paste into Config Studio):")
@@ -269,8 +269,8 @@ func handleLinkCommand(args []string) {
 	fmt.Println("  " + link)
 	fmt.Println()
 	fmt.Println("  Included parameters:")
-	fmt.Printf("    • Master Key ID:  %s\n", cfg.Master.KeyID)
-	fmt.Printf("    • Master Secret:  %s\n", cfg.Master.Secret)
+	fmt.Printf("    • API Token Key:  %s\n", cfg.Master.KeyID)
+	fmt.Printf("    • TOTP Secret:    %s\n", cfg.Master.Secret)
 	rootsDisplay := strings.Join(cfg.Sandbox.AllowedRoots, ", ")
 	if len(customRoots) > 0 {
 		rootsDisplay = strings.Join(customRoots, ", ")
