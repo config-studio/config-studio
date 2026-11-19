@@ -24,6 +24,7 @@ Lightweight, Zero-Trust Headless Daemon for Cloud & VPS Fleet Management.
 
 USAGE:
     config-studio-agent [flags]
+    config-studio-agent link [options]
     config-studio-agent token <action> [options]
 
 FLAGS:
@@ -31,6 +32,13 @@ FLAGS:
     -port <int>       Override listening port (default: 8085)
     -tls              Enable HTTPS / TLS
     -version          Print agent version and exit
+
+LINK COMMAND:
+    link              Generate 1-click import connection link (cs-agent://...)
+    link -raw         Output only the URI string (ideal for scripts and terminal pipes)
+    link -host <ip>   Override public IP address in generated link
+    link -name <node> Set custom node name in link fragment (#node)
+    link -roots <p1,p2> Set multiple working directories in query parameters (?roots=...)
 
 TOKEN COMMANDS:
     token list
@@ -46,9 +54,15 @@ TOPICS AVAILABLE:
 }
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "token" {
-		handleTokenCommands(os.Args[2:])
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "token":
+			handleTokenCommands(os.Args[2:])
+			return
+		case "link", "invite", "url":
+			handleLinkCommand(os.Args[2:])
+			return
+		}
 	}
 
 	configPath := flag.String("config", "agent.yaml", "Path to agent.yaml")
@@ -62,7 +76,7 @@ func main() {
 		return
 	}
 
-	cfg, isNew, err := agent.LoadOrInitConfig(*configPath)
+	cfg, _, err := agent.LoadOrInitConfig(*configPath)
 	if err != nil {
 		log.Fatalf("[Agent] Configuration error: %v", err)
 	}
@@ -74,24 +88,25 @@ func main() {
 		cfg.TLS.Enabled = true
 	}
 
-	if isNew || !cfg.Adopted {
-		fmt.Println("==================================================================")
-		fmt.Printf("  Config Studio Remote Agent v%s (commit: %s)\n", Version, Commit)
-		fmt.Println("==================================================================")
-		if !cfg.Adopted {
-			fmt.Println("  Status:         UNADOPTED (Ready for 1-Click Adopt from Config Studio)")
-		} else {
-			fmt.Println("  Status:         ADOPTED")
-		}
-		fmt.Println("  Config:         " + *configPath)
-		fmt.Println()
-		fmt.Printf("  Master Key ID:  %s\n", cfg.Master.KeyID)
-		fmt.Printf("  Master Secret:  %s\n", cfg.Master.Secret)
-		fmt.Println()
-		fmt.Println("  Use these credentials or click 'Adopt' in Config Studio:")
-		fmt.Printf("  URL:            http://%s:%d (or https if TLS enabled)\n", cfg.Host, cfg.Port)
-		fmt.Println("==================================================================")
+	connectionLink := cfg.GenerateConnectionLink("", "", nil)
+
+	fmt.Println("==================================================================")
+	fmt.Printf("  Config Studio Remote Agent v%s (commit: %s)\n", Version, Commit)
+	fmt.Println("==================================================================")
+	if !cfg.Adopted {
+		fmt.Println("  Status:         READY / UNADOPTED")
+	} else {
+		fmt.Println("  Status:         RUNNING")
 	}
+	fmt.Println("  Config:         " + *configPath)
+	fmt.Printf("  Listening:      http://%s:%d (or https if TLS enabled)\n", cfg.Host, cfg.Port)
+	fmt.Printf("  Master Key ID:  %s\n", cfg.Master.KeyID)
+	fmt.Printf("  Master Secret:  %s\n", cfg.Master.Secret)
+	fmt.Printf("  Allowed Roots:  %s\n", strings.Join(cfg.Sandbox.AllowedRoots, ", "))
+	fmt.Println()
+	fmt.Println("  1-Click Connection Link (copy & paste into Config Studio):")
+	fmt.Println("  " + connectionLink)
+	fmt.Println("==================================================================")
 
 	srv := agent.NewServer(cfg, Version, Commit, BuildDate)
 
@@ -213,4 +228,53 @@ func handleTokenCommands(args []string) {
 		fmt.Printf("Unknown token action: %q. Use list, create, or delete.\n", action)
 		os.Exit(1)
 	}
+}
+
+func handleLinkCommand(args []string) {
+	fs := flag.NewFlagSet("link", flag.ExitOnError)
+	configPath := fs.String("config", "agent.yaml", "Path to agent.yaml")
+	overrideHost := fs.String("host", "", "Override host/IP address")
+	overrideName := fs.String("name", "", "Override server node name")
+	overrideRoots := fs.String("roots", "", "Override comma-separated allowed working roots")
+	rawOnly := fs.Bool("raw", false, "Print only the raw cs-agent:// URL (for scripts/copying)")
+	_ = fs.Parse(args)
+
+	cfg, _, err := agent.LoadOrInitConfig(*configPath)
+	if err != nil {
+		log.Fatalf("[Agent] Configuration error: %v", err)
+	}
+
+	var customRoots []string
+	if *overrideRoots != "" {
+		for _, r := range strings.Split(*overrideRoots, ",") {
+			r = strings.TrimSpace(r)
+			if r != "" {
+				customRoots = append(customRoots, r)
+			}
+		}
+	}
+
+	link := cfg.GenerateConnectionLink(*overrideHost, *overrideName, customRoots)
+
+	if *rawOnly {
+		fmt.Println(link)
+		return
+	}
+
+	fmt.Println("==================================================================")
+	fmt.Printf("  Config Studio Remote Agent v%s — Connection Link\n", Version)
+	fmt.Println("==================================================================")
+	fmt.Println("  1-Click Import URI (copy & paste into Config Studio):")
+	fmt.Println()
+	fmt.Println("  " + link)
+	fmt.Println()
+	fmt.Println("  Included parameters:")
+	fmt.Printf("    • Master Key ID:  %s\n", cfg.Master.KeyID)
+	fmt.Printf("    • Master Secret:  %s\n", cfg.Master.Secret)
+	rootsDisplay := strings.Join(cfg.Sandbox.AllowedRoots, ", ")
+	if len(customRoots) > 0 {
+		rootsDisplay = strings.Join(customRoots, ", ")
+	}
+	fmt.Printf("    • Allowed Roots:  %s\n", rootsDisplay)
+	fmt.Println("==================================================================")
 }

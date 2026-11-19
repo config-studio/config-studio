@@ -25,8 +25,41 @@ func (s *Server) handleFSTree(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dirPath := r.URL.Query().Get("path")
-	if dirPath == "" {
-		if len(s.cfg.Sandbox.AllowedRoots) > 0 {
+	if dirPath == "" || dirPath == "/" {
+		// Multi-root handling: if multiple allowed roots are defined, present them as top-level workspace nodes
+		if len(s.cfg.Sandbox.AllowedRoots) > 1 {
+			var rootNodes []FSNode
+			for _, rPath := range s.cfg.Sandbox.AllowedRoots {
+				rClean := filepath.Clean(rPath)
+				name := filepath.Base(rClean)
+				if name == "/" || name == "\\" || name == "." {
+					name = rClean
+				}
+				fi, err := os.Stat(rClean)
+				modTime := time.Now()
+				size := int64(0)
+				if err == nil {
+					modTime = fi.ModTime()
+					size = fi.Size()
+				}
+				rootNodes = append(rootNodes, FSNode{
+					Name:    name,
+					Path:    rClean,
+					IsDir:   true,
+					Size:    size,
+					ModTime: modTime,
+				})
+			}
+			jsonResponse(w, http.StatusOK, map[string]any{
+				"path":  "/",
+				"roots": s.cfg.Sandbox.AllowedRoots,
+				"nodes": rootNodes,
+				"items": rootNodes,
+			})
+			return
+		}
+
+		if len(s.cfg.Sandbox.AllowedRoots) == 1 {
 			dirPath = s.cfg.Sandbox.AllowedRoots[0]
 		} else {
 			dirPath = "/"
