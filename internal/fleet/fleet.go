@@ -46,12 +46,13 @@ type SSHConnectionConfig struct {
 
 // AgentConnectionConfig defines Remote Agent daemon parameters.
 type AgentConnectionConfig struct {
-	Enabled     bool   `json:"enabled" yaml:"enabled"`
-	Port        int    `json:"port,omitempty" yaml:"port,omitempty"`
-	URL         string `json:"url,omitempty" yaml:"url,omitempty"`
-	VaultSecret string `json:"vaultSecret,omitempty" yaml:"vault_secret,omitempty"` // Core Vault reference (e.g. "vault:agent-id")
-	SecretRef   string `json:"secretRef,omitempty" yaml:"secret_ref,omitempty"`     // Core Vault reference (e.g. "vault://agent:id" or "vault:agent-id")
-	TLSVerify   bool   `json:"tlsVerify" yaml:"tls_verify"`
+	Enabled     bool     `json:"enabled" yaml:"enabled"`
+	Port        int      `json:"port,omitempty" yaml:"port,omitempty"`
+	URL         string   `json:"url,omitempty" yaml:"url,omitempty"`
+	Roots       []string `json:"roots,omitempty" yaml:"roots,omitempty"`
+	VaultSecret string   `json:"vaultSecret,omitempty" yaml:"vault_secret,omitempty"` // Core Vault reference (e.g. "vault:agent-id")
+	SecretRef   string   `json:"secretRef,omitempty" yaml:"secret_ref,omitempty"`     // Core Vault reference (e.g. "vault://agent:id" or "vault:agent-id")
+	TLSVerify   bool     `json:"tlsVerify" yaml:"tls_verify"`
 }
 
 // ConnectionConfig holds supported protocols for a node.

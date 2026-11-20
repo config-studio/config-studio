@@ -293,12 +293,16 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	if serviceType == "systemd" || serviceType == "openrc" {
 		addLog("Установка и запуск службы агента через нативный режим (%s -install)...", targetBinPath)
 		var installCmd string
+		rootsParam := "/"
+		if srv.Connection.Agent != nil && len(srv.Connection.Agent.Roots) > 0 {
+			rootsParam = strings.Join(srv.Connection.Agent.Roots, ",")
+		}
 		if opts.UpgradeOnly && !shouldWriteConfig {
-			installCmd = fmt.Sprintf("%s%s -install -port %d -roots '/' -name %q -raw",
-				sudoPrefix, targetBinPath, port, srv.Name)
+			installCmd = fmt.Sprintf("%s%s -install -port %d -roots %q -name %q -host %q -raw",
+				sudoPrefix, targetBinPath, port, rootsParam, srv.Name, targetHost)
 		} else {
-			installCmd = fmt.Sprintf("%s%s -install -port %d -roots '/' -name %q -key %q -secret %q -raw",
-				sudoPrefix, targetBinPath, port, srv.Name, keyID, totpSecret)
+			installCmd = fmt.Sprintf("%s%s -install -port %d -roots %q -name %q -host %q -key %q -secret %q -raw",
+				sudoPrefix, targetBinPath, port, rootsParam, srv.Name, targetHost, keyID, totpSecret)
 		}
 
 		installOut, err := runRemoteCmd(client, installCmd)
