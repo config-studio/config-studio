@@ -108,6 +108,15 @@ func TestGenerateOrUpdateAgentConfig_CreationAndPreservation(t *testing.T) {
 	if updatedCfg.Master.Secret != originalSecret {
 		t.Fatalf("credentials loss: expected Secret %s, got %s", originalSecret, updatedCfg.Master.Secret)
 	}
+
+	// 3. Re-running install/update with port = 0 (omitted -port flag) must preserve existing custom port 9095!
+	preservedPortCfg, err := GenerateOrUpdateAgentConfig(cfgPath, 0, nil, "", "", false)
+	if err != nil {
+		t.Fatalf("GenerateOrUpdateAgentConfig failed on preserve update: %v", err)
+	}
+	if preservedPortCfg.Port != 9095 {
+		t.Fatalf("expected preserved port 9095, got %d", preservedPortCfg.Port)
+	}
 }
 
 func TestSelectAvailablePort_AutonomousFallback(t *testing.T) {

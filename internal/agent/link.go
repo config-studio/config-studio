@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -170,7 +171,11 @@ func ParseConnectionLink(raw string) (*ConnectionLinkInfo, error) {
 		for _, r := range strings.Split(rootsRaw, ",") {
 			r = strings.TrimSpace(r)
 			if r != "" {
-				roots = append(roots, filepath.Clean(r))
+				if strings.HasPrefix(r, "/") {
+					roots = append(roots, pathpkg.Clean(r))
+				} else {
+					roots = append(roots, filepath.Clean(r))
+				}
 			}
 		}
 	}

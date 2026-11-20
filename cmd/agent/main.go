@@ -105,7 +105,7 @@ func main() {
 	}
 
 	if *installFlag {
-		port := parsePortString(*portStr, 8085)
+		port := parsePortString(*portStr, 0)
 		HandleInstall(InstallOptions{
 			ConfigPath: *configPath,
 			Port:       port,
@@ -380,7 +380,7 @@ func handleInstallCommand(args []string) {
 	raw := fs.Bool("raw", false, "Output only raw connection URI string")
 	_ = fs.Parse(args)
 
-	port := parsePortString(*portStr, 8085)
+	port := parsePortString(*portStr, 0)
 	HandleInstall(InstallOptions{
 		ConfigPath: *configPath,
 		Port:       port,

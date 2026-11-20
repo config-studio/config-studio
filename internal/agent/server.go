@@ -109,7 +109,7 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-CS-Agent-Key, X-CS-Agent-OTP, X-ConfigStudio-Web")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-CS-Agent-Key, X-CS-Agent-OTP, X-ConfigStudio-Web, X-Nonce, X-Request-ID")
 		w.Header().Set("Access-Control-Expose-Headers", "X-CS-Server-Time, X-CS-Access-Level")
 		w.Header().Set("X-CS-Server-Time", fmt.Sprintf("%d", time.Now().Unix()))
 

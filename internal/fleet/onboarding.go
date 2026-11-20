@@ -159,28 +159,44 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	}
 	addLog("Выбрана система инициализации службы: %s", serviceType)
 
-	// 6. Generate Master Key & TOTP Secret and store in Core Vault
-	keyID := agent.GenerateRandomToken("cs_key")
-	totpSecret := agent.GenerateBase32Secret(20)
-
-	credsJSON, _ := json.Marshal(map[string]string{
-		"keyId":  keyID,
-		"secret": totpSecret,
-	})
-
+	// 6. Resolve or Generate Master Key & TOTP Secret and store in Core Vault
+	keyID := ""
+	totpSecret := ""
 	vaultSecretID := fmt.Sprintf("agent:%s", srv.ID)
-	if secMgr != nil {
-		_ = secMgr.Set(secrets.SecretItem{
-			SecretMeta: secrets.SecretMeta{
-				ID:       vaultSecretID,
-				Title:    fmt.Sprintf("Agent Credentials (%s)", srv.Name),
-				Type:     secrets.TypeAgentCredentials,
-				Scope:    secrets.ScopeShared,
-				PluginID: "servers",
-			},
-			Value: string(credsJSON),
+
+	if opts.UpgradeOnly && secMgr != nil {
+		if existingJSON, err := secMgr.Get(vaultSecretID); err == nil && strings.TrimSpace(existingJSON) != "" {
+			var creds map[string]string
+			if err := json.Unmarshal([]byte(existingJSON), &creds); err == nil {
+				keyID = creds["keyId"]
+				totpSecret = creds["secret"]
+				addLog("Использованы существующие учетные данные Core Vault (ID: %s)", vaultSecretID)
+			}
+		}
+	}
+
+	if keyID == "" || totpSecret == "" {
+		keyID = agent.GenerateRandomToken("cs_key")
+		totpSecret = agent.GenerateBase32Secret(20)
+
+		credsJSON, _ := json.Marshal(map[string]string{
+			"keyId":  keyID,
+			"secret": totpSecret,
 		})
-		addLog("Секрет авторизации сгенерирован и безопасно сохранен в Core Vault (ID: %s)", vaultSecretID)
+
+		if secMgr != nil {
+			_ = secMgr.Set(secrets.SecretItem{
+				SecretMeta: secrets.SecretMeta{
+					ID:       vaultSecretID,
+					Title:    fmt.Sprintf("Agent Credentials (%s)", srv.Name),
+					Type:     secrets.TypeAgentCredentials,
+					Scope:    secrets.ScopeShared,
+					PluginID: "servers",
+				},
+				Value: string(credsJSON),
+			})
+			addLog("Секрет авторизации сгенерирован и безопасно сохранен в Core Vault (ID: %s)", vaultSecretID)
+		}
 	}
 
 	// 7. Initialize SFTP client with concurrent write acceleration
@@ -292,17 +308,21 @@ func (m *Manager) InstallAgent(ctx context.Context, srvID string, opts InstallAg
 	// 9. Configure & Start Service via the agent's native installer (-install)
 	if serviceType == "systemd" || serviceType == "openrc" {
 		addLog("Установка и запуск службы агента через нативный режим (%s -install)...", targetBinPath)
+		shellQuote := func(s string) string {
+			return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+		}
+
 		var installCmd string
 		rootsParam := "/"
 		if srv.Connection.Agent != nil && len(srv.Connection.Agent.Roots) > 0 {
 			rootsParam = strings.Join(srv.Connection.Agent.Roots, ",")
 		}
 		if opts.UpgradeOnly && !shouldWriteConfig {
-			installCmd = fmt.Sprintf("%s%s -install -port %d -roots %q -name %q -host %q -raw",
-				sudoPrefix, targetBinPath, port, rootsParam, srv.Name, targetHost)
+			installCmd = fmt.Sprintf("%s%s -install -port %d -roots %s -name %s -host %s -raw",
+				sudoPrefix, targetBinPath, port, shellQuote(rootsParam), shellQuote(srv.Name), shellQuote(targetHost))
 		} else {
-			installCmd = fmt.Sprintf("%s%s -install -port %d -roots %q -name %q -host %q -key %q -secret %q -raw",
-				sudoPrefix, targetBinPath, port, rootsParam, srv.Name, targetHost, keyID, totpSecret)
+			installCmd = fmt.Sprintf("%s%s -install -port %d -roots %s -name %s -host %s -key %s -secret %s -raw",
+				sudoPrefix, targetBinPath, port, shellQuote(rootsParam), shellQuote(srv.Name), shellQuote(targetHost), shellQuote(keyID), shellQuote(totpSecret))
 		}
 
 		installOut, err := runRemoteCmd(client, installCmd)
@@ -460,9 +480,15 @@ WantedBy=multi-user.target
 	}
 
 	// 11. Update server in servers.yaml
+	var currentRoots []string
+	if srv.Connection.Agent != nil {
+		currentRoots = srv.Connection.Agent.Roots
+	}
 	srv.Connection.Agent = &AgentConnectionConfig{
 		Enabled:     true,
+		Port:        port,
 		URL:         agentURL,
+		Roots:       currentRoots,
 		VaultSecret: vaultSecretID,
 		TLSVerify:   false,
 	}

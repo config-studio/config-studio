@@ -49,12 +49,29 @@ func TestMasterAuthentication(t *testing.T) {
 		t.Errorf("Expected AccessReadWrite, got %v", ctx.Level)
 	}
 
-	// 4. Replay test: Attempting to use the SAME OTP step again must fail
-	reqReplay := httptest.NewRequest("POST", "/api/fs/file", nil)
-	reqReplay.Header.Set("Authorization", "Bearer cs_key_56643d5586e39415ec34721cfc1b31b6:"+otp)
-	_, err = auth.AuthenticateRequest(reqReplay)
+	// 4. Sequential request in same TOTP step WITHOUT nonce must succeed (does not lock UI for 30s)
+	reqSeq := httptest.NewRequest("POST", "/api/fs/file", nil)
+	reqSeq.Header.Set("Authorization", "Bearer cs_key_56643d5586e39415ec34721cfc1b31b6:"+otp)
+	ctxSeq, err := auth.AuthenticateRequest(reqSeq)
+	if err != nil || ctxSeq.Level != AccessReadWrite {
+		t.Fatalf("Expected sequential request without nonce to succeed, got err: %v", err)
+	}
+
+	// 5. Replay test with explicit Nonce: Attempting to use the SAME nonce in the same step must fail
+	reqWithNonce := httptest.NewRequest("POST", "/api/fs/file", nil)
+	reqWithNonce.Header.Set("Authorization", "Bearer cs_key_56643d5586e39415ec34721cfc1b31b6:"+otp)
+	reqWithNonce.Header.Set("X-Nonce", "test-nonce-12345")
+	_, err = auth.AuthenticateRequest(reqWithNonce)
+	if err != nil {
+		t.Fatalf("Initial request with nonce failed: %v", err)
+	}
+
+	reqReplayNonce := httptest.NewRequest("POST", "/api/fs/file", nil)
+	reqReplayNonce.Header.Set("Authorization", "Bearer cs_key_56643d5586e39415ec34721cfc1b31b6:"+otp)
+	reqReplayNonce.Header.Set("X-Nonce", "test-nonce-12345")
+	_, err = auth.AuthenticateRequest(reqReplayNonce)
 	if err == nil {
-		t.Fatalf("Expected replay detection error for reused OTP, but succeeded!")
+		t.Fatalf("Expected replay detection error for reused nonce, but succeeded!")
 	}
 
 	// 5. Invalid TOTP

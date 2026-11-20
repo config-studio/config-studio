@@ -184,10 +184,6 @@ func GenerateOrUpdateAgentConfig(cfgPath string, port int, roots []string, keyID
 		}
 	}
 
-	if port <= 0 {
-		port = 8085
-	}
-
 	// Check if already exists
 	if _, err := os.Stat(cfgPath); err == nil {
 		cfg, _, loadErr := agent.LoadOrInitConfig(cfgPath)
@@ -213,6 +209,10 @@ func GenerateOrUpdateAgentConfig(cfgPath string, port int, roots []string, keyID
 			return nil, fmt.Errorf("failed to save updated config: %w", err)
 		}
 		return cfg, nil
+	}
+
+	if port <= 0 {
+		port = 8085
 	}
 
 	// Create fresh credentials if not explicitly provided

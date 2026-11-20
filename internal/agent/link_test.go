@@ -76,3 +76,15 @@ func TestParseConnectionLinkVariants(t *testing.T) {
 		t.Errorf("expected error for invalid scheme")
 	}
 }
+
+func TestParseConnectionLink_PreservesPosixRootsOnWindows(t *testing.T) {
+	link := "cs-agent://cs_key_56643d5586e39415ec34721cfc1b31b6:JBSWY3DPEHPK3PXP@192.168.1.50:8085/?roots=/opt/projects,/var/www#prod-vps"
+	parsed, err := ParseConnectionLink(link)
+	if err != nil {
+		t.Fatalf("ParseConnectionLink failed: %v", err)
+	}
+	if len(parsed.Roots) != 2 || parsed.Roots[0] != "/opt/projects" || parsed.Roots[1] != "/var/www" {
+		t.Fatalf("roots corrupted by filepath.Clean: %+v", parsed.Roots)
+	}
+}
+
