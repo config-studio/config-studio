@@ -358,11 +358,22 @@ WantedBy=multi-user.target
 			}
 		} else {
 			addLog("✓ Служба %s успешно зарегистрирована, запущена и включена в автозагрузку", serviceType)
-			cleanLink := strings.TrimSpace(installOut)
-			if strings.HasPrefix(cleanLink, "cs-agent://") {
+			cleanLink := ""
+			for _, line := range strings.Split(installOut, "\n") {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "cs-agent://") {
+					cleanLink = line
+					break
+				}
+			}
+			if cleanLink != "" {
 				addLog("✓ Получена ссылка подключения агента: %s", cleanLink)
-				if opts.UpgradeOnly && !shouldWriteConfig {
-					if parsed, err := agent.ParseConnectionLink(cleanLink); err == nil && parsed.KeyID != "" {
+				if parsed, err := agent.ParseConnectionLink(cleanLink); err == nil {
+					if parsed.Port > 0 && parsed.Port != port {
+						addLog("✓ Порт %d был занят, агент автономно запущен на свободном порту: %d", port, parsed.Port)
+						port = parsed.Port
+					}
+					if opts.UpgradeOnly && !shouldWriteConfig && parsed.KeyID != "" {
 						keyID = parsed.KeyID
 						totpSecret = parsed.Secret
 						if secMgr != nil {

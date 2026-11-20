@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,6 +65,55 @@ func parsePortString(s string, defaultPort int) int {
 		return defaultPort
 	}
 	return p
+}
+
+// CandidateAgentPorts defines the curated list of default and fallback ports for Config Studio Agent.
+var CandidateAgentPorts = []int{
+	8085, // Primary default port
+	8086,
+	8087,
+	8088,
+	8089,
+	9085,
+	9086,
+	9885,
+	18085,
+	28085,
+}
+
+// IsPortAvailable checks if a TCP port can be bound locally.
+func IsPortAvailable(port int) bool {
+	if port <= 0 || port > 65535 {
+		return false
+	}
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return false
+	}
+	_ = ln.Close()
+	return true
+}
+
+// SelectAvailablePort checks preferredPort and if in use, picks the first free candidate from CandidateAgentPorts.
+// Returns (selectedPort, wasFallback).
+func SelectAvailablePort(preferredPort int) (int, bool) {
+	if preferredPort > 0 && IsPortAvailable(preferredPort) {
+		return preferredPort, false
+	}
+
+	for _, p := range CandidateAgentPorts {
+		if p == preferredPort {
+			continue
+		}
+		if IsPortAvailable(p) {
+			return p, true
+		}
+	}
+
+	if preferredPort > 0 {
+		return preferredPort, false
+	}
+	return 8085, false
 }
 
 func parseRootsString(s string) []string {
@@ -254,8 +304,17 @@ func HandleInstall(opts InstallOptions) {
 	roots := parseRootsString(opts.Roots)
 
 	if runtime.GOOS != "linux" {
+		preferredPort := opts.Port
+		if preferredPort <= 0 {
+			preferredPort = 8085
+		}
+		selectedPort, wasFallback := SelectAvailablePort(preferredPort)
+		if wasFallback {
+			logMsg("--> Port %d is busy, autonomously selected available port: %d", preferredPort, selectedPort)
+		}
+
 		// Non-linux (e.g. Windows or MacOS local test): generate config & output link
-		cfg, err := GenerateOrUpdateAgentConfig(cfgPath, opts.Port, roots, opts.KeyID, opts.Secret, opts.TLS)
+		cfg, err := GenerateOrUpdateAgentConfig(cfgPath, selectedPort, roots, opts.KeyID, opts.Secret, opts.TLS)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating agent config: %v\n", err)
 			os.Exit(1)
@@ -297,6 +356,13 @@ func HandleInstall(opts InstallOptions) {
 
 	logMsg("--> Detected init system: %s", initSys)
 
+	// Stop previous service first so its port is released for checking
+	if initSys == "systemd" {
+		_ = exec.Command("systemctl", "stop", "config-studio-agent.service").Run()
+	} else if initSys == "openrc" {
+		_ = exec.Command("rc-service", "config-studio-agent", "stop").Run()
+	}
+
 	// 1. Locate current binary and copy to /usr/local/bin/config-studio-agent
 	selfPath, err := os.Executable()
 	if err != nil {
@@ -316,9 +382,30 @@ func HandleInstall(opts InstallOptions) {
 		logMsg("--> Binary is already located at %s", agentTargetBinaryPath)
 	}
 
+	// Determine preferred port
+	preferredPort := opts.Port
+	if preferredPort <= 0 {
+		if _, err := os.Stat(cfgPath); err == nil {
+			if existingCfg, _, err := agent.LoadOrInitConfig(cfgPath); err == nil && existingCfg.Port > 0 {
+				preferredPort = existingCfg.Port
+			}
+		}
+		if preferredPort <= 0 {
+			preferredPort = 8085
+		}
+	}
+
+	// Test port availability; autonomously fallback to curated candidate if busy
+	selectedPort, wasFallback := SelectAvailablePort(preferredPort)
+	if wasFallback {
+		logMsg("--> Port %d is busy, autonomously selected available port: %d", preferredPort, selectedPort)
+	} else {
+		logMsg("--> Selected listening port: %d", selectedPort)
+	}
+
 	// 2. Prepare /etc/config-studio/agent.yaml
 	logMsg("--> Configuring agent at %s...", cfgPath)
-	cfg, err := GenerateOrUpdateAgentConfig(cfgPath, opts.Port, roots, opts.KeyID, opts.Secret, opts.TLS)
+	cfg, err := GenerateOrUpdateAgentConfig(cfgPath, selectedPort, roots, opts.KeyID, opts.Secret, opts.TLS)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create agent configuration: %v\n", err)
 		os.Exit(1)

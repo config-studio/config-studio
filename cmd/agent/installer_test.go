@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -105,5 +107,45 @@ func TestGenerateOrUpdateAgentConfig_CreationAndPreservation(t *testing.T) {
 	}
 	if updatedCfg.Master.Secret != originalSecret {
 		t.Fatalf("credentials loss: expected Secret %s, got %s", originalSecret, updatedCfg.Master.Secret)
+	}
+}
+
+func TestSelectAvailablePort_AutonomousFallback(t *testing.T) {
+	// 1. Pick a high test port from the curated list or custom port
+	// We dynamically bind one port to simulate conflict
+	preferred := 28085
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", preferred))
+	if err != nil {
+		t.Skipf("port %d already occupied by environment, skipping mock listen", preferred)
+		return
+	}
+	defer ln.Close()
+
+	// 2. SelectAvailablePort on the occupied port must detect conflict and pick another available candidate
+	chosen, wasFallback := SelectAvailablePort(preferred)
+	if !wasFallback {
+		t.Fatalf("expected wasFallback=true for occupied port %d, got chosen=%d wasFallback=false", preferred, chosen)
+	}
+	if chosen == preferred {
+		t.Fatalf("expected different fallback port than occupied %d, got %d", preferred, chosen)
+	}
+	if chosen <= 0 || chosen > 65535 {
+		t.Fatalf("invalid port chosen: %d", chosen)
+	}
+
+	// 3. Testing with a known free port must pick that exact port with wasFallback=false
+	lnFree, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("failed to allocate free port: %v", err)
+	}
+	freePort := lnFree.Addr().(*net.TCPAddr).Port
+	_ = lnFree.Close() // Release it immediately
+
+	chosenFree, wasFallbackFree := SelectAvailablePort(freePort)
+	if wasFallbackFree {
+		t.Fatalf("expected wasFallback=false for free port %d, got chosen=%d", freePort, chosenFree)
+	}
+	if chosenFree != freePort {
+		t.Fatalf("expected port %d, got %d", freePort, chosenFree)
 	}
 }
